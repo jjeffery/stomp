@@ -14,7 +14,7 @@ type Reader struct {
 }
 
 func NewReader(reader io.Reader) *Reader {
-	sr := new(StompReader)
+	sr := new(Reader)
 	sr.reader = bufio.NewReaderSize(reader, bufferSize)
 	return sr
 }

@@ -2,6 +2,7 @@ package stomp
 
 import (
 	"io"
+	"strconv"
 )
 
 const (
@@ -114,6 +115,23 @@ type Frame struct {
 	Body []byte
 }
 
+func (f *Frame) ContentLength() (contentLength int, ok bool) {
+	index, ok := f.findHeader(ContentLength)
+	if !ok {
+		return
+	}
+
+	value, err := strconv.ParseInt(f.Headers[index].Value(), 10, 32)
+	if err != nil {
+		ok = false
+		return
+	}
+
+	contentLength = int(value)
+	ok = true
+	return
+}
+
 func (f *Frame) WriteTo(w io.Writer) (n int64, err error) {
 	count, err := w.Write([]byte(f.Command))
 	n += int64(count)
@@ -150,11 +168,14 @@ func (f *Frame) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-func (f *Frame) FindHeader(name string) *Header {
-	for _, v := range f.Headers {
+func (f *Frame) findHeader(name string) (index int, ok bool) {
+	for i, v := range f.Headers {
 		if v.Name == name {
-			return &v
+			index = i
+			ok = true
+			return
 		}
 	}
-	return nil
+
+	return
 }
