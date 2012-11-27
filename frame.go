@@ -46,9 +46,10 @@ const (
 
 // slices used to write frames
 var (
-	colonSlice   = []byte{58} // colon ':'
-	newlineSlice = []byte{10} // newline
-	nullSlice    = []byte{0}  // null character
+	colonSlice   = []byte{58}     // colon ':'
+	crlfSlice    = []byte{13, 10} // CR-LF
+	newlineSlice = []byte{10}     // newline (LF)
+	nullSlice    = []byte{0}      // null character
 )
 
 // Represents a single STOMP header
@@ -60,12 +61,14 @@ type Header struct {
 
 // Encodes a header value using STOMP value encoding
 func encodeValue(s string) []byte {
-	panic("not implemented: EncodeValue")
+	// TODO: need to encode \r, \n and backslash
+	return []byte(s)
 }
 
 // Unencodes a header value using STOMP value encoding
 func unencodeValue(value []byte) string {
-	panic("not implemented: UnencodeValue")
+	// TODO: need to unescape \r, \n and backslash
+	return string(value)
 }
 
 func (h Header) Value() string {
@@ -96,6 +99,10 @@ func (h Header) WriteTo(writer io.Writer) (n int64, err error) {
 	count, err = writer.Write(h.value)
 	n += int64(count)
 	return
+}
+
+func (h Header) String() string {
+	return h.Name + ":" + h.Value()
 }
 
 // Represents a single STOMP frame.
