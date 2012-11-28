@@ -88,7 +88,7 @@ func (r *Reader) Read() (*Frame, error) {
 			return nil, err
 		}
 		// remove trailing null
-		frame.Body = frame.Body[0:len(frame.Body)-1]
+		frame.Body = frame.Body[0 : len(frame.Body)-1]
 	}
 
 	// pass back frame

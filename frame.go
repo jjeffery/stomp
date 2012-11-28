@@ -98,6 +98,12 @@ func (h Header) WriteTo(writer io.Writer) (n int64, err error) {
 
 	count, err = writer.Write(h.value)
 	n += int64(count)
+	if err != nil {
+		return
+	}
+
+	count, err = writer.Write(newlineSlice)
+	n += int64(count)
 	return
 }
 
@@ -159,6 +165,12 @@ func (f *Frame) WriteTo(w io.Writer) (n int64, err error) {
 		if err != nil {
 			return
 		}
+	}
+
+	count, err = w.Write(newlineSlice)
+	n += int64(count)
+	if err != nil {
+		return
 	}
 
 	if len(f.Body) > 0 {

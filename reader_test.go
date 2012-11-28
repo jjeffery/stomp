@@ -1,13 +1,13 @@
 package stomp
 
 import (
+	"io"
 	. "launchpad.net/gocheck"
 	"strings"
 	"testing"
-	"io"
 )
 
-func Test(t *testing.T) { TestingT(t) }
+func TestReader(t *testing.T) { TestingT(t) }
 
 type ReaderSuite struct{}
 
@@ -20,7 +20,7 @@ func (s *ReaderSuite) TestConnect(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(frame, NotNil)
 	c.Assert(len(frame.Body), Equals, 0)
-	
+
 	// ensure we are at the end of input
 	frame, err = reader.Read()
 	c.Assert(frame, IsNil)
@@ -38,7 +38,7 @@ func (s *ReaderSuite) TestSendWithoutContentLength(c *C) {
 	c.Assert(frame.Headers[0].Name, Equals, "destination")
 	c.Assert(frame.Headers[0].Value(), Equals, "xxx")
 	c.Assert(string(frame.Body), Equals, "Payload")
-	
+
 	// ensure we are at the end of input
 	frame, err = reader.Read()
 	c.Assert(frame, IsNil)
@@ -54,8 +54,8 @@ func (s *ReaderSuite) TestSendWithContentLength(c *C) {
 	c.Assert(frame.Command, Equals, "SEND")
 	c.Assert(len(frame.Headers), Equals, 2)
 	c.Assert(frame.Headers[0].Name, Equals, "destination")
-	c.Assert(frame.Body, DeepEquals, []byte{0x00,0x01,0x02,0x03,0x04})
-	
+	c.Assert(frame.Body, DeepEquals, []byte{0x00, 0x01, 0x02, 0x03, 0x04})
+
 	// ensure we are at the end of input
 	frame, err = reader.Read()
 	c.Assert(frame, IsNil)
