@@ -34,9 +34,10 @@ func (s *ReaderSuite) TestSendWithoutContentLength(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(frame, NotNil)
 	c.Assert(frame.Command, Equals, "SEND")
-	c.Assert(len(frame.Headers), Equals, 1)
-	c.Assert(frame.Headers[0].Name, Equals, "destination")
-	c.Assert(frame.Headers[0].Value(), Equals, "xxx")
+	c.Assert(frame.Headers.Count(), Equals, 1)
+	k, v := frame.Headers.GetAt(0)
+	c.Assert(k, Equals, "destination")
+	c.Assert(v, Equals, "xxx")
 	c.Assert(string(frame.Body), Equals, "Payload")
 
 	// ensure we are at the end of input
@@ -52,8 +53,9 @@ func (s *ReaderSuite) TestSendWithContentLength(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(frame, NotNil)
 	c.Assert(frame.Command, Equals, "SEND")
-	c.Assert(len(frame.Headers), Equals, 2)
-	c.Assert(frame.Headers[0].Name, Equals, "destination")
+	c.Assert(frame.Headers.Count(), Equals, 2)
+	k, _ := frame.Headers.GetAt(0)
+	c.Assert(k, Equals, "destination")
 	c.Assert(frame.Body, DeepEquals, []byte{0x00, 0x01, 0x02, 0x03, 0x04})
 
 	// ensure we are at the end of input

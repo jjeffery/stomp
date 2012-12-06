@@ -64,11 +64,12 @@ func (r *Reader) Read() (*Frame, error) {
 			return nil, invalidFrameFormat
 		}
 
-		header := Header{
-			Name:  string(headerSlice[0:index]),
-			value: headerSlice[index+1:],
-		}
-		frame.Headers = append(frame.Headers, header)
+		name := string(headerSlice[0:index])
+		value := string(headerSlice[index+1:])
+
+		// TODO: need to decode if STOMP 1.1 or later
+
+		frame.Headers.Append(name, value)
 	}
 
 	// get content length from the headers

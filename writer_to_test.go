@@ -1,9 +1,9 @@
 package stomp
 
 import (
-	"bytes"
+	//"bytes"
 	. "launchpad.net/gocheck"
-	"strings"
+	//"strings"
 	"testing"
 )
 
@@ -12,6 +12,8 @@ func TestWriterTo(t *testing.T) { TestingT(t) }
 type WriterToSuite struct{}
 
 var _ = Suite(&WriterToSuite{})
+
+/*
 
 func (s *WriterToSuite) Test1(c *C) {
 	var frameTexts = []string{
@@ -40,3 +42,4 @@ func writeToBufferAndCheck(c *C, frameText string) {
 	c.Check(length, Equals, int64(len(newFrameText)))
 	c.Check(b.String(), Equals, frameText)
 }
+*/
