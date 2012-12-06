@@ -2,10 +2,7 @@ package stomp
 
 import (
 	. "launchpad.net/gocheck"
-	"testing"
 )
-
-func TestEncode(t *testing.T) { TestingT(t) }
 
 type EncodeSuite struct{}
 

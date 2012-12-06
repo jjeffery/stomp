@@ -4,10 +4,7 @@ import (
 	"io"
 	. "launchpad.net/gocheck"
 	"strings"
-	"testing"
 )
-
-func TestReader(t *testing.T) { TestingT(t) }
 
 type ReaderSuite struct{}
 

@@ -1,11 +1,5 @@
 package stomp
 
-import (
-	"bufio"
-	"bytes"
-	"errors"
-	"io"
-)
 
 const (
 	bufferSize = 4096
@@ -14,103 +8,13 @@ const (
 	nullByte   = byte(0)
 )
 
-var (
-	invalidFrameFormat = errors.New("invalid frame format")
+type errorMessage string
+
+const (
+	invalidFrameFormat = errorMessage("invalid frame format")
 )
 
-type Reader struct {
-	reader *bufio.Reader
+func (e errorMessage) Error() string {
+	return string(e)
 }
 
-func NewReader(reader io.Reader) *Reader {
-	sr := new(Reader)
-	sr.reader = bufio.NewReaderSize(reader, bufferSize)
-	return sr
-}
-
-// Read a STOMP frame from the input. If the input contains one
-// or more heart-beat characters and no frame, then nil will
-// be returned for the frame. Calling programs should always check
-// for a nil frame.
-func (r *Reader) Read() (*Frame, error) {
-	commandSlice, err := r.readLine()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(commandSlice) == 0 {
-		// received a heart-beat newline char (or cr-lf)
-		return nil, nil
-	}
-
-	frame := new(Frame)
-	frame.Command = string(commandSlice)
-
-	// read headers
-	for {
-		headerSlice, err := r.readLine()
-		if err != nil {
-			return nil, err
-		}
-
-		if len(headerSlice) == 0 {
-			// empty line means end of headers
-			break
-		}
-
-		index := bytes.IndexByte(headerSlice, colon)
-		if index <= 0 {
-			// colon is missing or header name is zero length
-			return nil, invalidFrameFormat
-		}
-
-		name := string(headerSlice[0:index])
-		value := string(headerSlice[index+1:])
-
-		// TODO: need to decode if STOMP 1.1 or later
-
-		frame.Headers.Append(name, value)
-	}
-
-	// get content length from the headers
-	if contentLength, ok := frame.ContentLength(); ok {
-		// content length specified in the header, so use that
-		frame.Body = make([]byte, contentLength)
-		for bytesRead := 0; bytesRead < contentLength; {
-			n, err := r.reader.Read(frame.Body[bytesRead:contentLength])
-			if err != nil {
-				return nil, err
-			}
-			bytesRead += n
-		}
-	} else {
-		frame.Body, err = r.reader.ReadBytes(nullByte)
-		if err != nil {
-			return nil, err
-		}
-		// remove trailing null
-		frame.Body = frame.Body[0 : len(frame.Body)-1]
-	}
-
-	// pass back frame
-	return frame, nil
-}
-
-// read one line from input and strip off terminating LF or terminating CR-LF
-func (r *Reader) readLine() (line []byte, err error) {
-	line, err = r.reader.ReadBytes(newline)
-	if err != nil {
-		return
-	}
-
-	switch {
-	case bytes.HasSuffix(line, crlfSlice):
-		line = line[0 : len(line)-len(crlfSlice)]
-	case bytes.HasSuffix(line, newlineSlice):
-		line = line[0 : len(line)-len(newlineSlice)]
-	default:
-		panic("line should always end with LF or CR-LF")
-	}
-
-	return
-}

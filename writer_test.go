@@ -1,21 +1,17 @@
 package stomp
 
 import (
-	//"bytes"
+	"bytes"
 	. "launchpad.net/gocheck"
-	//"strings"
-	"testing"
+	"strings"
 )
 
-func TestWriterTo(t *testing.T) { TestingT(t) }
+type WriterSuite struct{}
 
-type WriterToSuite struct{}
+var _ = Suite(&WriterSuite{})
 
-var _ = Suite(&WriterToSuite{})
 
-/*
-
-func (s *WriterToSuite) Test1(c *C) {
+func (s *WriterSuite) Test1(c *C) {
 	var frameTexts = []string{
 		"CONNECT\nlogin:xxx\npasscode:yyy\n\n\x00",
 		"SEND\ndestination:/queue/request\ntx:1\ncontent-length:5\n\n\x00\x01\x02\x03\x04\x00",
@@ -35,11 +31,10 @@ func writeToBufferAndCheck(c *C, frameText string) {
 	c.Assert(frame, NotNil)
 
 	var b bytes.Buffer
-	length, err := frame.WriteTo(&b)
+	var writer = NewWriter(&b)
+	err = writer.Write(frame)
 	c.Assert(err, IsNil)
 	newFrameText := b.String()
 	c.Check(newFrameText, Equals, frameText)
-	c.Check(length, Equals, int64(len(newFrameText)))
 	c.Check(b.String(), Equals, frameText)
 }
-*/

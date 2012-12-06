@@ -2,10 +2,7 @@ package stomp
 
 import (
 	. "launchpad.net/gocheck"
-	"testing"
 )
-
-func TestHeaders(t *testing.T) { TestingT(t) }
 
 type HeadersSuite struct{}
 

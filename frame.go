@@ -18,10 +18,7 @@ type Frame struct {
 	// STOMP commands are case sensitive.
 	Command string
 
-	// Frame headers. Note that this is an array and not a map. The reason is
-	// that STOMP 1.2 allows multiple headers with the same name. When there are
-	// multiple headers with the same name, the first one has the value and any 
-	// subsequent headers are for historical information only.
+	// Collection of frame headers.
 	Headers
 
 	// The frame body. Only SEND, MESSAGE and ERROR frames may have a body.
@@ -29,7 +26,12 @@ type Frame struct {
 	Body []byte
 }
 
-func (f *Frame) ContentLength() (contentLength int, ok bool) {
+// Returns the value of the "content-length" header, and whether it was
+// found or not. Used for deserializing a frame. If the content length
+// is specified in the header, then the body can contain null characters.
+// Otherwise the body is read until a null character is encountered.
+// If an error is returned, then the content-length header is malformed.
+func (f *Frame) ContentLength() (contentLength int, ok bool, err error) {
 	text, ok := f.Headers.Contains(ContentLength)
 	if !ok {
 		return
@@ -46,58 +48,3 @@ func (f *Frame) ContentLength() (contentLength int, ok bool) {
 	return
 }
 
-/*
-func (f *Frame) WriteTo(w io.Writer) (n int64, err error) {
-	count, err := w.Write([]byte(f.Command))
-	n += int64(count)
-	if err != nil {
-		return
-	}
-
-	count, err = w.Write(newlineSlice)
-	n += int64(count)
-	if err != nil {
-		return
-	}
-
-	for _, h := range f.Headers {
-		var count64 int64
-		count64, err = h.WriteTo(w)
-		n += count64
-		if err != nil {
-			return
-		}
-	}
-
-	count, err = w.Write(newlineSlice)
-	n += int64(count)
-	if err != nil {
-		return
-	}
-
-	if len(f.Body) > 0 {
-		count, err = w.Write(f.Body)
-		n += int64(count)
-		if err != nil {
-			return
-		}
-	}
-
-	// write the final nul (0) byte	
-	count, err = w.Write(nullSlice)
-	n += int64(count)
-	return
-}
-
-func (f *Frame) findHeader(name string) (index int, ok bool) {
-	for i, v := range f.Headers {
-		if v.Name == name {
-			index = i
-			ok = true
-			return
-		}
-	}
-
-	return
-}
-*/
