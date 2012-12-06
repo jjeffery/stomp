@@ -22,7 +22,7 @@ func (h *Headers) Count() int {
 
 func (h *Headers) GetAt(index int) (key, value string) {
 	index *= 2
-	return h.headers[index], h.headers[index + 1]
+	return h.headers[index], h.headers[index+1]
 }
 
 // Sets the value for a key/value pair in the Headers collection. 

@@ -1,7 +1,7 @@
 package stomp
 
 import (
-"bufio"
+	"bufio"
 	"io"
 )
 
@@ -26,7 +26,7 @@ func (w *Writer) Write(frame *Frame) error {
 	if err != nil {
 		return err
 	}
-	
+
 	headerCount := frame.Headers.Count()
 	for i := 0; i < headerCount; i++ {
 		h, v := frame.Headers.GetAt(i)
@@ -35,17 +35,17 @@ func (w *Writer) Write(frame *Frame) error {
 		if err != nil {
 			return err
 		}
-		
+
 		_, err = w.writer.Write(colonSlice)
 		if err != nil {
 			return err
 		}
-		
+
 		_, err = w.writer.Write([]byte(v))
 		if err != nil {
 			return err
 		}
-		
+
 		_, err = w.writer.Write(newlineSlice)
 		if err != nil {
 			return err
@@ -69,8 +69,7 @@ func (w *Writer) Write(frame *Frame) error {
 	if err != nil {
 		return err
 	}
-	
+
 	err = w.writer.Flush()
 	return err
 }
-

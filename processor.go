@@ -1,8 +1,4 @@
-package server
-
-import (
-	"github.com/jjeffery/stomp"
-)
+package stomp
 
 // input channel for receiving requests
 var inputChannel chan Request
@@ -17,7 +13,7 @@ type Process struct {
 	handleRequest requestHandler
 }
 
-func Run() {
+func RunProcessor() {
 
 	for {
 		select {
@@ -35,7 +31,7 @@ func handleRequest(r Request) {
 		processes[r.Connection] = process
 	}
 	process.handleRequest(r)
-	
+
 	// if an error was received, remove the process
 	if r.Error != nil {
 		delete(processes, r.Connection)
@@ -47,8 +43,8 @@ func waitingForConnect(r Request) {
 		// no cleanup required, as nothing happened yet
 		return
 	}
-	
-	if frame == nil || frame.Command != stomp.Connect {
-		
+
+	if r.Frame == nil || r.Frame.Command != ConnectCommand {
+
 	}
 }

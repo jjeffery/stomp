@@ -2,6 +2,7 @@ package stomp
 
 const (
 	// client frames
+	ConnectCommand = "CONNECT"
 	Send        = "SEND"
 	Subscribe   = "SUBSCRIBE"
 	Unsubscribe = "UNSUBSCRIBE"

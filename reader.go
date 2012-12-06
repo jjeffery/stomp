@@ -75,7 +75,7 @@ func (r *Reader) Read() (*Frame, error) {
 			}
 			bytesRead += n
 		}
-		
+
 		// TODO! need to read the null byte here!
 	} else {
 		frame.Body, err = r.reader.ReadBytes(nullByte)

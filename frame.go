@@ -47,4 +47,3 @@ func (f *Frame) ContentLength() (contentLength int, ok bool, err error) {
 	ok = true
 	return
 }
-

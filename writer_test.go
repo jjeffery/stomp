@@ -10,7 +10,6 @@ type WriterSuite struct{}
 
 var _ = Suite(&WriterSuite{})
 
-
 func (s *WriterSuite) Test1(c *C) {
 	var frameTexts = []string{
 		"CONNECT\nlogin:xxx\npasscode:yyy\n\n\x00",

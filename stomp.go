@@ -1,6 +1,5 @@
 package stomp
 
-
 const (
 	bufferSize = 4096
 	newline    = byte(10)
@@ -17,4 +16,3 @@ const (
 func (e errorMessage) Error() string {
 	return string(e)
 }
-

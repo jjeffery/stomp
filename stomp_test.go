@@ -1,11 +1,12 @@
 package stomp
 
 import (
+	"launchpad.net/gocheck"
 	"testing"
-	. "launchpad.net/gocheck"
 )
 
-// Runs all gocheck tests
+// Runs all gocheck tests.
+// See other *_test.go files for gocheck tests.
 func TestStomp(t *testing.T) {
-	TestingT(t)
+	gocheck.TestingT(t)
 }

@@ -1,8 +1,7 @@
-package server
+package stomp
 
 import (
 	"errors"
-	"github.com/jjeffery/stomp"
 	"net"
 )
 
@@ -18,14 +17,14 @@ const (
 type Connection struct {
 	conn         net.Conn
 	channel      chan Request
-	writeChannel chan *stomp.Frame
+	writeChannel chan *Frame
 }
 
 // Represents a request received from the client,
 // consisting of a frame and the connection it
 // was received from
 type Request struct {
-	Frame      *stomp.Frame
+	Frame      *Frame
 	Connection *Connection
 	Error      error
 }
@@ -34,7 +33,7 @@ func NewConnection(conn net.Conn, channel chan Request) *Connection {
 	c := new(Connection)
 	c.conn = conn
 	c.channel = channel
-	c.writeChannel = make(chan *stomp.Frame, 32)
+	c.writeChannel = make(chan *Frame, 32)
 	go c.ReadLoop()
 	go c.WriteLoop()
 	return c
@@ -43,7 +42,7 @@ func NewConnection(conn net.Conn, channel chan Request) *Connection {
 // Write a frame to the connection. TODO: caller blocks, need to introduce
 // another channel and a go routine to read from the channel and write to
 // the other party.
-func (c *Connection) Send(f *stomp.Frame) {
+func (c *Connection) Send(f *Frame) {
 	// place the frame on the write channel, or
 	// close the connection if the write channel is full,
 	// as this means the client is not keeping up.
@@ -62,16 +61,14 @@ func (c *Connection) Send(f *stomp.Frame) {
 
 // TODO: should send other information, such as receipt-id
 func (c *Connection) SendError(err error) {
-	f := new(stomp.Frame)
-	f.Command = stomp.Error
-	messageHeader := stomp.Header{Name: stomp.Message}
-	messageHeader.SetValue(err.Error())
-	f.Headers = append(f.Headers, messageHeader)
+	f := new(Frame)
+	f.Command = Error
+	f.Headers.Append(Message, err.Error())
 	c.Send(f) // will close after successful send
 }
 
 func (c *Connection) ReadLoop() {
-	reader := stomp.NewReader(c.conn)
+	reader := NewReader(c.conn)
 	for {
 		f, err := reader.Read()
 		if err != nil {
@@ -90,15 +87,16 @@ func (c *Connection) ReadLoop() {
 }
 
 func (c *Connection) WriteLoop() {
+	writer := NewWriter(c.conn)
 	for {
 		f := <-c.writeChannel
-		_, err := f.WriteTo(c.conn)
+		err := writer.Write(f)
 		if err != nil {
 			c.conn.Close()
 			c.channel <- Request{Connection: c, Error: err}
 			return
 		}
-		if f.Command == stomp.Error {
+		if f.Command == Error {
 			// sent an ERROR frame, so disconnect
 			c.conn.Close()
 			c.channel <- Request{Connection: c, Error: errors.New("closed after ERROR frame sent")}
