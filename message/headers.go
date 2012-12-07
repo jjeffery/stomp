@@ -1,4 +1,4 @@
-package stomp
+package message
 
 // Collection of STOMP headers. Each header consists of a key value pair.
 type Headers struct {

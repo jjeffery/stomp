@@ -1,4 +1,4 @@
 stomp
 =====
 
-Go language library for STOMP protocol
+Go language implementation of a simple STOMP server.

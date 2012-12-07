@@ -1,4 +1,4 @@
-package stomp
+package message
 
 import (
 	"launchpad.net/gocheck"

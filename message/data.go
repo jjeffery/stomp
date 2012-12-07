@@ -1,17 +1,17 @@
-package stomp
+package message
 
 const (
 	// client frames
 	ConnectCommand = "CONNECT"
-	Send        = "SEND"
-	Subscribe   = "SUBSCRIBE"
-	Unsubscribe = "UNSUBSCRIBE"
-	Ack         = "ACK"
-	Nack        = "NACK"
-	Begin       = "BEGIN"
-	Commit      = "COMMIT"
-	Abort       = "ABORT"
-	Disconnect  = "DISCONNECT"
+	Send           = "SEND"
+	Subscribe      = "SUBSCRIBE"
+	Unsubscribe    = "UNSUBSCRIBE"
+	Ack            = "ACK"
+	Nack           = "NACK"
+	Begin          = "BEGIN"
+	Commit         = "COMMIT"
+	Abort          = "ABORT"
+	Disconnect     = "DISCONNECT"
 
 	// server frames
 	Message = "MESSAGE"
