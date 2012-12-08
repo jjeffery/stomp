@@ -8,8 +8,8 @@ import (
 // different queue storage implementations can be
 // used, depending on preference. Queue storage
 // mechanisms could include in-memory, and various
-// persistent storage mechanisms (eg file system, SQL, etc)
-type QueueStorage interface {
+// persistent storage mechanisms (eg file system, DB, etc)
+type Storage interface {
 	// Pushes a frame to the end of the queue. Sets
 	// the "message-id" header of the frame before adding to
 	// the queue.
@@ -27,15 +27,4 @@ type QueueStorage interface {
 	// Called prior to server shutdown. Allows the queue storage
 	// to perform any cleanup.
 	Stop()
-}
-
-type QueueManager struct {
-	qstore QueueStorage
-}
-
-// Create a queue manager with the specified queue storage mechanism
-func NewQueueManager(qstore QueueStorage) *QueueManager {
-	qm := new(QueueManager)
-	qm.qstore = qstore
-	return qm
 }
