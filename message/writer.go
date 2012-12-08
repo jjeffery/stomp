@@ -5,6 +5,14 @@ import (
 	"io"
 )
 
+// slices used to write frames
+var (
+	colonSlice   = []byte{58}     // colon ':'
+	crlfSlice    = []byte{13, 10} // CR-LF
+	newlineSlice = []byte{10}     // newline (LF)
+	nullSlice    = []byte{0}      // null character
+)
+
 // Writes STOMP frames to an underlying io.Writer.
 type Writer struct {
 	writer *bufio.Writer

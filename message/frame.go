@@ -4,14 +4,6 @@ import (
 	"strconv"
 )
 
-// slices used to write frames
-var (
-	colonSlice   = []byte{58}     // colon ':'
-	crlfSlice    = []byte{13, 10} // CR-LF
-	newlineSlice = []byte{10}     // newline (LF)
-	nullSlice    = []byte{0}      // null character
-)
-
 // Represents a single STOMP frame.
 type Frame struct {
 	// The frame command. Should be one of the standard STOMP commands. Note that

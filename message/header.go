@@ -3,7 +3,7 @@ package message
 // STOMP header names. Some of the header
 // names have commands with the same name
 // (eg Ack, Message, Receipt). Commands use
-// an upper-case nameing convention, header
+// an upper-case naming convention, header
 // names use pascal-case naming convention.
 const (
 	ContentLength = "content-length"
