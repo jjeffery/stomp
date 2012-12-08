@@ -20,7 +20,7 @@ main_loop:
 		case sig := <-stopChannel:
 			log.Println("received signal:", sig)
 			break main_loop
-		case request := <- client.Requests
+		case request := <-client.Requests:
 			handleRequest(request)
 		}
 	}

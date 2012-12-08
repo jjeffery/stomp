@@ -1,8 +1,8 @@
 package queue
 
 import (
-	"github.com/jjeffery/stomp/message"
 	"github.com/jjeffery/stomp/client"
+	"github.com/jjeffery/stomp/message"
 )
 
 // Subscribes a client connection to a queue
@@ -26,13 +26,12 @@ func Ack(conn *client.Connection, frame *message.Frame) {
 }
 
 func Nack(conn *client.Connection, frame *message.Frame) {
-	
+
 }
 
 func Stop() {
 	// TODO
 }
-
 
 type Manager struct {
 	qstore Storage // handles queue storage
