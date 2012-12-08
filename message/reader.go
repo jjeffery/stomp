@@ -11,6 +11,8 @@ type Reader struct {
 	reader *bufio.Reader
 }
 
+// Creates a new Reader object which reads from the
+// underlying io.Reader.
 func NewReader(reader io.Reader) *Reader {
 	sr := new(Reader)
 	sr.reader = bufio.NewReaderSize(reader, bufferSize)

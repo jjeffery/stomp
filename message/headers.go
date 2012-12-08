@@ -5,10 +5,13 @@ type Headers struct {
 	headers []string
 }
 
+// Returns a new Headers collection.
 func NewHeaders() *Headers {
 	return new(Headers)
 }
 
+// Perform a deep copy of the Headers collection. Any changes
+// to the cloned object will not affect the original object.
 func (h *Headers) Clone() *Headers {
 	clone := new(Headers)
 	clone.headers = make([]string, len(h.headers))
@@ -16,10 +19,13 @@ func (h *Headers) Clone() *Headers {
 	return clone
 }
 
+// Returns the number of headers in the collection.
 func (h *Headers) Count() int {
 	return len(h.headers) / 2
 }
 
+// Returns the header name and value at the specified index in
+// the collection. The index should be in the range 0 <= index < Count().
 func (h *Headers) GetAt(index int) (key, value string) {
 	index *= 2
 	return h.headers[index], h.headers[index+1]

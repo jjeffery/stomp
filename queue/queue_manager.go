@@ -4,8 +4,11 @@ import (
 	"github.com/jjeffery/stomp/message"
 )
 
-var _ message.Frame
-
+// Interface for queue storage. The intent is that
+// different queue storage implementations can be
+// used, depending on preference. Queue storage
+// mechanisms could include in-memory, and various
+// persistent storage mechanisms (eg file system, SQL, etc)
 type QueueStorage interface {
 	// Pushes a frame to the end of the queue. Sets
 	// the "message-id" header of the frame before adding to

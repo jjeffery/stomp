@@ -10,7 +10,7 @@ type WriterSuite struct{}
 
 var _ = Suite(&WriterSuite{})
 
-func (s *WriterSuite) Test1(c *C) {
+func (s *WriterSuite) TestWrites(c *C) {
 	var frameTexts = []string{
 		"CONNECT\nlogin:xxx\npasscode:yyy\n\n\x00",
 		"SEND\ndestination:/queue/request\ntx:1\ncontent-length:5\n\n\x00\x01\x02\x03\x04\x00",

@@ -10,12 +10,14 @@ type Writer struct {
 	writer *bufio.Writer
 }
 
+// Creates a new Writer object, which writes to an underlying io.Writer.
 func NewWriter(writer io.Writer) *Writer {
 	sw := new(Writer)
 	sw.writer = bufio.NewWriterSize(writer, bufferSize)
 	return sw
 }
 
+// Write the contents of a frame to the underlying io.Writer.
 func (w *Writer) Write(frame *Frame) error {
 	_, err := w.writer.Write([]byte(frame.Command))
 	if err != nil {
