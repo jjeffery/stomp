@@ -36,6 +36,12 @@ func (r *Reader) Read() (*Frame, error) {
 
 	frame := new(Frame)
 	frame.Command = string(commandSlice)
+	switch frame.Command {
+	case CONNECT, STOMP, SEND, SUBSCRIBE, UNSUBSCRIBE, ACK, NACK, BEGIN, COMMIT, ABORT, DISCONNECT:
+		// valid command
+	default:
+		return nil, invalidCommand
+	}
 
 	// read headers
 	for {
@@ -61,6 +67,11 @@ func (r *Reader) Read() (*Frame, error) {
 		// TODO: need to decode if STOMP 1.1 or later
 
 		frame.Headers.Append(name, value)
+	}
+
+	err = frame.Validate()
+	if err != nil {
+		return nil, err
 	}
 
 	// get content length from the headers
@@ -104,8 +115,6 @@ func (r *Reader) readLine() (line []byte, err error) {
 		line = line[0 : len(line)-len(crlfSlice)]
 	case bytes.HasSuffix(line, newlineSlice):
 		line = line[0 : len(line)-len(newlineSlice)]
-	default:
-		panic("line should always end with LF or CR-LF")
 	}
 
 	return

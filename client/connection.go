@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"time"
 )
 
 const (
@@ -20,6 +21,9 @@ type Connection struct {
 	conn           net.Conn
 	requestChannel chan Request
 	writeChannel   chan *message.Frame
+	stateFunc      func(c *Connection, f *message.Frame) error
+	readTimeout    time.Duration
+	writeTimeout   time.Duration
 }
 
 func newConnection(conn net.Conn, channel chan Request) *Connection {
@@ -28,8 +32,8 @@ func newConnection(conn net.Conn, channel chan Request) *Connection {
 	c.requestChannel = channel
 	c.writeChannel = make(chan *message.Frame, 32)
 	channel <- Request{Type: Create, Connection: c}
-	go c.ReadLoop()
-	go c.WriteLoop()
+	go c.readLoop()
+	go c.writeLoop()
 	return c
 }
 
@@ -54,9 +58,15 @@ func (c *Connection) SendError(err error) {
 	c.Send(f) // will close after successful send
 }
 
-func (c *Connection) ReadLoop() {
+func (c *Connection) readLoop() {
 	reader := message.NewReader(c.conn)
 	for {
+		if readHeartbeat == Duration(0) {
+			// infinite timeout
+			c.conn.SetReadDeadline(time.Time(0))
+		} else {
+			c.conn.SetReadDeadline(time.Now() + readTimeout)
+		}
 		f, err := reader.Read()
 		if err != nil {
 			if err == io.EOF {
@@ -69,15 +79,19 @@ func (c *Connection) ReadLoop() {
 		}
 
 		if f == nil {
-			// TODO: received a heart-beat from the client,
-			// so restart the read timer
-		} else {
-			c.requestChannel <- Request{Frame: f, Connection: c}
+			// if the frame is nil, then it is a heartbeat
+			continue
+		}
+
+		err = c.stateFunc(c, f)
+		if err != nil {
+			c.SendError(err)
+			c.Close()
 		}
 	}
 }
 
-func (c *Connection) WriteLoop() {
+func (c *Connection) writeLoop() {
 	writer := message.NewWriter(c.conn)
 	for {
 		f := <-c.writeChannel
@@ -98,4 +112,22 @@ func (c *Connection) WriteLoop() {
 func (c *Connection) Close() {
 	c.conn.Close()
 	c.requestChannel <- Request{Type: Disconnect, Connection: c}
+}
+
+func (c *Connection) handleConnect(f *message.Frame) error {
+	if heartbeat, ok := f.Headers.Contains(message.HeartBeat); ok {
+
+	} else {
+
+	}
+
+	return nil
+}
+
+func connecting(c *Connection, f *message.Frame) error {
+	switch f.Command {
+	case message.CONNECT, message.STOMP:
+		return c.handleConnect(f)
+	}
+	return errors.New("expecting CONNECT or STOMP command")
 }

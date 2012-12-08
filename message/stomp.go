@@ -11,6 +11,7 @@ type errorMessage string
 
 const (
 	invalidFrameFormat = errorMessage("invalid frame format")
+	invalidCommand     = errorMessage("invalid command")
 )
 
 func (e errorMessage) Error() string {

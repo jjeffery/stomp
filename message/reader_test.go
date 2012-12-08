@@ -60,3 +60,48 @@ func (s *ReaderSuite) TestSendWithContentLength(c *C) {
 	c.Assert(frame, IsNil)
 	c.Assert(err, Equals, io.EOF)
 }
+
+func (s *ReaderSuite) TestInvalidCommand(c *C) {
+	reader := NewReader(strings.NewReader("sEND\ndestination:xxx\ncontent-length:5\n\n\x00\x01\x02\x03\x04\x00"))
+
+	frame, err := reader.Read()
+	c.Check(frame, IsNil)
+	c.Assert(err, NotNil)
+	c.Check(err.Error(), Equals, "invalid command")
+}
+
+func (s *ReaderSuite) TestSendWithoutDestination(c *C) {
+	reader := NewReader(strings.NewReader("SEND\ndeestination:xxx\ncontent-length:5\n\n\x00\x01\x02\x03\x04\x00"))
+
+	frame, err := reader.Read()
+	c.Check(frame, IsNil)
+	c.Assert(err, NotNil)
+	c.Check(err.Error(), Equals, "missing header: destination")
+}
+
+func (s *ReaderSuite) TestSubscribeWithoutDestination(c *C) {
+	reader := NewReader(strings.NewReader("SUBSCRIBE\ndeestination:xxx\nid:7\n\n\x00"))
+
+	frame, err := reader.Read()
+	c.Check(frame, IsNil)
+	c.Assert(err, NotNil)
+	c.Check(err.Error(), Equals, "missing header: destination")
+}
+
+func (s *ReaderSuite) TestSubscribeWithoutId(c *C) {
+	reader := NewReader(strings.NewReader("SUBSCRIBE\ndestination:xxx\nIId:7\n\n\x00"))
+
+	frame, err := reader.Read()
+	c.Check(frame, IsNil)
+	c.Assert(err, NotNil)
+	c.Check(err.Error(), Equals, "missing header: id")
+}
+
+func (s *ReaderSuite) TestUnsubscribeWithoutId(c *C) {
+	reader := NewReader(strings.NewReader("UNSUBSCRIBE\nIId:7\n\n\x00"))
+
+	frame, err := reader.Read()
+	c.Check(frame, IsNil)
+	c.Assert(err, NotNil)
+	c.Check(err.Error(), Equals, "missing header: id")
+}
