@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"github.com/jjeffery/stomp/message"
 	"io"
 	"log"
@@ -145,7 +146,7 @@ func (c *Connection) Close() {
 
 func (c *Connection) handleConnect(f *message.Frame) error {
 	var err error
-	
+
 	// TODO: add functionality for authentication.
 	// currently no authentication checks are made
 
@@ -169,10 +170,17 @@ func (c *Connection) handleConnect(f *message.Frame) error {
 
 	c.readTimeout = time.Duration(cx) * time.Millisecond
 	c.writeTimeout = time.Duration(cy) * time.Millisecond
+
+	response := message.NewFrame(message.CONNECTED,
+		message.Version, string(c.version),
+		message.Server, "stompd/x.y.z") // TODO: get version
+
+	if c.version > message.V1_0 {
+		value := fmt.Sprintf("%d,%d", cy, cx)
+		response.Append(message.HeartBeat, value)
+	}
 	
-	response = message.NewFrame(CONNECTED,
-		Version, c.version,
-		Server, "stompd/x.y.z") // TODO: get version
+	c.Send(response)
 
 	return nil
 }

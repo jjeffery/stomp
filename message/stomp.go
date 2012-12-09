@@ -10,6 +10,10 @@ const (
 // STOMP protocol version
 type StompVersion string
 
+func (v StompVersion) GreaterThan(other StompVersion) bool {
+	return v > other
+}
+
 // supported STOMP protocol versions
 const (
 	V1_0 = StompVersion("1.0")
