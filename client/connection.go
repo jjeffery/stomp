@@ -24,6 +24,7 @@ type Connection struct {
 	stateFunc      func(c *Connection, f *message.Frame) error
 	readTimeout    time.Duration
 	writeTimeout   time.Duration
+	version        message.StompVersion
 }
 
 func newConnection(conn net.Conn, channel chan Request) *Connection {
@@ -61,11 +62,11 @@ func (c *Connection) SendError(err error) {
 func (c *Connection) readLoop() {
 	reader := message.NewReader(c.conn)
 	for {
-		if readHeartbeat == Duration(0) {
+		if c.readTimeout == time.Duration(0) {
 			// infinite timeout
-			c.conn.SetReadDeadline(time.Time(0))
+			c.conn.SetReadDeadline(time.Time{})
 		} else {
-			c.conn.SetReadDeadline(time.Now() + readTimeout)
+			c.conn.SetReadDeadline(time.Now().Add(c.readTimeout))
 		}
 		f, err := reader.Read()
 		if err != nil {
@@ -84,6 +85,7 @@ func (c *Connection) readLoop() {
 		}
 
 		err = c.stateFunc(c, f)
+
 		if err != nil {
 			c.SendError(err)
 			c.Close()
@@ -94,17 +96,44 @@ func (c *Connection) readLoop() {
 func (c *Connection) writeLoop() {
 	writer := message.NewWriter(c.conn)
 	for {
-		f := <-c.writeChannel
-		err := writer.Write(f)
-		if err != nil {
-			c.conn.Close()
-			c.requestChannel <- Request{Type: Disconnect, Connection: c}
-			return
+		var timerChannel <-chan time.Time
+		var timer *time.Timer
+
+		if c.writeTimeout > 0 {
+			timer = time.NewTimer(c.writeTimeout)
+			timerChannel = timer.C
 		}
-		if f.Command == message.ERROR {
-			// sent an ERROR frame, so disconnect
-			c.Close()
-			return
+
+		select {
+		case f := <-c.writeChannel:
+			// stop the heart-beat timer
+			if timer != nil {
+				timer.Stop()
+				timer = nil
+			}
+
+			// write the frame to the client
+			err := writer.Write(f)
+			if err != nil {
+				c.Close()
+				return
+			}
+
+			// if the frame just sent to the client is an error
+			// frame, we disconnect
+			if f.Command == message.ERROR {
+				// sent an ERROR frame, so disconnect
+				c.Close()
+				return
+			}
+
+		case _ = <-timerChannel:
+			// write a heart-beat
+			err := writer.Write(nil)
+			if err != nil {
+				c.Close()
+				return
+			}
 		}
 	}
 }
@@ -115,11 +144,35 @@ func (c *Connection) Close() {
 }
 
 func (c *Connection) handleConnect(f *message.Frame) error {
-	if heartbeat, ok := f.Headers.Contains(message.HeartBeat); ok {
+	var err error
+	
+	// TODO: add functionality for authentication.
+	// currently no authentication checks are made
 
-	} else {
-
+	c.version, err = f.AcceptVersion()
+	if err != nil {
+		return err
 	}
+
+	cx, cy, err := f.HeartBeat()
+	if err != nil {
+		return err
+	}
+
+	// apply a minimum heartbeat time of 30 seconds
+	if cx > 0 && cx < 30000 {
+		cx = 30000
+	}
+	if cy > 0 && cy < 30000 {
+		cy = 30000
+	}
+
+	c.readTimeout = time.Duration(cx) * time.Millisecond
+	c.writeTimeout = time.Duration(cy) * time.Millisecond
+	
+	response = message.NewFrame(CONNECTED,
+		Version, c.version,
+		Server, "stompd/x.y.z") // TODO: get version
 
 	return nil
 }
@@ -129,5 +182,5 @@ func connecting(c *Connection, f *message.Frame) error {
 	case message.CONNECT, message.STOMP:
 		return c.handleConnect(f)
 	}
-	return errors.New("expecting CONNECT or STOMP command")
+	return notConnected
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/jjeffery/stomp/client"
+	"github.com/jjeffery/stomp/queue"
 	"log"
 )
 
@@ -29,5 +30,21 @@ main_loop:
 }
 
 func handleRequest(request client.Request) {
-	// TODO
+	switch request.Type {
+	case client.Disconnect:
+		queue.Disconnected(client.Connection)
+	case client.Create:
+		// do nothing at the moment
+	case client.Subscribe:
+		handleSubscribeRequest(request)
+	}
+}
+
+func handleSubscribeRequest(request client.Request) {
+	// frame has already been checked, so we know it has a destination and an id
+	destination, _ := request.Frame.Headers.Contains(message.Destination)
+	id, _ := request.Frame.Headers.Contains(message.Id)
+	
+	// type of acknowledgement required
+	ack, hasAck := 
 }

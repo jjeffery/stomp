@@ -27,31 +27,16 @@ func NewWriter(writer io.Writer) *Writer {
 
 // Write the contents of a frame to the underlying io.Writer.
 func (w *Writer) Write(frame *Frame) error {
-	_, err := w.writer.Write([]byte(frame.Command))
-	if err != nil {
-		return err
-	}
+	var err error
 
-	_, err = w.writer.Write(newlineSlice)
-	if err != nil {
-		return err
-	}
-
-	headerCount := frame.Headers.Count()
-	for i := 0; i < headerCount; i++ {
-		h, v := frame.Headers.GetAt(i)
-		// TODO: encode if STOMP 1.1 or later
-		_, err = w.writer.Write([]byte(h))
+	if frame == nil {
+		// nil frame means send a heart-beat LF
+		_, err = w.writer.Write(newlineSlice)
 		if err != nil {
 			return err
 		}
-
-		_, err = w.writer.Write(colonSlice)
-		if err != nil {
-			return err
-		}
-
-		_, err = w.writer.Write([]byte(v))
+	} else {
+		_, err = w.writer.Write([]byte(frame.Command))
 		if err != nil {
 			return err
 		}
@@ -60,24 +45,49 @@ func (w *Writer) Write(frame *Frame) error {
 		if err != nil {
 			return err
 		}
-	}
 
-	_, err = w.writer.Write(newlineSlice)
-	if err != nil {
-		return err
-	}
+		headerCount := frame.Headers.Count()
+		for i := 0; i < headerCount; i++ {
+			h, v := frame.Headers.GetAt(i)
+			// TODO: encode if STOMP 1.1 or later
+			_, err = w.writer.Write([]byte(h))
+			if err != nil {
+				return err
+			}
 
-	if len(frame.Body) > 0 {
-		_, err = w.writer.Write(frame.Body)
+			_, err = w.writer.Write(colonSlice)
+			if err != nil {
+				return err
+			}
+
+			_, err = w.writer.Write([]byte(v))
+			if err != nil {
+				return err
+			}
+
+			_, err = w.writer.Write(newlineSlice)
+			if err != nil {
+				return err
+			}
+		}
+
+		_, err = w.writer.Write(newlineSlice)
 		if err != nil {
 			return err
 		}
-	}
 
-	// write the final nul (0) byte	
-	_, err = w.writer.Write(nullSlice)
-	if err != nil {
-		return err
+		if len(frame.Body) > 0 {
+			_, err = w.writer.Write(frame.Body)
+			if err != nil {
+				return err
+			}
+		}
+
+		// write the final null (0) byte	
+		_, err = w.writer.Write(nullSlice)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = w.writer.Flush()
