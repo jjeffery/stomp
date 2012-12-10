@@ -1,4 +1,4 @@
-package client
+package stomp
 
 const (
 	notConnected = errorMessage("expected CONNECT or STOMP frame")

@@ -1,4 +1,4 @@
-package client
+package stomp
 
 import (
 	"fmt"
@@ -9,38 +9,35 @@ import (
 	"time"
 )
 
-const (
-	// Maximum number of pending frames allowed to a client.
-	// before a disconnect occurs. If the client cannot keep
-	// up with the server, we do not want the server to backlog
-	// pending frames indefinitely.
-	MaxPendingWrites = 16
-)
+// Maximum number of pending frames allowed to a client.
+// before a disconnect occurs. If the client cannot keep
+// up with the server, we do not want the server to backlog
+// pending frames indefinitely.
+const maxPendingWrites = 16
 
-// Connection with client
-type Connection struct {
-	conn           net.Conn
-	requestChannel chan Request
+// represents a connection with the client
+type conn struct {
+	rw             net.Conn
+	requestChannel chan request
 	writeChannel   chan *message.Frame
-	stateFunc      func(c *Connection, f *message.Frame) error
+	stateFunc      func(c *conn, f *message.Frame) error
 	readTimeout    time.Duration
 	writeTimeout   time.Duration
 	version        message.StompVersion
 }
 
-func newConnection(conn net.Conn, channel chan Request) *Connection {
-	c := new(Connection)
-	c.conn = conn
+func newConn(rw net.Conn, channel chan request) *conn {
+	c := new(conn)
+	c.rw = rw
 	c.requestChannel = channel
-	c.writeChannel = make(chan *message.Frame, 32)
-	channel <- Request{Type: Create, Connection: c}
+	c.writeChannel = make(chan *message.Frame, maxPendingWrites)
 	go c.readLoop()
 	go c.writeLoop()
 	return c
 }
 
 // Write a frame to the connection.
-func (c *Connection) Send(f *message.Frame) {
+func (c *conn) Send(f *message.Frame) {
 	// place the frame on the write channel, or
 	// close the connection if the write channel is full,
 	// as this means the client is not keeping up.
@@ -53,28 +50,28 @@ func (c *Connection) Send(f *message.Frame) {
 }
 
 // TODO: should send other information, such as receipt-id
-func (c *Connection) SendError(err error) {
+func (c *conn) SendError(err error) {
 	f := new(message.Frame)
 	f.Command = message.ERROR
 	f.Headers.Append(message.Message, err.Error())
 	c.Send(f) // will close after successful send
 }
 
-func (c *Connection) readLoop() {
-	reader := message.NewReader(c.conn)
+func (c *conn) readLoop() {
+	reader := message.NewReader(c.rw)
 	for {
 		if c.readTimeout == time.Duration(0) {
 			// infinite timeout
-			c.conn.SetReadDeadline(time.Time{})
+			c.rw.SetReadDeadline(time.Time{})
 		} else {
-			c.conn.SetReadDeadline(time.Now().Add(c.readTimeout))
+			c.rw.SetReadDeadline(time.Now().Add(c.readTimeout))
 		}
 		f, err := reader.Read()
 		if err != nil {
 			if err == io.EOF {
-				log.Println("connection closed:", c.conn.RemoteAddr())
+				log.Println("connection closed:", c.rw.RemoteAddr())
 			} else {
-				log.Println("read failed:", err, c.conn.RemoteAddr())
+				log.Println("read failed:", err, c.rw.RemoteAddr())
 			}
 			c.Close()
 			return
@@ -94,8 +91,8 @@ func (c *Connection) readLoop() {
 	}
 }
 
-func (c *Connection) writeLoop() {
-	writer := message.NewWriter(c.conn)
+func (c *conn) writeLoop() {
+	writer := message.NewWriter(c.rw)
 	for {
 		var timerChannel <-chan time.Time
 		var timer *time.Timer
@@ -139,12 +136,12 @@ func (c *Connection) writeLoop() {
 	}
 }
 
-func (c *Connection) Close() {
-	c.conn.Close()
-	c.requestChannel <- Request{Type: Disconnect, Connection: c}
+func (c *conn) Close() {
+	c.rw.Close()
+	c.requestChannel <- request{op: disconnectOp, conn: c}
 }
 
-func (c *Connection) handleConnect(f *message.Frame) error {
+func (c *conn) handleConnect(f *message.Frame) error {
 	var err error
 
 	// TODO: add functionality for authentication.
@@ -179,13 +176,13 @@ func (c *Connection) handleConnect(f *message.Frame) error {
 		value := fmt.Sprintf("%d,%d", cy, cx)
 		response.Append(message.HeartBeat, value)
 	}
-	
+
 	c.Send(response)
 
 	return nil
 }
 
-func connecting(c *Connection, f *message.Frame) error {
+func connecting(c *conn, f *message.Frame) error {
 	switch f.Command {
 	case message.CONNECT, message.STOMP:
 		return c.handleConnect(f)
