@@ -76,6 +76,18 @@ func (f *Frame) ContentLength() (contentLength int, ok bool, err error) {
 	return
 }
 
+// Determine the most acceptable version based on the accept-version
+// header of a CONNECT or STOMP frame.
+//
+// Returns V1_0 if a CONNECT frame and the accept-version header is missing.
+//
+// Returns an error if the frame is not a CONNECT or STOMP frame, or
+// if the accept-header is malformed or does not contain any compatible
+// version numbers. Also returns an error if the accept-header is missing
+// for a STOMP frame.
+//
+// Otherwise, returns the highest compatible version specified in the
+// accept-version header. Compatible versions are V1_0, V1_1 and V1_2.
 func (f *Frame) AcceptVersion() (version StompVersion, err error) {
 	// frame can be CONNECT or STOMP with slightly different
 	// handling of accept-verion for each
@@ -121,6 +133,15 @@ func (f *Frame) AcceptVersion() (version StompVersion, err error) {
 	return
 }
 
+// Determine the heart-beat values in a CONNECT or STOMP frame.
+//
+// Returns 0,0 if the heart-beat header is missing. Otherwise
+// returns the cx and cy values in the frame.
+//
+// Returns an error if the heart-beat header is malformed, or if
+// the frame is not a CONNECT or STOMP frame. In this implementation,
+// a heart-beat header is considered malformed if either cx or cy
+// is greater than MaxHeartBeat.
 func (f *Frame) HeartBeat() (cx, cy int, err error) {
 	if f.Command != CONNECT && f.Command != STOMP && f.Command != CONNECTED {
 		err = invalidOperationForFrame
@@ -149,7 +170,15 @@ func (f *Frame) HeartBeat() (cx, cy int, err error) {
 	return
 }
 
-// Check frame for required headers
+// Check frame for required headers. Returns
+// nil if the frame is valid, non-nil otherwise.
+//
+// The frame is checked for a valid command (client or server),
+// and each different command is verified for mandatory headers
+// for that command. Also checks for prohibited headers. For 
+// example, returns an error if the transaction header is present
+// in a frame that does not support transactions (eg SUBSCRIBE,
+// UNSUBSCRIBE, CONNECT)
 func (f *Frame) Validate() error {
 	switch f.Command {
 	case CONNECT, STOMP:

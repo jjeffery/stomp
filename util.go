@@ -5,9 +5,8 @@ import (
 )
 
 // Convert a time.Duration to milliseconds in an integer.
-// If the time duration is too large, it is truncated to
-// the largest number of milliseconds that can be represented
-// as a 32 bit signed integer (about 40 days).
+// Returns the duration in milliseconds, or max if the
+// duration is greater than max milliseconds.
 func asMilliseconds(d time.Duration, max int) int {
 	if max < 0 {
 		max = 0
