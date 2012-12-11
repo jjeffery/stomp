@@ -1,8 +1,8 @@
 package stomp
 
 import (
-	. "launchpad.net/gocheck"
 	"github.com/jjeffery/stomp/message"
+	. "launchpad.net/gocheck"
 )
 
 type TxStoreSuite struct{}
@@ -40,44 +40,42 @@ func (s *TxStoreSuite) TestSuccessfulTx(c *C) {
 	f4 := message.NewFrame(message.MESSAGE,
 		message.Destination, "/queue/4")
 
-	r1 := request{op: frameOp, frame: f1}
-	r2 := request{op: frameOp, frame: f2}
-	r3 := request{op: frameOp, frame: f3}
-	r4 := request{op: frameOp, frame: f4}
-
-	err = txs.Add("tx1", r1)
+	err = txs.Add("tx1", f1)
 	c.Assert(err, IsNil)
-	err = txs.Add("tx1", r2)
+	err = txs.Add("tx1", f2)
 	c.Assert(err, IsNil)
-	err = txs.Add("tx1", r3)
+	err = txs.Add("tx1", f3)
 	c.Assert(err, IsNil)
-	err = txs.Add("tx2", r4)
+	err = txs.Add("tx2", f4)
 
-	var tx1Requests []request
+	var tx1 []*message.Frame
 
-	txs.Commit("tx1", func(r request) {
-		tx1Requests = append(tx1Requests, r)
+	txs.Commit("tx1", func(f *message.Frame) error {
+		tx1 = append(tx1, f)
+		return nil
 	})
 	c.Check(err, IsNil)
 
-	var tx2Requests []request
+	var tx2 []*message.Frame
 
-	err = txs.Commit("tx2", func(r request) {
-		tx2Requests = append(tx2Requests, r)
+	err = txs.Commit("tx2", func(f *message.Frame) error {
+		tx2 = append(tx2, f)
+		return nil
 	})
 	c.Check(err, IsNil)
-	
-	c.Check(len(tx1Requests), Equals, 3)
-	c.Check(tx1Requests[0].frame, Equals, f1)
-	c.Check(tx1Requests[1].frame, Equals, f2)
-	c.Check(tx1Requests[2].frame, Equals, f3)
 
-	c.Check(len(tx2Requests), Equals, 1)
-	c.Check(tx2Requests[0].frame, Equals, f4)
-	
+	c.Check(len(tx1), Equals, 3)
+	c.Check(tx1[0], Equals, f1)
+	c.Check(tx1[1], Equals, f2)
+	c.Check(tx1[2], Equals, f3)
+
+	c.Check(len(tx2), Equals, 1)
+	c.Check(tx2[0], Equals, f4)
+
 	// already committed, so should cause an error
-	err = txs.Commit("tx1", func(r request) {
+	err = txs.Commit("tx1", func(f *message.Frame) error {
 		c.Fatal("should not be called")
+		return nil
 	})
 	c.Check(err, Equals, txUnknown)
 }

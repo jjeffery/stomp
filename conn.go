@@ -176,8 +176,18 @@ func (c *conn) processLoop() {
 			}
 
 		case f := <-c.readChannel:
-			// have just received a frame from the client
-			err := c.stateFunc(c, f)
+			// Just received a frame from the client.
+			// Validate the frame, checking for mandatory
+			// headers and prohibited headers.
+			err := f.Validate()
+			if err != nil {
+				c.sendErrorImmediatelyAndClose(err, f)
+				return
+			}
+
+			// Pass to the appropriate function for handling
+			// according to the current state of the connection.
+			err = c.stateFunc(c, f)
 			if err != nil {
 				c.sendErrorImmediatelyAndClose(err, f)
 				return
@@ -273,8 +283,17 @@ func connecting(c *conn, f *message.Frame) error {
 	return notConnected
 }
 
+// Sends a RECEIPT frame to the client if the frame f contains
+// a receipt header. If the frame does contain a receipt header,
+// it will be removed from the frame.
 func (c *conn) sendReceiptImmediately(f *message.Frame) error {
 	if receipt, ok := f.Contains(message.Receipt); ok {
+		// Remove the receipt header from the frame. This is handy
+		// for transactions, because the frame has its receipt 
+		// header removed prior to entering the transaction store.
+		// When the frame is processed upon transaction commit, it
+		// will not have a receipt header anymore.
+		f.Remove(message.Receipt)
 		return c.sendImmediately(message.NewFrame(message.RECEIPT, message.ReceiptId, receipt))
 	}
 	return nil
@@ -291,29 +310,57 @@ func (c *conn) handleDisconnect(f *message.Frame) error {
 	return nil
 }
 
-// Handle a SEND frame received from the client.
+func (c *conn) handleBegin(f *message.Frame) error {
+	// the frame should already have been validated for the
+	// transaction header, but we check again here.
+	if transaction, ok := f.Contains(message.Transaction); ok {
+		return c.txStore.Begin(transaction)
+	}
+	return missingHeader
+}
+
+func (c *conn) handleCommit(f *message.Frame) error {
+	// the frame should already have been validated for the
+	// transaction header, but we check again here.
+	if transaction, ok := f.Contains(message.Transaction); ok {
+		return c.txStore.Commit(transaction, func(f *message.Frame) error {
+			// Call the state function (again) for each frame in the
+			// transaction. This time each frame is stripped of its transaction
+			// header (and its receipt header as well, if it had one).
+			return c.stateFunc(c, f)
+		})
+	}
+	return missingHeader
+}
+
+func (c *conn) handleAbort(f *message.Frame) error {
+	// the frame should already have been validated for the
+	// transaction header, but we check again here.
+	if transaction, ok := f.Contains(message.Transaction); ok {
+		return c.txStore.Abort(transaction)
+	}
+	return missingHeader
+}
+
+// Handle a SEND frame received from the client. Note that
+// this method is called after a SEND message is received,
+// but also after a transaction commit.
 func (c *conn) handleSend(f *message.Frame) error {
-	// This frame will be converted into a MESSAGE frame
-	// and sent for distribution.
-
-	// send a receipt and remove the header (don't want it in the MESSAGE frame)
+	// Send a receipt and remove the header
 	err := c.sendReceiptImmediately(f)
-	f.Remove(message.Receipt)
-
-	f.Command = message.MESSAGE
-
-	request := request{op: frameOp, conn: c, frame: f}
+	if err != nil {
+		return err
+	}
 
 	if tx, ok := f.Contains(message.Transaction); ok {
-		// remove the transaction header from the frame, don't want it in MESSAGE
-		f.Remove(message.Transaction)
-		err = c.txStore.Add(tx, request)
+		// the transaction header is removed from the frame
+		err = c.txStore.Add(tx, f)
 		if err != nil {
 			return err
 		}
 	} else {
 		// not in a transaction, send to be processed
-		c.requestChannel <- request
+		c.requestChannel <- request{op: frameOp, conn: c, frame: f}
 	}
 
 	return nil
@@ -325,6 +372,12 @@ func connected(c *conn, f *message.Frame) error {
 		return unexpectedCommand
 	case message.DISCONNECT:
 		return c.handleDisconnect(f)
+	case message.BEGIN:
+		return c.handleBegin(f)
+	case message.ABORT:
+		return c.handleAbort(f)
+	case message.COMMIT:
+		return c.handleCommit(f)
 	case message.SEND:
 		return c.handleSend(f)
 	case message.MESSAGE, message.RECEIPT, message.ERROR:

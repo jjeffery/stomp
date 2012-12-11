@@ -2,6 +2,7 @@ package stomp
 
 import (
 	"container/list"
+	"github.com/jjeffery/stomp/message"
 )
 
 type txStore struct {
@@ -39,10 +40,13 @@ func (txs *txStore) Abort(tx string) error {
 // to be sent to the request channel for processing. Calls the commit
 // function (commitFunc) in order for each request that is part of the
 // transaction.
-func (txs *txStore) Commit(tx string, commitFunc func(r request)) error {
+func (txs *txStore) Commit(tx string, commitFunc func(f *message.Frame) error) error {
 	if list, ok := txs.transactions[tx]; ok {
 		for element := list.Front(); element != nil; element = list.Front() {
-			commitFunc(list.Remove(element).(request))
+			err := commitFunc(list.Remove(element).(*message.Frame))
+			if err != nil {
+				return err
+			}
 		}
 		delete(txs.transactions, tx)
 		return nil
@@ -50,9 +54,10 @@ func (txs *txStore) Commit(tx string, commitFunc func(r request)) error {
 	return txUnknown
 }
 
-func (txs *txStore) Add(tx string, request request) error {
+func (txs *txStore) Add(tx string, f *message.Frame) error {
 	if list, ok := txs.transactions[tx]; ok {
-		list.PushBack(request)
+		f.Remove(message.Transaction)
+		list.PushBack(f)
 		return nil
 	}
 	return txUnknown
