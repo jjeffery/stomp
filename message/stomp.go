@@ -37,6 +37,11 @@ func missingHeader(name string) errorMessage {
 	return errorMessage("missing header: " + name)
 }
 
+func prohibitedHeader(name string) errorMessage {
+	return errorMessage("prohibited header: " + name)
+}
+
+
 func (e errorMessage) Error() string {
 	return string(e)
 }

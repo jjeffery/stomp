@@ -193,6 +193,15 @@ func (f *Frame) verifyRequiredHeaders(names ...string) error {
 	return nil
 }
 
+func (f *Frame) verifyProhibitedHeaders(names ...string) error {
+	for _, name := range names {
+		if _, ok := f.Headers.Contains(name); ok {
+			return prohibitedHeader(name)
+		}
+	}
+	return nil
+}
+
 func (f *Frame) validateConnect() error {
 	version, err := f.AcceptVersion()
 	if err != nil {
@@ -216,6 +225,11 @@ func (f *Frame) validateConnect() error {
 			return invalidHeartBeat
 		}
 	}
+	
+	err = f.verifyProhibitedHeaders(Destination, Transaction, Ack, Id, Receipt)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -229,11 +243,20 @@ func (f *Frame) validateSend() error {
 }
 
 func (f *Frame) validateSubscribe() error {
-	return f.verifyRequiredHeaders(Destination, Id)
+	err := f.verifyRequiredHeaders(Destination, Id)
+	if err != nil {
+		return err
+	}
+	
+	return f.verifyProhibitedHeaders(Transaction)
 }
 
 func (f *Frame) validateUnsubscribe() error {
-	return f.verifyRequiredHeaders(Id)
+	err := f.verifyRequiredHeaders(Id)
+	if err != nil {
+		return err
+	}
+	return f.verifyProhibitedHeaders(Transaction)
 }
 
 func (f *Frame) validateAck() error {
@@ -257,7 +280,7 @@ func (f *Frame) validateCommit() error {
 }
 
 func (f *Frame) validateDisconnect() error {
-	return nil
+	return f.verifyProhibitedHeaders(Transaction)
 }
 
 func (f *Frame) validateMessage() error {

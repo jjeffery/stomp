@@ -24,6 +24,8 @@ const DefaultHeartBeat = time.Minute
 
 // Interface for authenticating STOMP clients.
 type Authenticator interface {
+	// Authenticate based on the given login and passcode, either of which might be nil.
+	// Returns true if authentication is successful, false otherwise.
 	Authenticate(login, passcode string) bool
 }
 
