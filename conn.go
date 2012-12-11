@@ -206,6 +206,7 @@ func (c *conn) processLoop() {
 
 func (c *conn) Close() {
 	c.closed = true
+	c.txStore.Init()
 	c.rw.Close()
 	c.requestChannel <- request{op: disconnectOp, conn: c}
 }

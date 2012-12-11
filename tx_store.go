@@ -11,7 +11,7 @@ type txStore struct {
 
 // Initializes a new store or clears out an existing store
 func (txs *txStore) Init() {
-	txs.transactions = make(map[string]*list.List)
+	txs.transactions = nil
 }
 
 func (txs *txStore) Begin(tx string) error {
