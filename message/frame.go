@@ -17,6 +17,10 @@ var (
 	heartBeatRegexp = regexp.MustCompile("^[0-9]{1,9},[0-9]{1,9}$")
 )
 
+// Maximum allowed value for heart-beat times in millisecond. Approximately 11.5 days.
+// Anything longer than this will be rejected as an invalid frame.
+const MaxHeartBeat = 999999999
+
 // Represents a single STOMP frame.
 type Frame struct {
 	// The frame command. Should be one of the standard STOMP commands. Note that

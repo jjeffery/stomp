@@ -20,11 +20,7 @@ const DefaultMaxBodyBytes = 1 << 20 // 1MB
 
 // Default read timeout for heart-beat.
 // Override by setting Server.HeartBeatReadTimeout.
-const DefaultHeartBeatReadTimeout = time.Duration(30) * time.Duration(time.Second)
-
-// Default write timeout for heart-beat.
-// Override by setting Server.HeartBeatWriteTimeout.
-const DefaultHeartBeatWriteTimeout = time.Duration(30) * time.Duration(time.Second)
+const DefaultHeartBeat = time.Minute
 
 // Interface for authenticating STOMP clients.
 type Authenticator interface {
@@ -33,23 +29,39 @@ type Authenticator interface {
 
 // A Server defines parameters for running a STOMP server.
 type Server struct {
-	Addr                  string        // TCP address to listen on, DefaultListenAddr if empty
-	Authenticator         Authenticator // Authenticates login/passcodes. If nil no authentication is performed
-	QueueStorage          QueueStorage  // Implementation of queue storage. If nil, in-memory queues are used.
-	HeartBeatReadTimeout  time.Duration // Preferred value for heart-beat read timeout. Zero indicates no read heart-beat.
-	HeartBeatWriteTimeout time.Duration // Preferred value for heart-beat write timeout. Zero indicates no write heart-beat.
-	MaxHeaderBytes        int           // Maximum size of STOMP headers in bytes
-	MaxBodyBytes          int           // Maximum size of STOMP body in bytes
+	Addr           string        // TCP address to listen on, DefaultListenAddr if empty
+	Authenticator  Authenticator // Authenticates login/passcodes. If nil no authentication is performed
+	QueueStorage   QueueStorage  // Implementation of queue storage. If nil, in-memory queues are used.
+	HeartBeat      time.Duration // Preferred value for heart-beat read/write timeout.
+	MaxHeaderBytes int           // Maximum size of STOMP headers in bytes
+	MaxBodyBytes   int           // Maximum size of STOMP body in bytes
 }
 
 func ListenAndServe(addr string) error {
 	s := &Server{Addr: addr}
+	s.setDefaults()
 	return s.ListenAndServe()
 }
 
 func Serve(l net.Listener) error {
 	s := &Server{}
+	s.setDefaults()
 	return s.Serve(l)
+}
+
+func (s *Server) setDefaults() {
+	if s.QueueStorage == nil {
+		s.QueueStorage = NewMemoryQueueStorage()
+	}
+	if s.MaxHeaderBytes <= 0 {
+		s.MaxHeaderBytes = DefaultMaxHeaderBytes
+	}
+	if s.MaxBodyBytes <= 0 {
+		s.MaxBodyBytes = DefaultMaxBodyBytes
+	}
+	if s.HeartBeat <= 0 {
+		s.HeartBeat = DefaultHeartBeat
+	}
 }
 
 // Listens on the TCP network address s.Addr and then calls
@@ -95,7 +107,9 @@ func (s *Server) Serve(l net.Listener) error {
 			return err
 		}
 		timeout = 0
-		_ = newConn(rw, ch)
+		// TODO: need to pass Server to connection so it has access to
+		// configuration parameters.
+		_ = newConn(s, rw, ch)
 	}
 	panic("not reached")
 }

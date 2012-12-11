@@ -17,6 +17,7 @@ const maxPendingWrites = 16
 
 // represents a connection with the client
 type conn struct {
+	server         *Server
 	rw             net.Conn
 	requestChannel chan request
 	writeChannel   chan *message.Frame
@@ -26,8 +27,9 @@ type conn struct {
 	version        message.StompVersion
 }
 
-func newConn(rw net.Conn, channel chan request) *conn {
+func newConn(server *Server, rw net.Conn, channel chan request) *conn {
 	c := new(conn)
+	c.server = server
 	c.rw = rw
 	c.requestChannel = channel
 	c.writeChannel = make(chan *message.Frame, maxPendingWrites)
@@ -157,25 +159,29 @@ func (c *conn) handleConnect(f *message.Frame) error {
 		return err
 	}
 
-	// apply a minimum heartbeat time of 30 seconds
-	if cx > 0 && cx < 30000 {
-		cx = 30000
+	// Minimum value as per server config. If the client
+	// has requested shorter periods than this value, the
+	// server will insist on the longer time period.
+	min := asMilliseconds(c.server.HeartBeat, message.MaxHeartBeat)
+
+	// apply a minimum heartbeat 
+	if cx > 0 && cx < min {
+		cx = min
 	}
-	if cy > 0 && cy < 30000 {
-		cy = 30000
+	if cy > 0 && cy < min {
+		cy = min
 	}
 
 	c.readTimeout = time.Duration(cx) * time.Millisecond
 	c.writeTimeout = time.Duration(cy) * time.Millisecond
 
+	// Note that the heart-beat header is included even if the
+	// client is V1.0 and did not send a header. This should not
+	// break V1.0 clients.
 	response := message.NewFrame(message.CONNECTED,
 		message.Version, string(c.version),
-		message.Server, "stompd/x.y.z") // TODO: get version
-
-	if c.version > message.V1_0 {
-		value := fmt.Sprintf("%d,%d", cy, cx)
-		response.Append(message.HeartBeat, value)
-	}
+		message.Server, "stompd/x.y.z", // TODO: get version
+		message.HeartBeat, fmt.Sprintf("%d,%d", cy, cx)) 
 
 	c.Send(response)
 
