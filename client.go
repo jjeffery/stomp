@@ -5,13 +5,13 @@ import (
 )
 
 // Indicates the acknowledgement mode for a STOMP subscription.
-type AckMode int
+type AckMode string
 
 // AckMode constants
 const (
-	AckAuto AckMode = iota
-	AckClient
-	AckClientIndividual
+	AckAuto             = AckMode("auto")
+	AckClient           = AckMode("client")
+	AckClientIndividual = AckMode("client-individual")
 )
 
 // A Client is a STOMP client.

@@ -31,6 +31,7 @@ const (
 	invalidHeartBeat         = errorMessage("invalid format for heart-beat")
 	invalidOperationForFrame = errorMessage("invalid operation for frame")
 	exceededMaxFrameSize     = errorMessage("exceeded max frame size")
+	invalidHeaderValue       = errorMessage("invalid header value")
 )
 
 func missingHeader(name string) errorMessage {
@@ -40,7 +41,6 @@ func missingHeader(name string) errorMessage {
 func prohibitedHeader(name string) errorMessage {
 	return errorMessage("prohibited header: " + name)
 }
-
 
 func (e errorMessage) Error() string {
 	return string(e)

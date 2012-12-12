@@ -254,7 +254,7 @@ func (f *Frame) validateConnect() error {
 			return invalidHeartBeat
 		}
 	}
-	
+
 	err = f.verifyProhibitedHeaders(Destination, Transaction, Ack, Id, Receipt)
 	if err != nil {
 		return err
@@ -276,7 +276,18 @@ func (f *Frame) validateSubscribe() error {
 	if err != nil {
 		return err
 	}
-	
+
+	if ack, ok := f.Contains(Ack); ok {
+		// TODO: would like to import constants
+		// from stomp package, but that causes an
+		// import loop.
+		if ack != "auto" &&
+			ack != "client" &&
+			ack != "client-individual" {
+			return invalidHeaderValue
+		}
+	}
+
 	return f.verifyProhibitedHeaders(Transaction)
 }
 
