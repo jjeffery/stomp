@@ -11,7 +11,7 @@ const (
 	txUnknown            = errorMessage("unknown transaction")
 	subscriptionInUse    = errorMessage("another subscription has the same id")
 	subscriptionNotFound = errorMessage("subscription not found")
-	notImplementedYet = errorMessage("not implemented yet")
+	notImplementedYet    = errorMessage("not implemented yet")
 )
 
 type errorMessage string

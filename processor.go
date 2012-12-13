@@ -2,8 +2,8 @@ package stomp
 
 import (
 	"github.com/jjeffery/stomp/message"
-	"net"
 	"log"
+	"net"
 	"strings"
 	"time"
 )

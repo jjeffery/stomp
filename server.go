@@ -90,6 +90,3 @@ func (s *Server) Serve(l net.Listener) error {
 	proc := newRequestProcessor(s)
 	return proc.Serve(l)
 }
-
-
-
