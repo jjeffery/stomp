@@ -26,3 +26,10 @@ const (
 	MessageId     = "message-id"
 	Message       = "message"
 )
+
+// Valid values for the "ack" header.
+const (
+	AckAuto             = "auto"              // Client does not send ACK
+	AckClient           = "client"            // Client sends ACK/NACK
+	AckClientIndividual = "client-individual" // Client sends ACK/NACK for individual messages
+)

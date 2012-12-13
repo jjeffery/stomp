@@ -118,7 +118,7 @@ func (c *conn) readLoop() {
 				if err == io.EOF {
 					log.Println("connection closed by client:", c.rw.RemoteAddr())
 				} else {
-					log.Println("read failed:", err, c.rw.RemoteAddr())
+					log.Println("read failed:", err, ":", c.rw.RemoteAddr())
 				}
 				c.Close()
 			}
@@ -205,9 +205,10 @@ func (c *conn) processLoop() {
 }
 
 func (c *conn) Close() {
-	c.closed = true
-	c.txStore.Init()
-	c.rw.Close()
+	c.closed = true  // records that the server closed the connection
+	c.txStore.Init() // clean out pending transactions
+	c.rw.Close()     // close the socket
+	// tell the upper layer we have disconnected
 	c.requestChannel <- request{op: disconnectOp, conn: c}
 }
 
@@ -232,9 +233,6 @@ func (c *conn) handleConnect(f *message.Frame) error {
 			return authenticationFailed
 		}
 	}
-
-	// TODO: add functionality for authentication.
-	// currently no authentication checks are made
 
 	c.version, err = f.AcceptVersion()
 	if err != nil {
@@ -272,6 +270,9 @@ func (c *conn) handleConnect(f *message.Frame) error {
 
 	c.Send(response)
 	c.stateFunc = connected
+
+	// tell the upper layer we are connected
+	c.requestChannel <- request{op: connectOp, conn: c}
 
 	return nil
 }
@@ -315,6 +316,12 @@ func (c *conn) handleBegin(f *message.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
 	if transaction, ok := f.Contains(message.Transaction); ok {
+		// Send a receipt and remove the header
+		err := c.sendReceiptImmediately(f)
+		if err != nil {
+			return err
+		}
+
 		return c.txStore.Begin(transaction)
 	}
 	return missingHeader
@@ -324,6 +331,11 @@ func (c *conn) handleCommit(f *message.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
 	if transaction, ok := f.Contains(message.Transaction); ok {
+		// Send a receipt and remove the header
+		err := c.sendReceiptImmediately(f)
+		if err != nil {
+			return err
+		}
 		return c.txStore.Commit(transaction, func(f *message.Frame) error {
 			// Call the state function (again) for each frame in the
 			// transaction. This time each frame is stripped of its transaction
@@ -338,6 +350,11 @@ func (c *conn) handleAbort(f *message.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
 	if transaction, ok := f.Contains(message.Transaction); ok {
+		// Send a receipt and remove the header
+		err := c.sendReceiptImmediately(f)
+		if err != nil {
+			return err
+		}
 		return c.txStore.Abort(transaction)
 	}
 	return missingHeader
@@ -367,6 +384,36 @@ func (c *conn) handleSend(f *message.Frame) error {
 	return nil
 }
 
+// Send the frame to the request channel. Remove receipt header
+// and send a RECEIPT frame to the client if necessary.
+func (c *conn) sendFrameRequest(f *message.Frame) error {
+	// Send a receipt and remove the header
+	err := c.sendReceiptImmediately(f)
+	if err != nil {
+		return err
+	}
+
+	// Handled by next level
+	c.requestChannel <- request{op: frameOp, conn: c, frame: f}
+	return nil
+}
+
+func (c *conn) handleSubscribe(f *message.Frame) error {
+	return c.sendFrameRequest(f)
+}
+
+func (c *conn) handleUnsubscribe(f *message.Frame) error {
+	return c.sendFrameRequest(f)
+}
+
+func (c *conn) handleAck(f *message.Frame) error {
+	return c.sendFrameRequest(f)
+}
+
+func (c *conn) handleNack(f *message.Frame) error {
+	return c.sendFrameRequest(f)
+}
+
 func connected(c *conn, f *message.Frame) error {
 	switch f.Command {
 	case message.CONNECT, message.STOMP:
@@ -381,6 +428,14 @@ func connected(c *conn, f *message.Frame) error {
 		return c.handleCommit(f)
 	case message.SEND:
 		return c.handleSend(f)
+	case message.SUBSCRIBE:
+		return c.handleSubscribe(f)
+	case message.UNSUBSCRIBE:
+		return c.handleUnsubscribe(f)
+	case message.ACK:
+		return c.handleAck(f)
+	case message.NACK:
+		return c.handleNack(f)
 	case message.MESSAGE, message.RECEIPT, message.ERROR:
 		// should only be sent by the server, should not come from the client
 		return unexpectedCommand

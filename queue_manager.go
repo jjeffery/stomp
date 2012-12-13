@@ -1,38 +1,56 @@
 package stomp
 
 import (
-	//"github.com/jjeffery/stomp/message"
 	"container/list"
+	"github.com/jjeffery/stomp/message"
+	"time"
 )
 
 type queueManager struct {
-	qstore QueueStorage // handles queue storage
-
+	qstore  QueueStorage // handles queue storage
+	subs    subscriptionManager
+	pending *list.List // list of pendingMsg
 }
 
-type subscriber struct {
-	id          int
-	destination string
-	conn        *conn
-	ack         AckMode
-}
-
-type subscriberStore struct {
-	destinations map[string]*list.List // maps queue name to a list of subscribers
-	conns        map[*conn]*list.List  // maps connection to a list of subscribers
-}
-
-func (s *subscriberStore) Subscribe(conn *conn, destination string, ack AckMode) {
-	panic("not implemented")
-}
-
-func (s *subscriberStore) Unsubscribe(conn *conn, id int) {
-	panic("not implemented")
+// Information about a message pending
+type pendingMsg struct {
+	subscription *subscription
+	frame        *message.Frame
+	sent         time.Time
 }
 
 // Create a queue manager with the specified queue storage mechanism
 func newQueueManager(qstore QueueStorage) *queueManager {
 	qm := new(queueManager)
 	qm.qstore = qstore
+	qm.pending = list.New()
 	return qm
+}
+
+func (qm *queueManager) handleConnect(c *conn) error {
+	return notImplementedYet
+}
+
+func (qm *queueManager) handleDisconnect(c *conn) error {
+	return notImplementedYet
+}
+
+func (qm *queueManager) handleSubscribe(conn *conn, frame *message.Frame) error {
+	return notImplementedYet
+}
+
+func (qm *queueManager) handleUnsubscribe(conn *conn, frame *message.Frame) error {
+	return notImplementedYet
+}
+
+func (qm *queueManager) handleAck(conn *conn, frame *message.Frame) error {
+	return notImplementedYet
+}
+
+func (qm *queueManager) handleNack(conn *conn, frame *message.Frame) error {
+	return notImplementedYet
+}
+
+func (qm *queueManager) handleSend(conn *conn, frame *message.Frame) error {
+	return notImplementedYet
 }

@@ -2,21 +2,27 @@ package stomp
 
 import (
 	"github.com/jjeffery/stomp/message"
+	"strconv"
 )
 
-// client request operation
+// Opcode used in requests.
 type requestOp int
 
-// client requests operation code
+func (r requestOp) String() string {
+	return strconv.Itoa(int(r))
+}
+
+// Valid value for request opcodes.
 const (
 	stopOp       requestOp = iota // server stop
-	disconnectOp                  // client connectionClosed
+	connectOp                     // client has connected
+	disconnectOp                  // client has disconnected
 	frameOp                       // process a frame
 )
 
-// requests received
+// requests received to be processed by main processing loop
 type request struct {
-	op    requestOp
-	conn  *conn
-	frame *message.Frame
+	op    requestOp      // opcode for request
+	conn  *conn          // connectOp, disconnectOp, frameOp
+	frame *message.Frame // frameOp
 }

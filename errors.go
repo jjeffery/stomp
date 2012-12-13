@@ -9,6 +9,9 @@ const (
 	authenticationFailed = errorMessage("authentication failed")
 	txAlreadyInProgress  = errorMessage("transaction already in progress")
 	txUnknown            = errorMessage("unknown transaction")
+	subscriptionInUse    = errorMessage("another subscription has the same id")
+	subscriptionNotFound = errorMessage("subscription not found")
+	notImplementedYet = errorMessage("not implemented yet")
 )
 
 type errorMessage string

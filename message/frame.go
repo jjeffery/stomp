@@ -278,12 +278,10 @@ func (f *Frame) validateSubscribe() error {
 	}
 
 	if ack, ok := f.Contains(Ack); ok {
-		// TODO: would like to import constants
-		// from stomp package, but that causes an
-		// import loop.
-		if ack != "auto" &&
-			ack != "client" &&
-			ack != "client-individual" {
+		switch ack {
+		case AckAuto, AckClient, AckClientIndividual:
+			// acceptable values, do nothing
+		default:
 			return invalidHeaderValue
 		}
 	}

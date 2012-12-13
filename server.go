@@ -2,10 +2,11 @@ package stomp
 
 import (
 	//"github.com/jjeffery/stomp/message"
-	"log"
 	"net"
 	"time"
 )
+
+const QueuePrefix = "/queue"
 
 // Default address for listening for connections.
 const DefaultListenAddr = ":61613"
@@ -86,50 +87,9 @@ func (s *Server) ListenAndServe() error {
 // service thread for each connection. The service threads read
 // requests and then process each request.
 func (s *Server) Serve(l net.Listener) error {
-	defer l.Close()
-	ch := make(chan request, 32)
-	go s.processRequests(ch, s.QueueStorage)
-	timeout := time.Duration(0) // how long to sleep on accept failure
-	for {
-		rw, err := l.Accept()
-		if err != nil {
-			if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
-				if timeout == 0 {
-					timeout = 5 * time.Millisecond
-				} else {
-					timeout *= 2
-				}
-				if max := 5 * time.Second; timeout > max {
-					timeout = max
-				}
-				log.Printf("stomp: Accept error: %v; retrying in %v", err, timeout)
-				time.Sleep(timeout)
-				continue
-			}
-			return err
-		}
-		timeout = 0
-		// TODO: need to pass Server to connection so it has access to
-		// configuration parameters.
-		_ = newConn(s, rw, ch)
-	}
-	panic("not reached")
+	proc := newRequestProcessor(s)
+	return proc.Serve(l)
 }
 
-func (s *Server) processRequests(ch chan request, queueStorage QueueStorage) {
-	if queueStorage == nil {
-		// TODO allocate in-memory storage
-	}
 
-	for {
-		r := <-ch
-		switch r.op {
-		case stopOp:
-			return
-		case disconnectOp:
-			// TODO
-		case frameOp:
-			// TODO	
-		}
-	}
-}
+
