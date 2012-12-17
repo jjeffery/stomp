@@ -7,6 +7,6 @@ import (
 
 // Runs all gocheck tests in this package.
 // See other *_test.go files for gocheck tests.
-func TestStomp(t *testing.T) {
+func TestClient(t *testing.T) {
 	gocheck.TestingT(t)
 }
