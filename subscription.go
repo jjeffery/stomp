@@ -67,15 +67,34 @@ func (s *subscriptionManager) Unsubscribe(c *conn, id string) error {
 	}
 
 	subList := s.destinations[sub.destination]
-	for e := subList.Front(); e != nil; e = e.Next() {
+	for e := subList.Front(); e != nil; {
 		otherSub := e.Value.(*subscription)
+		thisElement := e
+		e = e.Next()
 		if otherSub == sub {
-			subList.Remove(e)
+			subList.Remove(thisElement)
 			break
 		}
 	}
 
 	return nil
+}
+
+func (s *subscriptionManager) Disconnect(c *conn) {
+	connMap := s.subscriptions[c]
+	for _, sub := range connMap {
+		subList := s.destinations[sub.destination]
+		for e := subList.Front(); e != nil; {
+			thisElement := e
+			e = e.Next()
+			thisSub := thisElement.Value.(*subscription)
+			if thisSub.conn == c {
+				subList.Remove(thisElement)
+			}
+		}
+	}
+
+	delete(s.subscriptions, c)
 }
 
 // Find a subscription matching the destination. If multiple subscriptions

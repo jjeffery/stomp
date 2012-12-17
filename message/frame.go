@@ -39,12 +39,9 @@ type Frame struct {
 // should contain an even number of entries. Each even index is the header name,
 // and the odd indexes are the assocated header values.
 func NewFrame(command string, headers ...string) *Frame {
-	f := new(Frame)
-	f.Command = command
+	f := &Frame{Command: command}
 	for index := 0; index < len(headers); index += 2 {
-		header := headers[index]
-		value := headers[index+1]
-		f.Append(header, value)
+		f.Append(headers[index], headers[index+1])
 	}
 	return f
 }

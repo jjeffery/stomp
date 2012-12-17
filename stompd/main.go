@@ -1,8 +1,7 @@
 package main
 
 import (
-	"github.com/jjeffery/stomp/client"
-	"github.com/jjeffery/stomp/queue"
+	"github.com/jjeffery/stomp"
 	"log"
 )
 

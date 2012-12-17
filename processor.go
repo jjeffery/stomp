@@ -13,21 +13,24 @@ type requestProcessor struct {
 	ch     chan request
 	qm     *queueManager
 	tm     *topicManager
-	stop   bool // has stop been requested
+	stop   bool  // has stop been requested
+	msgId1 int64 // for generating message-id headers
+	msgId2 int64 // for generating message-id headers
 }
 
 func newRequestProcessor(server *Server) *requestProcessor {
-	proc := new(requestProcessor)
-	proc.server = server
-	proc.ch = make(chan request, 32)
+	proc := &requestProcessor{
+		server: server,
+		ch:     make(chan request, 32),
+		tm:     newTopicManager(),
+		msgId1: time.Now().Unix(),
+	}
 
 	if server.QueueStorage == nil {
 		proc.qm = newQueueManager(NewMemoryQueueStorage())
 	} else {
 		proc.qm = newQueueManager(server.QueueStorage)
 	}
-
-	proc.tm = newTopicManager()
 
 	return proc
 }
@@ -68,8 +71,8 @@ func (proc *requestProcessor) handleDisconnect(c *conn) {
 func (proc *requestProcessor) handleFrame(c *conn, f *message.Frame) {
 	switch f.Command {
 	case message.UNSUBSCRIBE:
-		// we cannot tell whether this is for a topic or queue, so
-		// just send to both.
+		// We cannot easily tell whether this is for 
+		// a topic or queue, so just send to both.
 		proc.qm.handleUnsubscribe(c, f)
 		proc.tm.handleUnsubscribe(c, f)
 	case message.SUBSCRIBE:
@@ -85,6 +88,8 @@ func (proc *requestProcessor) handleFrame(c *conn, f *message.Frame) {
 		// only queues require NACK
 		proc.qm.handleNack(c, f)
 	case message.SEND:
+		// convert to a MESSAGE frame
+		f.Command = message.MESSAGE
 		if isQueueFrame(f) {
 			proc.qm.handleSend(c, f)
 		} else {
@@ -93,6 +98,10 @@ func (proc *requestProcessor) handleFrame(c *conn, f *message.Frame) {
 	default:
 		log.Println("unhandled command:", f.Command)
 	}
+}
+
+func (proc *requestProcessor) generateMessageId() string {
+
 }
 
 func isQueueFrame(f *message.Frame) bool {

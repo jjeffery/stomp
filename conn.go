@@ -36,12 +36,13 @@ type conn struct {
 }
 
 func newConn(server *Server, rw net.Conn, channel chan request) *conn {
-	c := new(conn)
-	c.server = server
-	c.rw = rw
-	c.requestChannel = channel
-	c.writeChannel = make(chan *message.Frame, maxPendingWrites)
-	c.readChannel = make(chan *message.Frame, maxPendingReads)
+	c := &conn{
+		server:         server,
+		rw:             rw,
+		requestChannel: channel,
+		writeChannel:   make(chan *message.Frame, maxPendingWrites),
+		readChannel:    make(chan *message.Frame, maxPendingReads),
+	}
 	go c.readLoop()
 	go c.processLoop()
 	return c
