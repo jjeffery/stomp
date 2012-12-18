@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -24,47 +25,54 @@ type Conn struct {
 	config         Config
 	rw             net.Conn                              // Network connection to client
 	writer         *message.Writer                       // Writes STOMP frames directly to the network connection
-	requestChannel chan Request                          // For sending requests
-	writeChannel   chan *message.Frame                   // For sending frames to the client
-	subChannel     chan *Subscription                    // For sending messages to client
-	readChannel    chan *message.Frame                   // For reading frames from the client
+	requestChannel chan Request                          // For sending requests to upper layer
+	subChannel     chan *Subscription                    // Receives subscription messages for client
+	writeChannel   chan *message.Frame                  // Receives unacknowledged (topic) messages for client
+	readChannel    chan *message.Frame                   // Receives frames from the client
 	stateFunc      func(c *Conn, f *message.Frame) error // State processing function
 	readTimeout    time.Duration                         // Heart beat read timeout
 	writeTimeout   time.Duration                         // Heart beat write timeout
 	version        message.StompVersion                  // Negotiated STOMP protocol version
 	closed         bool                                  // Is the connection closed
 	txStore        *txStore                              // Stores transactions in progress
+	lastMsgId uint64 // last message-id value
+	subList *SubscriptionList // List of subscriptions requiring acknowledgement
+	subs map[string]*Subscription // All subscriptions, keyed by id
 }
 
-func NewConn(config Config, rw net.Conn, channel chan Request) *Conn {
+// Creates a new client connection. The config parameter contains
+// process-wide configuration parameters relevant to a client connection.
+// The rw parameter is a network connection object for communicating with
+// the client. All client requests are sent via the ch channel to the
+// upper layer.
+func NewConn(config Config, rw net.Conn, ch chan Request) *Conn {
 	c := &Conn{
 		config:         config,
 		rw:             rw,
-		requestChannel: channel,
+		requestChannel: ch,
 		subChannel:     make(chan *Subscription, maxPendingWrites),
 		writeChannel:   make(chan *message.Frame, maxPendingWrites),
 		readChannel:    make(chan *message.Frame, maxPendingReads),
 		txStore:        &txStore{},
+		subList: NewSubscriptionList(),
 	}
 	go c.readLoop()
 	go c.processLoop()
 	return c
 }
 
-// Write a frame to the connection.
+// Write a frame to the connection without requiring
+// any acknowledgement.
 func (c *Conn) Send(f *message.Frame) {
-	// place the frame on the write channel, or
-	// close the connection if the write channel is full,
-	// as this means the client is not keeping up.
-	select {
-	case c.writeChannel <- f:
-	default:
-		// write channel is full
-		c.close()
-	}
+	// Place the frame on the write channel. If the
+	// write channel is full, the caller will block.
+	c.writeChannel <- f
 }
 
-// TODO: should send other information, such as receipt-id
+// Send and ERROR message to the client. The client
+// connection will disconnect as soon as the ERROR
+// message has been transmitted. The message header 
+// will be based on the contents of the err parameter.
 func (c *Conn) SendError(err error) {
 	f := new(message.Frame)
 	f.Command = message.ERROR
@@ -72,9 +80,11 @@ func (c *Conn) SendError(err error) {
 	c.Send(f) // will close after successful send
 }
 
-// Send an ERROR frame to the client and immediately close the connection.
-// Include the receipt-id header if the frame contains a receipt header.
-func (c *Conn) sendErrorImmediatelyAndClose(err error, f *message.Frame) {
+// Send an ERROR frame to the client and immediately. The error
+// message is derived from err. If f is non-nil, it is the frame
+// whose contents have caused the error. Include the receipt-id 
+// header if the frame contains a receipt header.
+func (c *Conn) sendErrorImmediately(err error, f *message.Frame) {
 	errorFrame := message.NewFrame(message.ERROR,
 		message.Message, err.Error())
 
@@ -89,9 +99,6 @@ func (c *Conn) sendErrorImmediatelyAndClose(err error, f *message.Frame) {
 	// send the frame to the client, ignore any error condition
 	// because we are about to close the connection anyway
 	_ = c.sendImmediately(errorFrame)
-
-	// close connection with the client
-	c.close()
 }
 
 // Sends a STOMP frame to the client immediately, does not push onto the
@@ -107,31 +114,63 @@ func (c *Conn) sendImmediately(f *message.Frame) error {
 // this connection on the one go-routine and avoids race conditions.
 func (c *Conn) readLoop() {
 	reader := message.NewReader(c.rw)
-	for !c.closed {
-		if c.readTimeout == time.Duration(0) {
+	expectingConnect := true
+	readTimeout := time.Duration(0)
+	for {
+		if readTimeout == time.Duration(0) {
 			// infinite timeout
 			c.rw.SetReadDeadline(time.Time{})
 		} else {
-			c.rw.SetReadDeadline(time.Now().Add(c.readTimeout))
+			c.rw.SetReadDeadline(time.Now().Add(readTimeout))
 		}
 		f, err := reader.Read()
 		if err != nil {
-			if c.closed {
-				log.Println("connection closed by server:", c.rw.RemoteAddr())
+			if err == io.EOF {
+				log.Println("connection closed:", c.rw.RemoteAddr())
 			} else {
-				if err == io.EOF {
-					log.Println("connection closed by client:", c.rw.RemoteAddr())
-				} else {
-					log.Println("read failed:", err, ":", c.rw.RemoteAddr())
-				}
-				c.close()
+				log.Println("read failed:", err, ":", c.rw.RemoteAddr())
 			}
+
+			// Close the read channel so that the processing loop will 
+			// know to terminate, if it has not already done so. This is
+			// the only channel that we close, because it is the only one
+			// we know who is writing to.
+			close(c.readChannel)
 			return
 		}
 
 		if f == nil {
 			// if the frame is nil, then it is a heartbeat
 			continue
+		}
+
+		// If we are expecting a CONNECT or STOMP command, extract
+		// the heart-beat header and work out the read timeout.
+		// Note that the processing loop will duplicate this to
+		// some extent, but letting this go-routine work out its own
+		// read timeout means no synchronization is necessary.
+		if expectingConnect {
+			// Expecting a CONNECT or STOMP command, get the heart-beat
+			cx, _, err := f.HeartBeat()
+			
+			// Ignore the error condition and treat as no read timeout.
+			// The processing loop will handle the error again and 
+			// process correctly.
+			if err == nil {
+				// Minimum value as per server config. If the client
+				// has requested shorter periods than this value, the
+				// server will insist on the longer time period.
+				min := asMilliseconds(c.config.HeartBeat(), message.MaxHeartBeat)
+
+				// apply a minimum heartbeat 
+				if cx > 0 && cx < min {
+					cx = min
+				}
+
+				readTimeout = time.Duration(cx) * time.Millisecond
+				
+				expectingConnect = false
+			}
 		}
 
 		// Add the frame to the read channel. Note that this will block
@@ -144,11 +183,11 @@ func (c *Conn) readLoop() {
 // Go routine that processes all read frames and all write frames.
 // Having all processing in one go routine helps eliminate any race conditions.
 func (c *Conn) processLoop() {
-	defer c.cleanupSubscriptions()
+	defer c.cleanupConn()
 
 	c.writer = message.NewWriter(c.rw)
 	c.stateFunc = connecting
-	for !c.closed {
+	for {
 		var timerChannel <-chan time.Time
 		var timer *time.Timer
 
@@ -158,18 +197,31 @@ func (c *Conn) processLoop() {
 		}
 
 		select {
-		case f := <-c.writeChannel:
-			// have a frame to the client
+		case f, ok := <-c.writeChannel:
+			if !ok {
+				// write channel has been closed, so
+				// exit go-routine (after cleaning up)
+				return
+			}
+			
+			// have a frame to the client with 
+			// no acknowledgement required (topic)
+			
 			// stop the heart-beat timer
 			if timer != nil {
 				timer.Stop()
 				timer = nil
 			}
+			
+			c.allocateMessageId(f, nil)
 
 			// write the frame to the client
 			err := c.writer.Write(f)
 			if err != nil {
-				c.close()
+				// if there is an error writing to
+				// the client, there is not much
+				// point trying to send an ERROR frame,
+				// so just exit go-routine (after cleaning up)
 				return
 			}
 
@@ -177,17 +229,22 @@ func (c *Conn) processLoop() {
 			// frame, we disconnect
 			if f.Command == message.ERROR {
 				// sent an ERROR frame, so disconnect
-				c.close()
 				return
 			}
 
-		case f := <-c.readChannel:
+		case f, ok := <-c.readChannel:
+			if !ok {
+				// read channel has been closed, so
+				// exit go-routine (after cleaning up)
+				return
+			}
+			
 			// Just received a frame from the client.
 			// Validate the frame, checking for mandatory
 			// headers and prohibited headers.
 			err := f.Validate()
 			if err != nil {
-				c.sendErrorImmediatelyAndClose(err, f)
+				c.sendErrorImmediately(err, f)
 				return
 			}
 
@@ -195,15 +252,54 @@ func (c *Conn) processLoop() {
 			// according to the current state of the connection.
 			err = c.stateFunc(c, f)
 			if err != nil {
-				c.sendErrorImmediatelyAndClose(err, f)
+				c.sendErrorImmediately(err, f)
 				return
+			}
+			
+		case sub, ok := <-c.subChannel:
+			if !ok {
+				// subscription channel has been closed,
+				// so exit go-routine (after cleaning up)
+				return
+			}
+			
+			// have a frame to the client which requires
+			// acknowledgement to the upper layer
+			
+			// stop the heart-beat timer
+			if timer != nil {
+				timer.Stop()
+				timer = nil
+			}
+
+			// allocate a message-id, note that the
+			// subscription id has already been set
+			c.allocateMessageId(sub.frame, sub)
+
+			// write the frame to the client
+			err := c.writer.Write(sub.frame)
+			if err != nil {
+				// if there is an error writing to
+				// the client, there is not much
+				// point trying to send an ERROR frame,
+				// so just exit go-routine (after cleaning up)
+				return
+			}
+			
+			if sub.ack == message.AckAuto {
+				// subscription does not require acknowledgement,
+				// so send the subscription back the upper layer
+				// straight away
+				c.requestChannel <- Request{Op: SubscribeOp, Sub: sub}
+			} else {
+				// subscription requires acknowledgement
+				c.subList.Add(sub)
 			}
 
 		case _ = <-timerChannel:
 			// write a heart-beat
 			err := c.writer.Write(nil)
 			if err != nil {
-				c.close()
 				return
 			}
 		}
@@ -213,21 +309,97 @@ func (c *Conn) processLoop() {
 // Called when the connection is closing, and takes care of
 // unsubscribing all subscriptions with the upper layer, and
 // re-queueing all unacknowledged messages to the upper layer.
-func (c *Conn) cleanupSubscriptions() {
-	// tell the upper layer we have disconnected
+func (c *Conn) cleanupConn() {
+	// clean up any pending transactions
+	c.txStore.Init()
+	
+	c.discardWriteChannelFrames()
 
-	// TODO: get all subscriptions and send appropriate UnsubscribeOp,
-	// followed by RequeueOps.
-
-	//c.requestChannel <- request{op: disconnectOp, conn: c}
-
-	panic("not implemented yet: cleanupSubscriptions")
+	// Unsubscribe every subscription known to the upper layer.
+	// This should be done before cleaning up the subscription
+	// channel. If we requeued messages before doing this,
+	// we might end up getting them back again.
+	for _, sub := range c.subs {
+		// Note that we only really need to send a request if the
+		// subscription does not have a frame, but for simplicity
+		// all subscriptions are unsubscribed from the upper layer.
+		c.requestChannel <- Request{Op: UnsubscribeOp, Sub: sub}
+	}
+	
+	// Clear out the map of subscriptions
+	c.subs = nil
+	
+	// Every subscription requiring acknowledgement has a frame
+	// that needs to be requeued in the upper layer
+	for sub:= c.subList.Get(); sub != nil; sub = c.subList.Get() {
+		c.requestChannel <- Request{Op: RequeueOp, Frame: sub.frame}
+	}
+	
+	// empty the subscription and write queue
+	c.discardWriteChannelFrames()
+	c.cleanupSubChannel()
+	
+	// Tell the upper layer we are now disconnected
+	c.requestChannel <- Request{Op: DisconnectedOp, Conn: c}
+	
+	// empty the subscription and write queue one more time
+	c.discardWriteChannelFrames()
+	c.cleanupSubChannel()
+	
+	// Should not hurt to call this if it is already closed?
+	c.rw.Close()
 }
 
-func (c *Conn) close() {
-	c.closed = true  // records that the server closed the connection
-	c.txStore.Init() // clean out pending transactions
-	c.rw.Close()     // close the socket
+// Discard anything on the write channel. These frames
+// do not get acknowledged, and are either topic MESSAGE 
+// frames or ERROR frames.
+func (c *Conn) discardWriteChannelFrames() {
+	for finished := false; !finished; {
+		select {
+		case _, ok := <- c.writeChannel:
+			if !ok {
+				finished = true
+			}
+			
+		default:
+			finished = true
+		}
+	}
+}
+
+func (c *Conn) cleanupSubChannel() {
+	// Read the subscription channel until it is empty.
+	// Each frame should be requeued to the upper layer.
+	for finished:= false; !finished; {
+		select {
+			case sub, ok := <- c.subChannel:
+				if !ok {
+					finished = true
+				}
+				c.requestChannel <- Request{Op: RequeueOp, Frame: sub.frame}
+				
+			default:
+				finished = true
+		}
+	}
+}
+
+// Send a frame to the client, allocating necessary headers prior.
+func (c *Conn) allocateMessageId(f *message.Frame, sub *Subscription) {
+	if f.Command == message.MESSAGE {
+		// allocate the value of message-id for this frame
+		c.lastMsgId++
+		messageId := strconv.FormatUint(c.lastMsgId, 10)
+		f.Set(message.MessageId, messageId)
+		
+		// if there is any requirement by the client to acknowledge, set
+		// the ack header as per STOMP 1.2
+		if sub.ack == message.AckAuto {
+			f.Remove(message.Ack)
+		} else {
+			f.Set(message.Ack, messageId)
+		}
+	}
 }
 
 func (c *Conn) handleConnect(f *message.Frame) error {
@@ -323,7 +495,6 @@ func (c *Conn) handleDisconnect(f *message.Frame) error {
 	// Ignore the error condition if we cannot send a RECEIPT frame,
 	// as the connection is about to close anyway.
 	_ = c.sendReceiptImmediately(f)
-	c.close()
 	return nil
 }
 

@@ -18,6 +18,8 @@ const (
 	UnsubscribeOp                  // subscription not ready
 	EnqueueOp                      // send a message to a queue
 	RequeueOp                      // re-queue a message, not successfully sent
+	ConnectedOp // connection established
+	DisconnectedOp // connection disconnected
 )
 
 // Client requests received to be processed by main processing loop
@@ -25,4 +27,5 @@ type Request struct {
 	Op    RequestOp      // opcode for request
 	Sub   *Subscription  // SubscribeOp, UnsubscribeOp
 	Frame *message.Frame // EnqueueOp, RequeueOp
+	Conn *Conn // ConnectedOp, DisconnectedOp
 }

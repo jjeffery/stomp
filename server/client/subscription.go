@@ -26,6 +26,17 @@ func (s *Subscription) Destination() string {
 	return s.dest
 }
 
+func (s *Subscription) Ack() string {
+	return s.ack
+}
+
+func (s *Subscription) Id() string {
+	return s.id
+}
+
+// Send a message frame to the client, as part of this
+// subscription. Called within the queue when a message
+// frame is available.
 func (s *Subscription) Send(f *message.Frame) {
 	if s.frame != nil {
 		panic("subscription already has a frame pending")

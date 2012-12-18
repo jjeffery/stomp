@@ -6,14 +6,13 @@ import (
 
 // Maintains a list of subscriptions. Not thread-safe.
 type SubscriptionList struct {
-	destination string
 	// TODO: implement linked list locally, adding next and prev
 	// pointers to the Subscription struct itself.
 	subs *list.List
 }
 
-func NewSubscriptionList(destination string) *SubscriptionList {
-	return &SubscriptionList{destination, list.New()}
+func NewSubscriptionList() *SubscriptionList {
+	return &SubscriptionList{list.New()}
 }
 
 // Add a subscription to the back of the list. Will panic if
@@ -21,9 +20,6 @@ func NewSubscriptionList(destination string) *SubscriptionList {
 // list destination. Will also panic if the subscription has already
 // been added to a subscription list.
 func (sl *SubscriptionList) Add(sub *Subscription) {
-	if sub.dest != sl.destination {
-		panic("destinations do not match")
-	}
 	if sub.subList != nil {
 		panic("subscription is already in a subscription list")
 	}
@@ -54,4 +50,17 @@ func (sl *SubscriptionList) Remove(s *Subscription) {
 			return
 		}
 	}
+}
+
+// Search for a subscription with the specified id and remove it.
+// Returns a pointer to the subscription if found, nil otherwise.
+func (sl *SubscriptionList) FindByIdAndRemove(id string) *Subscription {
+	for e := sl.subs.Front(); e != nil; e = e.Next() {
+		sub := e.Value.(*Subscription)
+		if sub.id == id {
+			sl.subs.Remove(e)
+			return sub;
+		}
+	}
+	return nil
 }
