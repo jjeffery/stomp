@@ -21,7 +21,7 @@ func NewSubscriptionList(destination string) *SubscriptionList {
 // list destination. Will also panic if the subscription has already
 // been added to a subscription list.
 func (sl *SubscriptionList) Add(sub *Subscription) {
-	if sub.destination != sl.destination {
+	if sub.dest != sl.destination {
 		panic("destinations do not match")
 	}
 	if sub.subList != nil {

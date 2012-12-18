@@ -5,16 +5,25 @@ import (
 )
 
 type Subscription struct {
-	conn        *Conn
-	destination string
-	id          string            // client's subscription id
-	ack         string            // auto, client, client-individual
-	subList     *SubscriptionList // am I in a list
-	frame       *message.Frame    // message allocated to subscription
+	conn    *Conn
+	dest    string
+	id      string            // client's subscription id
+	ack     string            // auto, client, client-individual
+	subList *SubscriptionList // am I in a list
+	frame   *message.Frame    // message allocated to subscription
 }
 
-func (s *Subscription) Destinatinon() string {
-	return s.destination
+func newSubscription(c *Conn, dest string, id string, ack string) *Subscription {
+	return &Subscription{
+		conn: c,
+		dest: dest,
+		id:   id,
+		ack:  ack,
+	}
+}
+
+func (s *Subscription) Destination() string {
+	return s.dest
 }
 
 func (s *Subscription) Send(f *message.Frame) {
