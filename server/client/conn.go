@@ -27,17 +27,16 @@ type Conn struct {
 	writer         *message.Writer                       // Writes STOMP frames directly to the network connection
 	requestChannel chan Request                          // For sending requests to upper layer
 	subChannel     chan *Subscription                    // Receives subscription messages for client
-	writeChannel   chan *message.Frame                  // Receives unacknowledged (topic) messages for client
+	writeChannel   chan *message.Frame                   // Receives unacknowledged (topic) messages for client
 	readChannel    chan *message.Frame                   // Receives frames from the client
 	stateFunc      func(c *Conn, f *message.Frame) error // State processing function
-	readTimeout    time.Duration                         // Heart beat read timeout
 	writeTimeout   time.Duration                         // Heart beat write timeout
 	version        message.StompVersion                  // Negotiated STOMP protocol version
 	closed         bool                                  // Is the connection closed
 	txStore        *txStore                              // Stores transactions in progress
-	lastMsgId uint64 // last message-id value
-	subList *SubscriptionList // List of subscriptions requiring acknowledgement
-	subs map[string]*Subscription // All subscriptions, keyed by id
+	lastMsgId      uint64                                // last message-id value
+	subList        *SubscriptionList                     // List of subscriptions requiring acknowledgement
+	subs           map[string]*Subscription              // All subscriptions, keyed by id
 }
 
 // Creates a new client connection. The config parameter contains
@@ -54,7 +53,7 @@ func NewConn(config Config, rw net.Conn, ch chan Request) *Conn {
 		writeChannel:   make(chan *message.Frame, maxPendingWrites),
 		readChannel:    make(chan *message.Frame, maxPendingReads),
 		txStore:        &txStore{},
-		subList: NewSubscriptionList(),
+		subList:        NewSubscriptionList(),
 	}
 	go c.readLoop()
 	go c.processLoop()
@@ -152,7 +151,7 @@ func (c *Conn) readLoop() {
 		if expectingConnect {
 			// Expecting a CONNECT or STOMP command, get the heart-beat
 			cx, _, err := f.HeartBeat()
-			
+
 			// Ignore the error condition and treat as no read timeout.
 			// The processing loop will handle the error again and 
 			// process correctly.
@@ -168,7 +167,7 @@ func (c *Conn) readLoop() {
 				}
 
 				readTimeout = time.Duration(cx) * time.Millisecond
-				
+
 				expectingConnect = false
 			}
 		}
@@ -203,16 +202,16 @@ func (c *Conn) processLoop() {
 				// exit go-routine (after cleaning up)
 				return
 			}
-			
+
 			// have a frame to the client with 
 			// no acknowledgement required (topic)
-			
+
 			// stop the heart-beat timer
 			if timer != nil {
 				timer.Stop()
 				timer = nil
 			}
-			
+
 			c.allocateMessageId(f, nil)
 
 			// write the frame to the client
@@ -238,7 +237,7 @@ func (c *Conn) processLoop() {
 				// exit go-routine (after cleaning up)
 				return
 			}
-			
+
 			// Just received a frame from the client.
 			// Validate the frame, checking for mandatory
 			// headers and prohibited headers.
@@ -255,45 +254,53 @@ func (c *Conn) processLoop() {
 				c.sendErrorImmediately(err, f)
 				return
 			}
-			
+
 		case sub, ok := <-c.subChannel:
 			if !ok {
 				// subscription channel has been closed,
 				// so exit go-routine (after cleaning up)
 				return
 			}
-			
+
 			// have a frame to the client which requires
 			// acknowledgement to the upper layer
-			
+
 			// stop the heart-beat timer
 			if timer != nil {
 				timer.Stop()
 				timer = nil
 			}
 
-			// allocate a message-id, note that the
-			// subscription id has already been set
-			c.allocateMessageId(sub.frame, sub)
+			// there is the possibility that the subscription
+			// has been unsubscribed just prior to receiving
+			// this, so we check
+			if _, ok = c.subs[sub.id]; ok {
+				// allocate a message-id, note that the
+				// subscription id has already been set
+				c.allocateMessageId(sub.frame, sub)
 
-			// write the frame to the client
-			err := c.writer.Write(sub.frame)
-			if err != nil {
-				// if there is an error writing to
-				// the client, there is not much
-				// point trying to send an ERROR frame,
-				// so just exit go-routine (after cleaning up)
-				return
-			}
-			
-			if sub.ack == message.AckAuto {
-				// subscription does not require acknowledgement,
-				// so send the subscription back the upper layer
-				// straight away
-				c.requestChannel <- Request{Op: SubscribeOp, Sub: sub}
+				// write the frame to the client
+				err := c.writer.Write(sub.frame)
+				if err != nil {
+					// if there is an error writing to
+					// the client, there is not much
+					// point trying to send an ERROR frame,
+					// so just exit go-routine (after cleaning up)
+					return
+				}
+
+				if sub.ack == message.AckAuto {
+					// subscription does not require acknowledgement,
+					// so send the subscription back the upper layer
+					// straight away
+					c.requestChannel <- Request{Op: SubscribeOp, Sub: sub}
+				} else {
+					// subscription requires acknowledgement
+					c.subList.Add(sub)
+				}
 			} else {
-				// subscription requires acknowledgement
-				c.subList.Add(sub)
+				// Subscription no longer exists, requeue
+				c.requestChannel <- Request{Op: RequeueOp, Frame: sub.frame}
 			}
 
 		case _ = <-timerChannel:
@@ -312,7 +319,7 @@ func (c *Conn) processLoop() {
 func (c *Conn) cleanupConn() {
 	// clean up any pending transactions
 	c.txStore.Init()
-	
+
 	c.discardWriteChannelFrames()
 
 	// Unsubscribe every subscription known to the upper layer.
@@ -325,27 +332,27 @@ func (c *Conn) cleanupConn() {
 		// all subscriptions are unsubscribed from the upper layer.
 		c.requestChannel <- Request{Op: UnsubscribeOp, Sub: sub}
 	}
-	
+
 	// Clear out the map of subscriptions
 	c.subs = nil
-	
+
 	// Every subscription requiring acknowledgement has a frame
 	// that needs to be requeued in the upper layer
-	for sub:= c.subList.Get(); sub != nil; sub = c.subList.Get() {
+	for sub := c.subList.Get(); sub != nil; sub = c.subList.Get() {
 		c.requestChannel <- Request{Op: RequeueOp, Frame: sub.frame}
 	}
-	
+
 	// empty the subscription and write queue
 	c.discardWriteChannelFrames()
 	c.cleanupSubChannel()
-	
+
 	// Tell the upper layer we are now disconnected
 	c.requestChannel <- Request{Op: DisconnectedOp, Conn: c}
-	
+
 	// empty the subscription and write queue one more time
 	c.discardWriteChannelFrames()
 	c.cleanupSubChannel()
-	
+
 	// Should not hurt to call this if it is already closed?
 	c.rw.Close()
 }
@@ -356,11 +363,11 @@ func (c *Conn) cleanupConn() {
 func (c *Conn) discardWriteChannelFrames() {
 	for finished := false; !finished; {
 		select {
-		case _, ok := <- c.writeChannel:
+		case _, ok := <-c.writeChannel:
 			if !ok {
 				finished = true
 			}
-			
+
 		default:
 			finished = true
 		}
@@ -370,16 +377,17 @@ func (c *Conn) discardWriteChannelFrames() {
 func (c *Conn) cleanupSubChannel() {
 	// Read the subscription channel until it is empty.
 	// Each frame should be requeued to the upper layer.
-	for finished:= false; !finished; {
+	for finished := false; !finished; {
 		select {
-			case sub, ok := <- c.subChannel:
-				if !ok {
-					finished = true
-				}
-				c.requestChannel <- Request{Op: RequeueOp, Frame: sub.frame}
-				
-			default:
+		case sub, ok := <-c.subChannel:
+			if !ok {
 				finished = true
+			} else {
+				c.requestChannel <- Request{Op: RequeueOp, Frame: sub.frame}
+			}
+
+		default:
+			finished = true
 		}
 	}
 }
@@ -391,7 +399,7 @@ func (c *Conn) allocateMessageId(f *message.Frame, sub *Subscription) {
 		c.lastMsgId++
 		messageId := strconv.FormatUint(c.lastMsgId, 10)
 		f.Set(message.MessageId, messageId)
-		
+
 		// if there is any requirement by the client to acknowledge, set
 		// the ack header as per STOMP 1.2
 		if sub.ack == message.AckAuto {
@@ -400,6 +408,45 @@ func (c *Conn) allocateMessageId(f *message.Frame, sub *Subscription) {
 			f.Set(message.Ack, messageId)
 		}
 	}
+}
+
+// State function for expecting connect frame.
+func connecting(c *Conn, f *message.Frame) error {
+	switch f.Command {
+	case message.CONNECT, message.STOMP:
+		return c.handleConnect(f)
+	}
+	return notConnected
+}
+
+// State function for after connect frame received.
+func connected(c *Conn, f *message.Frame) error {
+	switch f.Command {
+	case message.CONNECT, message.STOMP:
+		return unexpectedCommand
+	case message.DISCONNECT:
+		return c.handleDisconnect(f)
+	case message.BEGIN:
+		return c.handleBegin(f)
+	case message.ABORT:
+		return c.handleAbort(f)
+	case message.COMMIT:
+		return c.handleCommit(f)
+	case message.SEND:
+		return c.handleSend(f)
+	case message.SUBSCRIBE:
+		return c.handleSubscribe(f)
+	case message.UNSUBSCRIBE:
+		return c.handleUnsubscribe(f)
+	case message.ACK:
+		return c.handleAck(f)
+	case message.NACK:
+		return c.handleNack(f)
+	case message.MESSAGE, message.RECEIPT, message.ERROR:
+		// should only be sent by the server, should not come from the client
+		return unexpectedCommand
+	}
+	return unknownCommand
 }
 
 func (c *Conn) handleConnect(f *message.Frame) error {
@@ -426,6 +473,11 @@ func (c *Conn) handleConnect(f *message.Frame) error {
 		return err
 	}
 
+	if c.version == message.V1_0 {
+		// don't want to handle V1.0 at the moment
+		return unsupportedVersion
+	}
+
 	cx, cy, err := f.HeartBeat()
 	if err != nil {
 		return err
@@ -444,32 +496,22 @@ func (c *Conn) handleConnect(f *message.Frame) error {
 		cy = min
 	}
 
-	c.readTimeout = time.Duration(cx) * time.Millisecond
+	// the read timeout has already been processed in the readLoop
+	// go-routine
 	c.writeTimeout = time.Duration(cy) * time.Millisecond
 
-	// Note that the heart-beat header is included even if the
-	// client is V1.0 and did not send a header. This should not
-	// break V1.0 clients.
 	response := message.NewFrame(message.CONNECTED,
 		message.Version, string(c.version),
 		message.Server, "stompd/x.y.z", // TODO: get version
 		message.HeartBeat, fmt.Sprintf("%d,%d", cy, cx))
 
-	c.Send(response)
+	c.sendImmediately(response)
 	c.stateFunc = connected
 
 	// tell the upper layer we are connected
-	//	c.requestChannel <- request{op: connectOp, conn: c}
+	c.requestChannel <- Request{Op: ConnectedOp, Conn: c}
 
 	return nil
-}
-
-func connecting(c *Conn, f *message.Frame) error {
-	switch f.Command {
-	case message.CONNECT, message.STOMP:
-		return c.handleConnect(f)
-	}
-	return notConnected
 }
 
 // Sends a RECEIPT frame to the client if the frame f contains
@@ -546,6 +588,108 @@ func (c *Conn) handleAbort(f *message.Frame) error {
 	return missingHeader
 }
 
+func (c *Conn) handleSubscribe(f *message.Frame) error {
+	id, ok := f.Contains(message.Id)
+	if !ok {
+		return missingHeader
+	}
+
+	dest, ok := f.Contains(message.Destination)
+	if !ok {
+		return missingHeader
+	}
+
+	ack, ok := f.Contains(message.Ack)
+	if !ok {
+		ack = message.AckAuto
+	}
+
+	sub, ok := c.subs[id]
+	if ok {
+		return subscriptionExists
+	}
+
+	sub = newSubscription(c, dest, id, ack)
+	c.subs[id] = sub
+
+	// send information about new subscription to upper layer
+	c.requestChannel <- Request{Op: SubscribeOp, Sub: sub}
+	return nil
+}
+
+func (c *Conn) handleUnsubscribe(f *message.Frame) error {
+	id, ok := f.Contains(message.Id)
+	if !ok {
+		return missingHeader
+	}
+
+	sub, ok := c.subs[id]
+	if !ok {
+		return subscriptionNotFound
+	}
+
+	// remove the subscription
+	delete(c.subs, id)
+
+	// tell the upper layer of the unsubscribe
+	c.requestChannel <- Request{Op: UnsubscribeOp, Sub: sub}
+	return nil
+}
+
+func (c *Conn) handleAck(f *message.Frame) error {
+	// Send a receipt and remove the header
+	err := c.sendReceiptImmediately(f)
+	if err != nil {
+		return err
+	}
+
+	// TODO: need to handle STOMP 1.2, where 
+	// only the id header is present.
+
+	subId, ok := f.Contains(message.Subscription)
+	if !ok {
+		return missingHeader
+	}
+
+	messageId, ok := f.Contains(message.MessageId)
+	if !ok {
+		return missingHeader
+	}
+
+	if tx, ok := f.Contains(message.Transaction); ok {
+		// the transaction header is removed from the frame
+		err = c.txStore.Add(tx, f)
+		if err != nil {
+			return err
+		}
+	} else {
+		sub, ok := c.subs[subId]
+		if ok && sub.frame != nil {
+			
+		}
+	}
+	
+	return nil
+}
+
+func (c *Conn) handleNack(f *message.Frame) error {
+	// Send a receipt and remove the header
+	err := c.sendReceiptImmediately(f)
+	if err != nil {
+		return err
+	}
+
+	if tx, ok := f.Contains(message.Transaction); ok {
+		// the transaction header is removed from the frame
+		err = c.txStore.Add(tx, f)
+		if err != nil {
+			return err
+		}
+	} else {
+
+	}
+}
+
 // Handle a SEND frame received from the client. Note that
 // this method is called after a SEND message is received,
 // but also after a transaction commit.
@@ -563,70 +707,11 @@ func (c *Conn) handleSend(f *message.Frame) error {
 			return err
 		}
 	} else {
-		// not in a transaction, send to be processed
+		// not in a transaction
+		// change from SEND to MESSAGE
+		f.Command = message.MESSAGE
 		c.requestChannel <- Request{Op: EnqueueOp, Frame: f}
 	}
 
 	return nil
-}
-
-// Send the frame to the request channel. Remove receipt header
-// and send a RECEIPT frame to the client if necessary.
-func (c *Conn) sendFrameRequest(f *message.Frame) error {
-	// Send a receipt and remove the header
-	err := c.sendReceiptImmediately(f)
-	if err != nil {
-		return err
-	}
-
-	// Handled by next level
-	c.requestChannel <- Request{Op: EnqueueOp, Frame: f}
-	return nil
-}
-
-func (c *Conn) handleSubscribe(f *message.Frame) error {
-	return c.sendFrameRequest(f)
-}
-
-func (c *Conn) handleUnsubscribe(f *message.Frame) error {
-	return c.sendFrameRequest(f)
-}
-
-func (c *Conn) handleAck(f *message.Frame) error {
-	return c.sendFrameRequest(f)
-}
-
-func (c *Conn) handleNack(f *message.Frame) error {
-	return c.sendFrameRequest(f)
-}
-
-func connected(c *Conn, f *message.Frame) error {
-	switch f.Command {
-	case message.CONNECT, message.STOMP:
-		return unexpectedCommand
-	case message.DISCONNECT:
-		return c.handleDisconnect(f)
-	case message.BEGIN:
-		return c.handleBegin(f)
-	case message.ABORT:
-		return c.handleAbort(f)
-	case message.COMMIT:
-		return c.handleCommit(f)
-	case message.SEND:
-		return c.handleSend(f)
-	case message.SUBSCRIBE:
-		return c.handleSubscribe(f)
-	case message.UNSUBSCRIBE:
-		return c.handleUnsubscribe(f)
-	case message.ACK:
-		return c.handleAck(f)
-	case message.NACK:
-		return c.handleNack(f)
-	case message.MESSAGE, message.RECEIPT, message.ERROR:
-		// should only be sent by the server, should not come from the client
-		return unexpectedCommand
-	default:
-		return unknownCommand
-	}
-	panic("not reached")
 }

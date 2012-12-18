@@ -59,7 +59,7 @@ func (sl *SubscriptionList) FindByIdAndRemove(id string) *Subscription {
 		sub := e.Value.(*Subscription)
 		if sub.id == id {
 			sl.subs.Remove(e)
-			return sub;
+			return sub
 		}
 	}
 	return nil
