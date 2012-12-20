@@ -95,3 +95,13 @@ func (sl *SubscriptionList) Nack(msgId uint64, callback func(s *Subscription)) {
 		e = next
 	}
 }
+
+// Invoke a callback function for every subscription in the list.
+func (sl *SubscriptionList) ForEach(callback func (s *Subscription, isLast bool)) {
+	for e := sl.subs.Front(); e != nil; {
+		next := e.Next()
+		sub := e.Value.(*Subscription)
+		callback(sub, next == nil)
+		e = next
+	}
+}

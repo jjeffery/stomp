@@ -28,7 +28,7 @@ type Frame struct {
 	Command string
 
 	// Collection of frame headers.
-	Headers
+	*Headers
 
 	// The frame body. Only SEND, MESSAGE and ERROR frames may have a body.
 	// All other frames must not have a body.
@@ -39,11 +39,18 @@ type Frame struct {
 // should contain an even number of entries. Each even index is the header name,
 // and the odd indexes are the assocated header values.
 func NewFrame(command string, headers ...string) *Frame {
-	f := &Frame{Command: command}
+	f := &Frame{Command: command, Headers: NewHeaders()}
 	for index := 0; index < len(headers); index += 2 {
 		f.Append(headers[index], headers[index+1])
 	}
 	return f
+}
+
+// Makes a copy of the frame. The command and headers are copied, but the
+// body points to the same underlying array as the source frame.
+func (f *Frame) Clone() *Frame {
+	clone := &Frame{Command: f.Command, Headers: f.Headers.Clone(), Body: f.Body}
+	return clone
 }
 
 // Returns the value of the "content-length" header, and whether it was

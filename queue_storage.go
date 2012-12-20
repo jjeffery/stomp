@@ -34,6 +34,7 @@ type QueueStorage interface {
 	Stop()
 }
 
+// In-memory implementation of the QueueStorage interface.
 type MemoryQueueStorage struct {
 	lists map[string]*list.List
 }

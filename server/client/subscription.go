@@ -56,16 +56,29 @@ func (s *Subscription) IsNackedBy(msgId uint64) bool {
 	return msgId == s.msgId
 }
 
-// Send a message frame to the client, as part of this
-// subscription. Called within the queue when a message
-// frame is available.
-func (s *Subscription) Send(f *message.Frame) {
+func (s *Subscription) SendQueueFrame(f *message.Frame) {
 	if s.frame != nil {
 		panic("subscription already has a frame pending")
 	}
 	s.frame = f
 	f.Set(message.Id, s.id)
-
-	// let the connection deal with the sub
+	
+	// let the connection deal with the subscription
+	// acknowledgement 
 	s.conn.subChannel <- s
+}
+
+// Send a message frame to the client, as part of this
+// subscription. Called within the queue when a message
+// frame is available.
+func (s *Subscription) SendTopicFrame(f *message.Frame) {
+	if s.frame != nil {
+		panic("subscription already has a frame pending")
+	}
+	s.frame = f
+	f.Set(message.Id, s.id)
+	
+	// topics are handled differently, they just go
+	// straight to the client without acknowledgement
+	s.conn.writeChannel <- f
 }
