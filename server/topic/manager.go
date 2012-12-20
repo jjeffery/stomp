@@ -6,7 +6,7 @@ type Manager struct {
 	topics map[string]*Topic
 }
 
-// Create a queue manager with the specified queue storage mechanism
+// NewManager creates a new topic manager.
 func NewManager() *Manager {
 	tm := &Manager {topics: make(map[string]*Topic)}
 	return tm

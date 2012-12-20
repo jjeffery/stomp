@@ -5,10 +5,10 @@ import (
 	"github.com/jjeffery/stomp/server/client"
 	"github.com/jjeffery/stomp/server/queue"
 	"github.com/jjeffery/stomp/server/topic"
+	"log"
 	"net"
 	"strings"
 	"time"
-	"log"
 )
 
 type requestProcessor struct {
@@ -60,10 +60,10 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 				topic := proc.tm.Find(r.Sub.Destination())
 				topic.Unsubscribe(r.Sub)
 			}
-			
+
 		case client.EnqueueOp:
 			destination, ok := r.Frame.Contains(message.Destination)
-			if (!ok) {
+			if !ok {
 				// should not happen, already checked in lower layer
 				panic("missing destination")
 			}
@@ -75,10 +75,10 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 				topic := proc.tm.Find(destination)
 				topic.Enqueue(r.Frame)
 			}
-			
+
 		case client.RequeueOp:
 			destination, ok := r.Frame.Contains(message.Destination)
-			if (!ok) {
+			if !ok {
 				// should not happen, already checked in lower layer
 				panic("missing destination")
 			}
@@ -87,7 +87,7 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 			if isQueueDestination(destination) {
 				queue := proc.qm.Find(destination)
 				queue.Requeue(r.Frame)
-			}			
+			}
 		}
 	}
 	panic("not reached")
@@ -131,7 +131,7 @@ type config struct {
 }
 
 func newConfig(s *Server) *config {
-	return &config{server:s}
+	return &config{server: s}
 }
 
 func (c *config) HeartBeat() time.Duration {
@@ -145,7 +145,7 @@ func (c *config) Authenticate(login, passcode string) bool {
 	if c.server.Authenticator != nil {
 		return c.server.Authenticator.Authenticate(login, passcode)
 	}
-	
+
 	// no authentication defined
 	return true
 }

@@ -10,7 +10,7 @@ type FrameSuite struct{}
 var _ = Suite(&FrameSuite{})
 
 func (s *FrameSuite) TestAcceptVersion_V10_Connect(c *C) {
-	f := &Frame{Command: CONNECT}
+	f := NewFrame(CONNECT)
 	version, err := f.AcceptVersion()
 	c.Check(err, IsNil)
 	c.Check(version, Equals, V1_0)
@@ -19,13 +19,13 @@ func (s *FrameSuite) TestAcceptVersion_V10_Connect(c *C) {
 func (s *FrameSuite) TestAcceptVersion_V10_Stomp(c *C) {
 	// the "STOMP" command was introduced in V1.1, so it must
 	// have an accept-version header
-	f := &Frame{Command: STOMP}
+	f := NewFrame(STOMP)
 	_, err := f.AcceptVersion()
 	c.Check(err, Equals, missingHeader(AcceptVersion))
 }
 
 func (s *FrameSuite) TestAcceptVersion_V11_Connect(c *C) {
-	f := &Frame{Command: CONNECT}
+	f := NewFrame(CONNECT)
 	f.Headers.Append(AcceptVersion, "1.1")
 	version, err := f.AcceptVersion()
 	c.Check(version, Equals, V1_1)
@@ -33,7 +33,7 @@ func (s *FrameSuite) TestAcceptVersion_V11_Connect(c *C) {
 }
 
 func (s *FrameSuite) TestAcceptVersion_MultipleVersions(c *C) {
-	f := &Frame{Command: CONNECT}
+	f := NewFrame(CONNECT)
 	f.Headers.Append(AcceptVersion, "1.2,1.1,1.0,2.0")
 	version, err := f.AcceptVersion()
 	c.Check(version, Equals, V1_2)
@@ -41,7 +41,7 @@ func (s *FrameSuite) TestAcceptVersion_MultipleVersions(c *C) {
 }
 
 func (s *FrameSuite) TestAcceptVersion_IncompatibleVersions(c *C) {
-	f := &Frame{Command: CONNECT}
+	f := NewFrame(CONNECT)
 	f.Headers.Append(AcceptVersion, "0.2,0.1,1.3,2.0")
 	version, err := f.AcceptVersion()
 	c.Check(version, Equals, StompVersion(""))
@@ -49,7 +49,7 @@ func (s *FrameSuite) TestAcceptVersion_IncompatibleVersions(c *C) {
 }
 
 func (s *FrameSuite) TestValidate_Connect(c *C) {
-	f := &Frame{Command: CONNECT}
+	f := NewFrame(CONNECT)
 
 	// CONNECT without accept-version can be missing host header
 	err := f.Validate()
@@ -84,7 +84,7 @@ func (s *FrameSuite) TestValidate_Connect(c *C) {
 }
 
 func (s *FrameSuite) TestValidate_Stomp(c *C) {
-	f := &Frame{Command: STOMP}
+	f := NewFrame(STOMP)
 
 	// STOMP must have an accept-version header
 	err := f.Validate()

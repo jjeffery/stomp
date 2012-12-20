@@ -1,3 +1,6 @@
+/*
+Package queue provides implementations of server-side queues.
+*/
 package queue
 
 import (

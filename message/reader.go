@@ -34,8 +34,7 @@ func (r *Reader) Read() (*Frame, error) {
 		return nil, nil
 	}
 
-	frame := new(Frame)
-	frame.Command = string(commandSlice)
+	frame := NewFrame(string(commandSlice))
 	switch frame.Command {
 	case CONNECT, STOMP, SEND, SUBSCRIBE, UNSUBSCRIBE, ACK, NACK, BEGIN, COMMIT, ABORT, DISCONNECT:
 		// valid command

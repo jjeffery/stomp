@@ -1,3 +1,6 @@
+/*
+Package topic provides implementations of server-side topics.
+*/
 package topic
 
 import (
@@ -5,7 +8,9 @@ import (
 	"github.com/jjeffery/stomp/server/client"
 )
 
-// Topic for broadcasting to subscriptions.
+// A Topic is used for broadcasting to subscribed clients.
+// In contrast to a queue, when a message is sent to a topic,
+// that message is transmitted to all subscribed clients.
 type Topic struct {
 	destination   string
 	subs *client.SubscriptionList
@@ -19,17 +24,19 @@ func newTopic(destination string) *Topic {
 	}
 }
 
-// Add a subscription to a topic.
+// Subscribe adds a subscription to a topic. Any message sent to the
+// topic will be transmitted to the subscription's client until 
+// unsubscription occurs.
 func (t *Topic) Subscribe(sub *client.Subscription) {
 	t.subs.Add(sub)
 }
 
-// Unsubscribe a subscription.
+// Unsubscribe causes a subscription to be removed from the topic.
 func (t *Topic) Unsubscribe(sub *client.Subscription) {
 	t.subs.Remove(sub)
 }
 
-// Send a message to the topic. All subscriptions receive a copy
+// Enqueue send a message to the topic. All subscriptions receive a copy
 // of the message.
 func (t *Topic) Enqueue(f *message.Frame) {
 	// find a subscription ready to receive the frame

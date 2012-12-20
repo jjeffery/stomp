@@ -1,7 +1,7 @@
 /*
-This package implements key abstractions
-in the STOMP server. In particular the
-abstractions of a connection, a subscription,
-and a request.
+Package client implements client connectivity in the STOMP server.
+
+The key abstractions include a connection, a subscription and
+a client request.
 */
 package client

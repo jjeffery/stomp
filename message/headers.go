@@ -24,6 +24,11 @@ func (h *Headers) Count() int {
 	return len(h.headers) / 2
 }
 
+// Returns the number of headers in the collection.
+func (h *Headers) Len() int {
+	return len(h.headers) / 2
+}
+
 // Returns the header name and value at the specified index in
 // the collection. The index should be in the range 0 <= index < Count().
 func (h *Headers) GetAt(index int) (key, value string) {
@@ -81,3 +86,4 @@ func (h *Headers) index(key string) (int, bool) {
 	}
 	return -1, false
 }
+
