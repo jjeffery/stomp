@@ -42,29 +42,12 @@ type Server struct {
 
 func ListenAndServe(addr string) error {
 	s := &Server{Addr: addr}
-	s.setDefaults()
 	return s.ListenAndServe()
 }
 
 func Serve(l net.Listener) error {
 	s := &Server{}
-	s.setDefaults()
 	return s.Serve(l)
-}
-
-func (s *Server) setDefaults() {
-	if s.QueueStorage == nil {
-		s.QueueStorage = NewMemoryQueueStorage()
-	}
-	if s.MaxHeaderBytes <= 0 {
-		s.MaxHeaderBytes = DefaultMaxHeaderBytes
-	}
-	if s.MaxBodyBytes <= 0 {
-		s.MaxBodyBytes = DefaultMaxBodyBytes
-	}
-	if s.HeartBeat <= 0 {
-		s.HeartBeat = DefaultHeartBeat
-	}
 }
 
 // Listens on the TCP network address s.Addr and then calls

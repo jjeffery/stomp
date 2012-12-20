@@ -1,4 +1,4 @@
-package stomp
+package queue
 
 import (
 	"container/list"
@@ -10,7 +10,7 @@ type MemoryQueueStorage struct {
 	lists map[string]*list.List
 }
 
-func NewMemoryQueueStorage() QueueStorage {
+func NewMemoryQueueStorage() Storage {
 	m := new(MemoryQueueStorage)
 	return m
 }

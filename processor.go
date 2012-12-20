@@ -27,7 +27,7 @@ func newRequestProcessor(server *Server) *requestProcessor {
 	}
 
 	if server.QueueStorage == nil {
-		proc.qm = queue.NewManager(NewMemoryQueueStorage())
+		proc.qm = queue.NewManager(queue.NewMemoryQueueStorage())
 	} else {
 		proc.qm = queue.NewManager(server.QueueStorage)
 	}

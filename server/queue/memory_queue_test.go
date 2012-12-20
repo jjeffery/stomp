@@ -1,4 +1,4 @@
-package stomp
+package queue
 
 import (
 	"github.com/jjeffery/stomp/message"
