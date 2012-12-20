@@ -64,3 +64,34 @@ func (sl *SubscriptionList) FindByIdAndRemove(id string) *Subscription {
 	}
 	return nil
 }
+
+// Finds all subscriptions in the subscription list that are acked by the
+// specified message-id (or ack) header. The subscription is removed from
+// the list and the callback function called for that subscription.
+func (sl *SubscriptionList) Ack(msgId uint64, callback func(s *Subscription)) {
+	for e := sl.subs.Front(); e != nil; {
+		next := e.Next()
+		sub := e.Value.(*Subscription)
+		if sub.IsAckedBy(msgId) {
+			sl.subs.Remove(e)
+			callback(sub)
+		}
+		e = next
+	}
+}
+
+// Finds all subscriptions in the subscription list that are *nacked* by the
+// specified message-id (or ack) header. The subscription is removed from
+// the list and the callback function called for that subscription. Current
+// understanding that all NACKs are individual, but not sure
+func (sl *SubscriptionList) Nack(msgId uint64, callback func(s *Subscription)) {
+	for e := sl.subs.Front(); e != nil; {
+		next := e.Next()
+		sub := e.Value.(*Subscription)
+		if sub.IsNackedBy(msgId) {
+			sl.subs.Remove(e)
+			callback(sub)
+		}
+		e = next
+	}
+}

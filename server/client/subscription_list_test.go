@@ -49,3 +49,65 @@ func (s *SubscriptionListSuite) TestAddAndRemove(c *C) {
 	c.Check(sl.Get(), Equals, sub3)
 	c.Check(sl.Get(), IsNil)
 }
+
+func (s *SubscriptionListSuite) TestAck(c *C) {
+	sub1 := &Subscription{dest: "/dest1", id: "1", ack: "client", msgId: 101}
+	sub2 := &Subscription{dest: "/dest3", id: "2", ack: "client-individual", msgId: 102}
+	sub3 := &Subscription{dest: "/dest4", id: "3", ack: "client", msgId: 103}
+	sub4 := &Subscription{dest: "/dest4", id: "4", ack: "client", msgId: 104}
+
+	sl := NewSubscriptionList()
+	sl.Add(sub1)
+	sl.Add(sub2)
+	sl.Add(sub3)
+	sl.Add(sub4)
+
+	c.Check(sl.subs.Len(), Equals, 4)
+	
+	var subs []*Subscription
+	callback := func(s *Subscription) {
+		subs = append(subs, s)
+	}
+
+	// now remove the second subscription
+	sl.Ack(103, callback)
+	
+	c.Assert(len(subs), Equals, 2)
+	c.Assert(subs[0], Equals, sub1)
+	c.Assert(subs[1], Equals, sub3)
+	
+	c.Assert(sl.Get(), Equals, sub2)
+	c.Assert(sl.Get(), Equals, sub4)
+	c.Assert(sl.Get(), IsNil)
+}
+
+func (s *SubscriptionListSuite) TestNack(c *C) {
+	sub1 := &Subscription{dest: "/dest1", id: "1", ack: "client", msgId: 101}
+	sub2 := &Subscription{dest: "/dest3", id: "2", ack: "client-individual", msgId: 102}
+	sub3 := &Subscription{dest: "/dest4", id: "3", ack: "client", msgId: 103}
+	sub4 := &Subscription{dest: "/dest4", id: "4", ack: "client", msgId: 104}
+
+	sl := NewSubscriptionList()
+	sl.Add(sub1)
+	sl.Add(sub2)
+	sl.Add(sub3)
+	sl.Add(sub4)
+
+	c.Check(sl.subs.Len(), Equals, 4)
+	
+	var subs []*Subscription
+	callback := func(s *Subscription) {
+		subs = append(subs, s)
+	}
+
+	// now remove the second subscription
+	sl.Nack(103, callback)
+	
+	c.Assert(len(subs), Equals, 1)
+	c.Assert(subs[0], Equals, sub3)
+	
+	c.Assert(sl.Get(), Equals, sub1)
+	c.Assert(sl.Get(), Equals, sub2)
+	c.Assert(sl.Get(), Equals, sub4)
+	c.Assert(sl.Get(), IsNil)
+}

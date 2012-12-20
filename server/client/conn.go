@@ -637,23 +637,25 @@ func (c *Conn) handleUnsubscribe(f *message.Frame) error {
 }
 
 func (c *Conn) handleAck(f *message.Frame) error {
-	// Send a receipt and remove the header
-	err := c.sendReceiptImmediately(f)
+	var err error
+	var msgId string
+	
+	if ack, ok := f.Contains(message.Ack); ok {
+		msgId = ack
+	} else if msgId, ok = f.Contains(message.MessageId); !ok {
+		return missingHeader
+	}
+	
+	// expecting message id to be a uint64
+	msgId64, err := strconv.ParseUint(msgId, 10, 64)
 	if err != nil {
 		return err
 	}
-
-	// TODO: need to handle STOMP 1.2, where 
-	// only the id header is present.
-
-	subId, ok := f.Contains(message.Subscription)
-	if !ok {
-		return missingHeader
-	}
-
-	messageId, ok := f.Contains(message.MessageId)
-	if !ok {
-		return missingHeader
+	
+	// Send a receipt and remove the header
+	err = c.sendReceiptImmediately(f)
+	if err != nil {
+		return err
 	}
 
 	if tx, ok := f.Contains(message.Transaction); ok {
@@ -663,18 +665,38 @@ func (c *Conn) handleAck(f *message.Frame) error {
 			return err
 		}
 	} else {
-		sub, ok := c.subs[subId]
-		if ok && sub.frame != nil {
+		// handle any subscriptions that are acknowledged by this msg
+		c.subList.Ack(msgId64, func(s *Subscription) {
+			// remove frame from the subscription, it has been delivered
+			s.frame = nil
 			
-		}
+			// let the upper layer know that this subscription
+			// is ready for another frame
+			c.requestChannel <- Request{Op: SubscribeOp, Sub: s}
+		})
 	}
 	
 	return nil
 }
 
 func (c *Conn) handleNack(f *message.Frame) error {
+	var err error
+	var msgId string
+	
+	if ack, ok := f.Contains(message.Ack); ok {
+		msgId = ack
+	} else if msgId, ok = f.Contains(message.MessageId); !ok {
+		return missingHeader
+	}
+	
+	// expecting message id to be a uint64
+	msgId64, err := strconv.ParseUint(msgId, 10, 64)
+	if err != nil {
+		return err
+	}
+	
 	// Send a receipt and remove the header
-	err := c.sendReceiptImmediately(f)
+	err = c.sendReceiptImmediately(f)
 	if err != nil {
 		return err
 	}
@@ -686,8 +708,20 @@ func (c *Conn) handleNack(f *message.Frame) error {
 			return err
 		}
 	} else {
-
+		// handle any subscriptions that are acknowledged by this msg
+		c.subList.Nack(msgId64, func(s *Subscription) {
+			// send frame back to upper layer for requeue
+			c.requestChannel <- Request{Op: RequeueOp, Frame: s.frame}
+			
+			// remove frame from the subscription, it has been requeued
+			s.frame = nil
+			
+			// let the upper layer know that this subscription
+			// is ready for another frame
+			c.requestChannel <- Request{Op: SubscribeOp, Sub: s}
+		})
 	}
+	return nil
 }
 
 // Handle a SEND frame received from the client. Note that
