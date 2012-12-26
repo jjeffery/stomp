@@ -3,12 +3,12 @@ package message
 // STOMP frame commands. Used upper case naming
 // convention to avoid clashing with STOMP header names.
 const (
-	// connect frames
+	// Connect commands.
 	CONNECT   = "CONNECT"
 	STOMP     = "STOMP"
 	CONNECTED = "CONNECTED"
 
-	// client frames
+	// Client commands.
 	SEND        = "SEND"
 	SUBSCRIBE   = "SUBSCRIBE"
 	UNSUBSCRIBE = "UNSUBSCRIBE"
@@ -19,7 +19,7 @@ const (
 	ABORT       = "ABORT"
 	DISCONNECT  = "DISCONNECT"
 
-	// server frames
+	// Server commands.
 	MESSAGE = "MESSAGE"
 	RECEIPT = "RECEIPT"
 	ERROR   = "ERROR"

@@ -1,7 +1,8 @@
 package stomp
 
 import (
-	_ "github.com/jjeffery/stomp/message"
+	"github.com/jjeffery/stomp/message"
+	"io"
 )
 
 // The AckMode type is an enumeration of the acknowledgement modes for a STOMP subscription. 
@@ -26,19 +27,28 @@ const (
 
 // A Client is a STOMP client.
 type Client struct {
-	// TODO
+	Login    string // Login for authentication
+	Passcode string // Passcode for authentication
+
+	readCh  chan *message.Frame
+	writeCh chan *message.Frame
+	rw      io.ReadWriter // Underlying network connection 
 }
 
-func NewClient(addr string) *Client {
+func (c *Client) Connect(rw io.ReadWriter) error {
 	panic("not implemented")
 }
 
-func (c *Client) SetLogin(login, passcode string) {
-	panic("not implemented")
-}
-
-func (c *Client) Connect() error {
-	panic("not implemented")
+func readLoop(c *Client) {
+	reader := message.NewReader(c.rw)
+	for {
+		f, err := reader.Read()
+		if err != nil {
+			close(c.readCh)
+			return
+		}
+		c.readCh <- f
+	}
 }
 
 func (c *Client) Disconnect() error {
@@ -85,39 +95,6 @@ func (tx *Transaction) Nack(m *Message) error {
 	panic("not implemented")
 }
 
-// The Subscription type represents a client subscription to
-// a destination. The subscription is created by calling Client.Subscribe.
-//
-// Once a client has subscribed, it can receive messages from the C channel.
-type Subscription struct {
-	C      chan *Message
-	client *Client
-}
-
-// BUG(jpj): If the client does not read messages from the Subscription.C channel quickly
-// enough, the client will stop reading messages from the server.
-
-// Identification for this subscription. Unique among
-// all subscriptions for the same Client.
-func (s *Subscription) Id() {
-	panic("not implemented")
-}
-
-// Destination for which the subscription applies.
-func (s *Subscription) Destination() {
-	panic("not implemented")
-}
-
-// The Ack mode for the subscription: auto, client or client-individual.
-func (s *Subscription) Ack() AckMode {
-	panic("not implemented")
-}
-
-// Unsubscribes and closes the channel C.
-func (s *Subscription) Unsubscribe() error {
-	panic("not implemented")
-}
-
 // A SendMessage is a message that is sent to the server.
 type SendMessage struct {
 	Destination string  // Destination
@@ -125,39 +102,4 @@ type SendMessage struct {
 	Receipt     bool    // Is a receipt required
 	Headers     Headers // Optional headers
 	Body        []byte  // Content of message
-}
-
-// A Message is a message that is received from the server.
-type Message struct {
-	Destination  string        // Destination the message was sent to.
-	ContentType  string        // MIME content
-	Client       *Client       // Associated client
-	Subscription *Subscription // Associated subscription
-	Headers      Headers       // Optional headers
-	Body         []byte        // Content of message
-}
-
-// The Headers interface represents a collection of headers, each having a key 
-// and a value. There may be more than one header in the collection 
-// with the same key, in which case the first header's value is used.
-type Headers interface {
-	// Returns the value associated with the specified key, and whether it was
-	// found or not.
-	Contains(key string) (string, bool)
-
-	// Remove all headers with the specified key.
-	Remove(key string)
-
-	// Append the header to the end of the collection.
-	Append(key, value string)
-
-	// Replace any existing header with the same key, or append
-	// if no header has the same key.
-	Set(key, value string)
-
-	// Get the header at the specified index.
-	GetAt(index int) (key, value string)
-
-	// Number of headers in the collection.
-	Len() int
 }

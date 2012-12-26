@@ -50,19 +50,22 @@ type Server struct {
 	MaxBodyBytes   int           // Maximum size of STOMP body in bytes, if zero then DefaultMaxBodyBytes.
 }
 
+// ListenAndServe listens on the TCP network address addr and then calls Serve.
 func ListenAndServe(addr string) error {
 	s := &Server{Addr: addr}
 	return s.ListenAndServe()
 }
 
+// Serve accepts incoming TCP connections on the listener l, creating a new
+// STOMP service thread for each connection.
 func Serve(l net.Listener) error {
 	s := &Server{}
 	return s.Serve(l)
 }
 
-// Listens on the TCP network address s.Addr and then calls
-// Serve to handle requests on the incoming connections. If
-// s.Addr is blank, then DefaultAddr is used.
+// ListenAndServe listens on the TCP network address s.Addr and 
+// then calls Serve to handle requests on the incoming connections. 
+// If s.Addr is blank, then DefaultAddr is used.
 func (s *Server) ListenAndServe() error {
 	addr := s.Addr
 	if addr == "" {
@@ -76,7 +79,7 @@ func (s *Server) ListenAndServe() error {
 	return s.Serve(l)
 }
 
-// Accepts incoming connections on the Listener l, creating a new
+// Serve accepts incoming connections on the Listener l, creating a new
 // service thread for each connection. The service threads read
 // requests and then process each request.
 func (s *Server) Serve(l net.Listener) error {
