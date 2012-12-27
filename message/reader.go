@@ -30,13 +30,25 @@ func (r *Reader) Read() (*Frame, error) {
 	}
 
 	if len(commandSlice) == 0 {
+		// gobble up any additional cr or lf characters
+		for {
+			b, err := r.reader.ReadByte()
+			if err != nil {
+				return nil, err
+			}
+			if b != cr && b != newline {
+				r.reader.UnreadByte()
+				break
+			}
+		}
 		// received a heart-beat newline char (or cr-lf)
 		return nil, nil
 	}
 
 	frame := NewFrame(string(commandSlice))
 	switch frame.Command {
-	case CONNECT, STOMP, SEND, SUBSCRIBE, UNSUBSCRIBE, ACK, NACK, BEGIN, COMMIT, ABORT, DISCONNECT:
+	case CONNECT, STOMP, SEND, SUBSCRIBE, UNSUBSCRIBE, ACK, NACK, BEGIN, COMMIT,
+		ABORT, DISCONNECT, CONNECTED, MESSAGE, ERROR:
 		// valid command
 	default:
 		return nil, invalidCommand
@@ -88,7 +100,14 @@ func (r *Reader) Read() (*Frame, error) {
 			bytesRead += n
 		}
 
-		// TODO! need to read the null byte here!
+		// read the next byte and verify that it is a null byte
+		terminator, err := r.reader.ReadByte()
+		if err != nil {
+			return nil, err
+		}
+		if terminator != 0 {
+			return nil, invalidFrameFormat
+		}
 	} else {
 		frame.Body, err = r.reader.ReadBytes(nullByte)
 		if err != nil {

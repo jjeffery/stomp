@@ -86,4 +86,3 @@ func (h *Headers) index(key string) (int, bool) {
 	}
 	return -1, false
 }
-

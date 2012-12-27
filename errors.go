@@ -1,21 +1,31 @@
 package stomp
 
-const (
-//	notConnected         = errorMessage("expected CONNECT or STOMP frame")
-//	unexpectedCommand    = errorMessage("unexpected frame command")
-//	unknownCommand       = errorMessage("unknown command")
-//	missingHeader        = errorMessage("missing header")
-//	receiptInConnect     = errorMessage("receipt header prohibited in CONNECT or STOMP frame")
-//	authenticationFailed = errorMessage("authentication failed")
-//	txAlreadyInProgress  = errorMessage("transaction already in progress")
-//	txUnknown            = errorMessage("unknown transaction")
-//	subscriptionInUse    = errorMessage("another subscription has the same id")
-//	subscriptionNotFound = errorMessage("subscription not found")
-//	notImplementedYet    = errorMessage("not implemented yet")
+import (
+	"github.com/jjeffery/stomp/message"
 )
 
-type errorMessage string
+// StompError implements the Error interface, and provides
+// additional information about a STOMP error.
+type Error struct {
+	Message string
+	Frame   *message.Frame
+}
 
-func (e errorMessage) Error() string {
-	return string(e)
+func (e Error) Error() string {
+	return e.Message
+}
+
+func NewError(f *message.Frame) Error {
+	e := Error{Frame: f}
+
+	if f.Command == message.ERROR {
+		if message, ok := f.Contains(message.Message); ok {
+			e.Message = message
+		} else {
+			e.Message = "ERROR frame, missing message header"
+		}
+	} else {
+		e.Message = "Unexpected frame: " + f.Command
+	}
+	return e
 }

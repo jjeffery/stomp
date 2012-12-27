@@ -63,7 +63,7 @@ func (s *SubscriptionListSuite) TestAck(c *C) {
 	sl.Add(sub4)
 
 	c.Check(sl.subs.Len(), Equals, 4)
-	
+
 	var subs []*Subscription
 	callback := func(s *Subscription) {
 		subs = append(subs, s)
@@ -71,11 +71,11 @@ func (s *SubscriptionListSuite) TestAck(c *C) {
 
 	// now remove the second subscription
 	sl.Ack(103, callback)
-	
+
 	c.Assert(len(subs), Equals, 2)
 	c.Assert(subs[0], Equals, sub1)
 	c.Assert(subs[1], Equals, sub3)
-	
+
 	c.Assert(sl.Get(), Equals, sub2)
 	c.Assert(sl.Get(), Equals, sub4)
 	c.Assert(sl.Get(), IsNil)
@@ -94,7 +94,7 @@ func (s *SubscriptionListSuite) TestNack(c *C) {
 	sl.Add(sub4)
 
 	c.Check(sl.subs.Len(), Equals, 4)
-	
+
 	var subs []*Subscription
 	callback := func(s *Subscription) {
 		subs = append(subs, s)
@@ -102,10 +102,10 @@ func (s *SubscriptionListSuite) TestNack(c *C) {
 
 	// now remove the second subscription
 	sl.Nack(103, callback)
-	
+
 	c.Assert(len(subs), Equals, 1)
 	c.Assert(subs[0], Equals, sub3)
-	
+
 	c.Assert(sl.Get(), Equals, sub1)
 	c.Assert(sl.Get(), Equals, sub2)
 	c.Assert(sl.Get(), Equals, sub4)

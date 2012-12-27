@@ -9,7 +9,7 @@ type Subscription struct {
 	dest    string
 	id      string            // client's subscription id
 	ack     string            // auto, client, client-individual
-	msgId uint64 // message-id (or ack) for acknowledgement
+	msgId   uint64            // message-id (or ack) for acknowledgement
 	subList *SubscriptionList // am I in a list
 	frame   *message.Frame    // message allocated to subscription
 }
@@ -45,7 +45,7 @@ func (s *Subscription) IsAckedBy(msgId uint64) bool {
 	case message.AckClientIndividual:
 		return msgId == s.msgId
 	}
-	
+
 	// should not get here
 	panic("invalid value for subscript.ack")
 }
@@ -62,7 +62,7 @@ func (s *Subscription) SendQueueFrame(f *message.Frame) {
 	}
 	s.frame = f
 	f.Set(message.Id, s.id)
-	
+
 	// let the connection deal with the subscription
 	// acknowledgement 
 	s.conn.subChannel <- s
@@ -77,7 +77,7 @@ func (s *Subscription) SendTopicFrame(f *message.Frame) {
 	}
 	s.frame = f
 	f.Set(message.Id, s.id)
-	
+
 	// topics are handled differently, they just go
 	// straight to the client without acknowledgement
 	s.conn.writeChannel <- f

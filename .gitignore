@@ -21,5 +21,7 @@ _testmain.go
 
 *.exe
 
+.idea
+
 # used for generating documentation during development
 doc.txt

@@ -243,6 +243,7 @@ func (c *Conn) processLoop() {
 			// headers and prohibited headers.
 			err := f.Validate()
 			if err != nil {
+				log.Println("validation failed for", f.Command, "frame")
 				c.sendErrorImmediately(err, f)
 				return
 			}
@@ -464,22 +465,26 @@ func (c *Conn) handleConnect(f *message.Frame) error {
 	passcode, _ := f.Contains(message.Passcode)
 	if !c.config.Authenticate(login, passcode) {
 		// sleep to slow down a rogue client a little bit
+		log.Println("authentication failed")
 		time.Sleep(time.Second)
 		return authenticationFailed
 	}
 
 	c.version, err = f.AcceptVersion()
 	if err != nil {
+		log.Println("protocol version negotiation failed")
 		return err
 	}
 
 	if c.version == message.V1_0 {
 		// don't want to handle V1.0 at the moment
+		log.Println("unsupported version", c.version)
 		return unsupportedVersion
 	}
 
 	cx, cy, err := f.HeartBeat()
 	if err != nil {
+		log.Println("invalid heart-beat")
 		return err
 	}
 
@@ -639,19 +644,19 @@ func (c *Conn) handleUnsubscribe(f *message.Frame) error {
 func (c *Conn) handleAck(f *message.Frame) error {
 	var err error
 	var msgId string
-	
+
 	if ack, ok := f.Contains(message.Ack); ok {
 		msgId = ack
 	} else if msgId, ok = f.Contains(message.MessageId); !ok {
 		return missingHeader
 	}
-	
+
 	// expecting message id to be a uint64
 	msgId64, err := strconv.ParseUint(msgId, 10, 64)
 	if err != nil {
 		return err
 	}
-	
+
 	// Send a receipt and remove the header
 	err = c.sendReceiptImmediately(f)
 	if err != nil {
@@ -669,32 +674,32 @@ func (c *Conn) handleAck(f *message.Frame) error {
 		c.subList.Ack(msgId64, func(s *Subscription) {
 			// remove frame from the subscription, it has been delivered
 			s.frame = nil
-			
+
 			// let the upper layer know that this subscription
 			// is ready for another frame
 			c.requestChannel <- Request{Op: SubscribeOp, Sub: s}
 		})
 	}
-	
+
 	return nil
 }
 
 func (c *Conn) handleNack(f *message.Frame) error {
 	var err error
 	var msgId string
-	
+
 	if ack, ok := f.Contains(message.Ack); ok {
 		msgId = ack
 	} else if msgId, ok = f.Contains(message.MessageId); !ok {
 		return missingHeader
 	}
-	
+
 	// expecting message id to be a uint64
 	msgId64, err := strconv.ParseUint(msgId, 10, 64)
 	if err != nil {
 		return err
 	}
-	
+
 	// Send a receipt and remove the header
 	err = c.sendReceiptImmediately(f)
 	if err != nil {
@@ -712,10 +717,10 @@ func (c *Conn) handleNack(f *message.Frame) error {
 		c.subList.Nack(msgId64, func(s *Subscription) {
 			// send frame back to upper layer for requeue
 			c.requestChannel <- Request{Op: RequeueOp, Frame: s.frame}
-			
+
 			// remove frame from the subscription, it has been requeued
 			s.frame = nil
-			
+
 			// let the upper layer know that this subscription
 			// is ready for another frame
 			c.requestChannel <- Request{Op: SubscribeOp, Sub: s}

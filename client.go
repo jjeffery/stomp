@@ -3,6 +3,7 @@ package stomp
 import (
 	"github.com/jjeffery/stomp/message"
 	"io"
+	"net"
 )
 
 // The AckMode type is an enumeration of the acknowledgement modes for a STOMP subscription. 
@@ -32,15 +33,55 @@ type Client struct {
 
 	readCh  chan *message.Frame
 	writeCh chan *message.Frame
-	rw      io.ReadWriter // Underlying network connection 
 }
 
-func (c *Client) Connect(rw io.ReadWriter) error {
-	panic("not implemented")
+func (c *Client) Connect(rw io.ReadWriter, headers map[string]string) error {
+	c.readCh = make(chan *message.Frame, 8)
+	c.writeCh = make(chan *message.Frame, 8)
+	reader := message.NewReader(rw)
+	writer := message.NewWriter(rw)
+
+	connectFrame := message.NewFrame(message.CONNECT)
+	for key, value := range headers {
+		connectFrame.Append(key, value)
+	}
+
+	// ensure mandatory header "accept-version" is set
+	if _, ok := connectFrame.Contains(message.AcceptVersion); !ok {
+		connectFrame.Append(message.AcceptVersion, "1.1,1.2")
+	}
+
+	// ensure mandatory header "host" is set
+	if _, ok := connectFrame.Contains(message.Host); !ok {
+		// no host, try to get it from the network connection
+		if conn, ok := rw.(net.Conn); ok {
+			host, _, err := net.SplitHostPort(conn.RemoteAddr().String())
+			if err != nil {
+				return err
+			}
+			connectFrame.Append(message.Host, host)
+		} else {
+			// not a network connection, host is unknown
+			connectFrame.Append(message.Host, "unknown")
+		}
+	}
+	writer.Write(connectFrame)
+	response, err := reader.Read()
+	if err != nil {
+		println("reader.Read failed")
+		return err
+	}
+
+	if response.Command != message.CONNECTED {
+		return NewError(response)
+	}
+
+	go readLoop(c, reader)
+
+	return nil
 }
 
-func readLoop(c *Client) {
-	reader := message.NewReader(c.rw)
+func readLoop(c *Client, reader *message.Reader) {
 	for {
 		f, err := reader.Read()
 		if err != nil {
@@ -48,6 +89,22 @@ func readLoop(c *Client) {
 			return
 		}
 		c.readCh <- f
+	}
+}
+
+func processLoop(c *Client, writer *message.Writer) {
+	for {
+		select {
+		case f, ok := <-c.readCh:
+			// TODO process incoming frame
+
+		case f, ok := <-c.writeCh:
+			// frame to send
+			err := writer.Write(f)
+			if err != nil {
+
+			}
+		}
 	}
 }
 

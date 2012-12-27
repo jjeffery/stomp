@@ -3,6 +3,7 @@ package message
 const (
 	bufferSize = 4096
 	newline    = byte(10)
+	cr         = byte(13)
 	colon      = byte(58)
 	nullByte   = byte(0)
 )
