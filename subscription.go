@@ -1,8 +1,9 @@
 package stomp
 
 import (
+	"fmt"
 	"github.com/jjeffery/stomp/message"
-	"strconv"
+	"log"
 )
 
 // The Subscription type represents a client subscription to
@@ -10,8 +11,8 @@ import (
 //
 // Once a client has subscribed, it can receive messages from the C channel.
 type Subscription struct {
-	//	C chan 
-	id          int
+	C           chan *Message
+	id          string
 	destination string
 	client      *Client
 	ackMode     AckMode
@@ -22,7 +23,7 @@ type Subscription struct {
 
 // Identification for this subscription. Unique among
 // all subscriptions for the same Client.
-func (s *Subscription) Id() int {
+func (s *Subscription) Id() string {
 	return s.id
 }
 
@@ -38,13 +39,42 @@ func (s *Subscription) AckMode() AckMode {
 
 // Unsubscribes and closes the channel C.
 func (s *Subscription) Unsubscribe() error {
-	_ = message.NewFrame(message.UNSUBSCRIBE, message.Id, strconv.Itoa(s.id))
+	_ = message.NewFrame(message.UNSUBSCRIBE, message.Id, s.id)
 	panic("not implemented")
 }
 
 // Read a message from the subscription
 func (s *Subscription) Read() (*Message, error) {
 	panic("not implemented")
+}
+
+func (s *Subscription) readLoop(ch chan *message.Frame) {
+	for {
+		f, ok := <-ch
+		if !ok {
+			return
+		}
+
+		if f.Command == message.MESSAGE {
+			destination, _ := f.Contains(message.Destination)
+			contentType, _ := f.Contains(message.ContentType)
+			msg := &Message{
+				Destination:  destination,
+				ContentType:  contentType,
+				Client:       s.client,
+				Subscription: s,
+				Headers:      f.Headers,
+				Body:         f.Body,
+			}
+			s.C <- msg
+		} else if f.Command == message.ERROR {
+			message, _ := f.Contains(message.Message)
+			text := fmt.Sprintf("ERROR message:%s", message)
+			log.Println(text)
+			return
+		}
+
+	}
 }
 
 // A Message is a message that is received from the server.

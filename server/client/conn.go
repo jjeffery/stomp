@@ -54,6 +54,7 @@ func NewConn(config Config, rw net.Conn, ch chan Request) *Conn {
 		readChannel:    make(chan *message.Frame, maxPendingReads),
 		txStore:        &txStore{},
 		subList:        NewSubscriptionList(),
+		subs:           make(map[string]*Subscription),
 	}
 	go c.readLoop()
 	go c.processLoop()
@@ -294,6 +295,7 @@ func (c *Conn) processLoop() {
 					// subscription does not require acknowledgement,
 					// so send the subscription back the upper layer
 					// straight away
+					sub.frame = nil
 					c.requestChannel <- Request{Op: SubscribeOp, Sub: sub}
 				} else {
 					// subscription requires acknowledgement

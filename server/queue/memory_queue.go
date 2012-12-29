@@ -11,7 +11,7 @@ type MemoryQueueStorage struct {
 }
 
 func NewMemoryQueueStorage() Storage {
-	m := new(MemoryQueueStorage)
+	m := &MemoryQueueStorage{lists: make(map[string]*list.List)}
 	return m
 }
 

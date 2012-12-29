@@ -15,7 +15,11 @@ func (e Error) Error() string {
 	return e.Message
 }
 
-func NewError(f *message.Frame) Error {
+func newErrorMessage(msg string) Error {
+	return Error{Message: msg}
+}
+
+func newError(f *message.Frame) Error {
 	e := Error{Frame: f}
 
 	if f.Command == message.ERROR {
