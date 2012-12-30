@@ -9,7 +9,8 @@ type ClientSuite struct{}
 var _ = Suite(&ClientSuite{})
 
 func (s *ClientSuite) Test1(c *C) {
-	fc := newFakeConn(c)
+	//fc := newFakeConn(c)
 
-	client := NewClient()
+	//client := NewClient()
+
 }

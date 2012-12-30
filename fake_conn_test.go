@@ -11,72 +11,54 @@ import (
 // fakeConn is a fake connection used for testing.
 type fakeConn struct {
 	C          *C
-	Closed     bool
-	ch         chan []byte
-	buf        []byte
-	remoteAddr net.Addr
+	writer     io.WriteCloser
+	reader     io.ReadCloser
 	localAddr  net.Addr
+	remoteAddr net.Addr
 }
 
 var (
 	errClosing = errors.New("use of closed network connection")
 )
 
-func newFakeConn(c *C) *fakeConn {
-	return &fakeConn{
-		C:  c,
-		ch: make(chan []byte, 16),
+func newFakeConn(c *C) (client *fakeConn, server *fakeConn) {
+	clientReader, serverWriter := io.Pipe()
+	serverReader, clientWriter := io.Pipe()
+	const bufferSize = 10240
+
+	clientConn := &fakeConn{
+		C:      c,
+		reader: clientReader,
+		writer: clientWriter,
 	}
+
+	serverConn := &fakeConn{
+		C:      c,
+		reader: serverReader,
+		writer: serverWriter,
+	}
+
+	return clientConn, serverConn
 }
 
 func (fc *fakeConn) Read(p []byte) (n int, err error) {
-	if fc.Closed {
-		err = errClosing
-		return
-	}
-
-	if len(fc.buf) == 0 {
-		var ok bool
-		fc.buf, ok = <-fc.ch
-		if !ok {
-			err = io.EOF
-			return
-		}
-	}
-
-	if len(fc.buf) <= len(p) {
-		copy(p, fc.buf)
-		n = len(fc.buf)
-		fc.buf = nil
-	} else {
-		copy(p, fc.buf)
-		n = len(p)
-		fc.buf = fc.buf[n:]
-	}
-
-	return
+	return fc.reader.Read(p)
 }
 
 func (fc *fakeConn) Write(p []byte) (n int, err error) {
-	if fc.Closed {
-		err = errClosing
-		return
-	}
-
-	pcopy := make([]byte, len(p))
-	copy(pcopy, p)
-	fc.ch <- pcopy
-	n = len(p)
-
-	return
+	return fc.writer.Write(p)
 }
 
 func (fc *fakeConn) Close() error {
-	if fc.Closed {
-		return errClosing
+	err1 := fc.reader.Close()
+	err2 := fc.writer.Close()
+
+	if err1 != nil {
+		return err1
 	}
-	fc.Closed = true
-	close(fc.ch)
+	if err2 != nil {
+		return err2
+	}
 	return nil
 }
 
@@ -97,17 +79,14 @@ func (fc *fakeConn) SetRemoteAddr(addr net.Addr) {
 }
 
 func (fc *fakeConn) SetDeadline(t time.Time) error {
-	fc.C.Assert(fc.Closed, Equals, false)
 	panic("not implemented")
 }
 
 func (fc *fakeConn) SetReadDeadline(t time.Time) error {
-	fc.C.Assert(fc.Closed, Equals, false)
 	panic("not implemented")
 }
 
 func (fc *fakeConn) SetWriteDeadline(t time.Time) error {
-	fc.C.Assert(fc.Closed, Equals, false)
 	panic("not implemented")
 }
 
@@ -116,35 +95,48 @@ type FakeConnSuite struct{}
 var _ = Suite(&FakeConnSuite{})
 
 func (s *FakeConnSuite) TestFakeConn(c *C) {
-	fc := newFakeConn(c)
+	//c.Skip("temporary")
+	fc1, fc2 := newFakeConn(c)
 
 	one := []byte{1, 2, 3, 4}
+	two := []byte{5, 6, 7, 8, 9, 10, 11, 12, 13}
+	stop := make(chan struct{})
 
-	n, err := fc.Write(one)
+	go func() {
+		defer func() {
+			fc2.Close()
+			close(stop)
+		}()
+
+		rx1 := make([]byte, 6)
+		n, err := fc2.Read(rx1)
+		c.Assert(n, Equals, 4)
+		c.Assert(err, IsNil)
+		c.Assert(rx1[0:n], DeepEquals, one)
+
+		rx2 := make([]byte, 5)
+		n, err = fc2.Read(rx2)
+		c.Assert(n, Equals, 5)
+		c.Assert(err, IsNil)
+		c.Assert(rx2, DeepEquals, []byte{5, 6, 7, 8, 9})
+
+		rx3 := make([]byte, 10)
+		n, err = fc2.Read(rx3)
+		c.Assert(n, Equals, 4)
+		c.Assert(err, IsNil)
+		c.Assert(rx3[0:n], DeepEquals, []byte{10, 11, 12, 13})
+	}()
+
+	c.Assert(fc1.C, Equals, c)
+	c.Assert(fc2.C, Equals, c)
+
+	n, err := fc1.Write(one)
 	c.Assert(n, Equals, 4)
 	c.Assert(err, IsNil)
 
-	two := []byte{5, 6, 7, 8, 9, 10, 11, 12, 13}
-
-	n, err = fc.Write(two)
+	n, err = fc1.Write(two)
 	c.Assert(n, Equals, len(two))
 	c.Assert(err, IsNil)
 
-	rx1 := make([]byte, 256)
-	n, err = fc.Read(rx1)
-	c.Assert(n, Equals, 4)
-	c.Assert(err, IsNil)
-	c.Assert(rx1[0:n], DeepEquals, one)
-
-	rx2 := make([]byte, 5)
-	n, err = fc.Read(rx2)
-	c.Assert(n, Equals, 5)
-	c.Assert(err, IsNil)
-	c.Assert(rx2, DeepEquals, []byte{5, 6, 7, 8, 9})
-
-	rx3 := make([]byte, 10)
-	n, err = fc.Read(rx3)
-	c.Assert(n, Equals, 4)
-	c.Assert(err, IsNil)
-	c.Assert(rx3[0:n], DeepEquals, []byte{10, 22, 12, 13})
+	<-stop
 }
