@@ -45,6 +45,10 @@ type writeRequest struct {
 	C     chan *message.Frame // response channel
 }
 
+func NewClient() *Client {
+	return &Client{}
+}
+
 func (c *Client) Connect(rw io.ReadWriter, headers map[string]string) error {
 	c.readCh = make(chan *message.Frame, 8)
 	c.writeCh = make(chan writeRequest, 8)
