@@ -2,11 +2,20 @@ package stomp
 
 import (
 	. "launchpad.net/gocheck"
+	"runtime"
 )
 
 type IdSuite struct{}
 
 var _ = Suite(&IdSuite{})
+
+func (s *IdSuite) SetUpSuite(c *C) {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+}
+
+func (s *IdSuite) TearDownSuite(c *C) {
+	runtime.GOMAXPROCS(1)
+}
 
 func (s *IdSuite) TestAllocateId(c *C) {
 	c.Assert(allocateId(), Equals, "1")
