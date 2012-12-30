@@ -7,7 +7,12 @@ import (
 	_ "log"
 	"net"
 	"runtime"
+	"testing"
 )
+
+func TestServer(t *testing.T) {
+	TestingT(t)
+}
 
 type ServerSuite struct{}
 
@@ -31,8 +36,7 @@ func (s *ServerSuite) TestConnectAndDisconnect(c *C) {
 	conn, err := net.Dial("tcp", "127.0.0.1"+addr)
 	c.Assert(err, IsNil)
 
-	client := &stomp.Client{}
-	err = client.Connect(conn, map[string]string{})
+	client, err := stomp.Connect(conn, stomp.ConnectOptions{})
 	c.Assert(err, IsNil)
 
 	err = client.Disconnect()
@@ -96,8 +100,7 @@ func runSender(c *C, ch chan bool, count int, destination, addr string, started 
 	conn, err := net.Dial("tcp", "127.0.0.1"+addr)
 	c.Assert(err, IsNil)
 
-	client := &stomp.Client{}
-	err = client.Connect(conn, nil)
+	client, err := stomp.Connect(conn, stomp.ConnectOptions{})
 	c.Assert(err, IsNil)
 
 	started <- true
@@ -118,8 +121,7 @@ func runReceiver(c *C, ch chan bool, count int, destination, addr string, starte
 	conn, err := net.Dial("tcp", "127.0.0.1"+addr)
 	c.Assert(err, IsNil)
 
-	client := &stomp.Client{}
-	err = client.Connect(conn, nil)
+	client, err := stomp.Connect(conn, stomp.ConnectOptions{})
 	c.Assert(err, IsNil)
 
 	sub, err := client.Subscribe(destination, stomp.AckAuto)

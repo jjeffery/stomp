@@ -17,14 +17,15 @@ var (
 	heartBeatRegexp = regexp.MustCompile("^[0-9]{1,9},[0-9]{1,9}$")
 )
 
-// Maximum allowed value for heart-beat times in millisecond. Approximately 11.5 days.
-// Anything longer than this will be rejected as an invalid frame.
+// Maximum allowed value for heart-beat times in millisecond. 
+// Approximately 11.5 days. Anything longer than this will be 
+// rejected as an invalid frame.
 const MaxHeartBeat = 999999999
 
 // Represents a single STOMP frame.
 type Frame struct {
-	// The frame command. Should be one of the standard STOMP commands. Note that
-	// STOMP commands are case sensitive.
+	// The frame command. Should be one of the standard STOMP commands. 
+	// Note that STOMP commands are case sensitive.
 	Command string
 
 	// Collection of frame headers.
@@ -36,8 +37,8 @@ type Frame struct {
 }
 
 // Creates a new frame with the specified command and headers. The headers
-// should contain an even number of entries. Each even index is the header name,
-// and the odd indexes are the assocated header values.
+// should contain an even number of entries. Each even index is the header 
+// name, and the odd indexes are the assocated header values.
 func NewFrame(command string, headers ...string) *Frame {
 	f := &Frame{Command: command, Headers: NewHeaders()}
 	for index := 0; index < len(headers); index += 2 {
@@ -49,7 +50,11 @@ func NewFrame(command string, headers ...string) *Frame {
 // Makes a copy of the frame. The command and headers are copied, but the
 // body points to the same underlying array as the source frame.
 func (f *Frame) Clone() *Frame {
-	clone := &Frame{Command: f.Command, Headers: f.Headers.Clone(), Body: f.Body}
+	clone := &Frame{
+		Command: f.Command,
+		Headers: f.Headers.Clone(),
+		Body:    f.Body,
+	}
 	return clone
 }
 

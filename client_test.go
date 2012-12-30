@@ -2,6 +2,7 @@ package stomp
 
 import (
 	"github.com/jjeffery/stomp/message"
+	"github.com/jjeffery/stomp/testutil"
 	. "launchpad.net/gocheck"
 )
 
@@ -45,7 +46,7 @@ func (s *ClientSuite) Test_successful_connect_and_disconnect(c *C) {
 
 	for _, tc := range testcases {
 		resetId()
-		fc1, fc2 := newFakeConn(c)
+		fc1, fc2 := testutil.NewFakeConn(c)
 		stop := make(chan struct{})
 
 		go func() {
