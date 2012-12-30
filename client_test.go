@@ -13,7 +13,7 @@ func (s *ClientSuite) SetUpTest(c *C) {
 	resetId()
 }
 
-func (s *ClientSuite) Test1(c *C) {
+func (s *ClientSuite) TestConnectAndDisconnect(c *C) {
 	fc1, fc2 := newFakeConn(c)
 	stop := make(chan struct{})
 
