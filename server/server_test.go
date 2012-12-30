@@ -1,7 +1,8 @@
-package stomp
+package server
 
 import (
 	"fmt"
+	"github.com/jjeffery/stomp"
 	. "launchpad.net/gocheck"
 	_ "log"
 	"net"
@@ -30,7 +31,7 @@ func (s *ServerSuite) TestConnectAndDisconnect(c *C) {
 	conn, err := net.Dial("tcp", "127.0.0.1"+addr)
 	c.Assert(err, IsNil)
 
-	client := &Client{}
+	client := &stomp.Client{}
 	err = client.Connect(conn, map[string]string{})
 	c.Assert(err, IsNil)
 
@@ -95,14 +96,14 @@ func runSender(c *C, ch chan bool, count int, destination, addr string, started 
 	conn, err := net.Dial("tcp", "127.0.0.1"+addr)
 	c.Assert(err, IsNil)
 
-	client := &Client{}
+	client := &stomp.Client{}
 	err = client.Connect(conn, nil)
 	c.Assert(err, IsNil)
 
 	started <- true
 
 	for i := 0; i < count; i++ {
-		client.Send(SendMessage{
+		client.Send(stomp.SendMessage{
 			Destination: destination,
 			ContentType: "text/plain",
 			Body:        []byte(fmt.Sprintf("%s test message %d", destination, i)),
@@ -117,11 +118,11 @@ func runReceiver(c *C, ch chan bool, count int, destination, addr string, starte
 	conn, err := net.Dial("tcp", "127.0.0.1"+addr)
 	c.Assert(err, IsNil)
 
-	client := &Client{}
+	client := &stomp.Client{}
 	err = client.Connect(conn, nil)
 	c.Assert(err, IsNil)
 
-	sub, err := client.Subscribe(destination, AckAuto)
+	sub, err := client.Subscribe(destination, stomp.AckAuto)
 	c.Assert(err, IsNil)
 	c.Assert(sub, NotNil)
 

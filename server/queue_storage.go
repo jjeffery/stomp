@@ -1,4 +1,4 @@
-package stomp
+package server
 
 import (
 	"github.com/jjeffery/stomp/message"

@@ -1,6 +1,8 @@
 package topic
 
-// Topic manager.
+// Manager is a struct responsible for finding topics. Topics are
+// not created by the package user, rather they are created on demand
+// by the topic manager.
 type Manager struct {
 	topics map[string]*Topic
 }
