@@ -8,6 +8,18 @@ import (
 	"time"
 )
 
+type fakeAddr struct {
+	Value string
+}
+
+func (addr *fakeAddr) Network() string {
+	return "fake"
+}
+
+func (addr *fakeAddr) String() string {
+	return addr.Value
+}
+
 // fakeConn is a fake connection used for testing.
 type fakeConn struct {
 	C          *C
@@ -25,17 +37,23 @@ func newFakeConn(c *C) (client *fakeConn, server *fakeConn) {
 	clientReader, serverWriter := io.Pipe()
 	serverReader, clientWriter := io.Pipe()
 	const bufferSize = 10240
+	clientAddr := &fakeAddr{Value: "the-client:123"}
+	serverAddr := &fakeAddr{Value: "the-server:456"}
 
 	clientConn := &fakeConn{
-		C:      c,
-		reader: clientReader,
-		writer: clientWriter,
+		C:          c,
+		reader:     clientReader,
+		writer:     clientWriter,
+		localAddr:  clientAddr,
+		remoteAddr: serverAddr,
 	}
 
 	serverConn := &fakeConn{
-		C:      c,
-		reader: serverReader,
-		writer: serverWriter,
+		C:          c,
+		reader:     serverReader,
+		writer:     serverWriter,
+		localAddr:  serverAddr,
+		remoteAddr: clientAddr,
 	}
 
 	return clientConn, serverConn

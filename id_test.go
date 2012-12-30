@@ -9,7 +9,13 @@ type IdSuite struct{}
 
 var _ = Suite(&IdSuite{})
 
+// only used during testing
+func resetId() {
+	_lastId = 0
+}
+
 func (s *IdSuite) SetUpSuite(c *C) {
+	resetId()
 	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 
