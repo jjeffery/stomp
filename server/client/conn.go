@@ -405,7 +405,7 @@ func (c *Conn) allocateMessageId(f *message.Frame, sub *Subscription) {
 
 		// if there is any requirement by the client to acknowledge, set
 		// the ack header as per STOMP 1.2
-		if sub.ack == message.AckAuto {
+		if sub == nil || sub.ack == message.AckAuto {
 			f.Remove(message.Ack)
 		} else {
 			f.Set(message.Ack, messageId)

@@ -10,17 +10,17 @@ import (
 
 // Queue for storing message frames.
 type Queue struct {
-	destination   string
-	qstore         Storage
-	subs *client.SubscriptionList
+	destination string
+	qstore      Storage
+	subs        *client.SubscriptionList
 }
 
 // Create a new queue -- called from the queue manager only.
 func newQueue(destination string, qstore Storage) *Queue {
 	return &Queue{
 		destination: destination,
-		qstore: qstore,
-		subs: client.NewSubscriptionList(),
+		qstore:      qstore,
+		subs:        client.NewSubscriptionList(),
 	}
 }
 

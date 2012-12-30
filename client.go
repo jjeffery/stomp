@@ -104,9 +104,6 @@ func readLoop(c *Client, reader *message.Reader) {
 	for {
 		f, err := reader.Read()
 		if err != nil {
-			if err != io.EOF {
-				log.Println("readLoop: read failed:", err.Error())
-			}
 			close(c.readCh)
 			return
 		}

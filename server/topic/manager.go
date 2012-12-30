@@ -1,6 +1,5 @@
 package topic
 
-
 // Topic manager.
 type Manager struct {
 	topics map[string]*Topic
@@ -8,7 +7,7 @@ type Manager struct {
 
 // NewManager creates a new topic manager.
 func NewManager() *Manager {
-	tm := &Manager {topics: make(map[string]*Topic)}
+	tm := &Manager{topics: make(map[string]*Topic)}
 	return tm
 }
 
@@ -21,4 +20,3 @@ func (tm *Manager) Find(destination string) *Topic {
 	}
 	return t
 }
-

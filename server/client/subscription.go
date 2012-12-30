@@ -2,7 +2,6 @@ package client
 
 import (
 	"github.com/jjeffery/stomp/message"
-	"strconv"
 )
 
 type Subscription struct {
@@ -58,7 +57,8 @@ func (s *Subscription) IsNackedBy(msgId uint64) bool {
 }
 
 func (s *Subscription) SendQueueFrame(f *message.Frame) {
-	s.setMessageFrameHeaders(f)
+	s.setSubscriptionHeader(f)
+	s.frame = f
 
 	// let the connection deal with the subscription
 	// acknowledgement 
@@ -69,25 +69,16 @@ func (s *Subscription) SendQueueFrame(f *message.Frame) {
 // subscription. Called within the queue when a message
 // frame is available.
 func (s *Subscription) SendTopicFrame(f *message.Frame) {
-	s.setMessageFrameHeaders(f)
+	s.setSubscriptionHeader(f)
 
 	// topics are handled differently, they just go
 	// straight to the client without acknowledgement
 	s.conn.writeChannel <- f
 }
 
-func (s *Subscription) setMessageFrameHeaders(f *message.Frame) {
+func (s *Subscription) setSubscriptionHeader(f *message.Frame) {
 	if s.frame != nil {
 		panic("subscription already has a frame pending")
 	}
-	s.frame = f
 	f.Set(message.Subscription, s.id)
-	s.msgId++
-	msgId := strconv.FormatUint(s.msgId, 10)
-	f.Set(message.MessageId, msgId)
-
-	switch s.ack {
-	case "client", "client-individual":
-		f.Set(message.Ack, msgId)
-	}
 }
