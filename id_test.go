@@ -9,7 +9,7 @@ type IdSuite struct{}
 
 var _ = Suite(&IdSuite{})
 
-// only used during testing
+// only used during testing, does not need to be thread-safe
 func resetId() {
 	_lastId = 0
 }

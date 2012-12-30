@@ -30,14 +30,39 @@ const (
 	AckClientIndividual = AckMode("client-individual")
 )
 
+// Options for connecting to the STOMP server
+type ConnectOptions struct {
+	// Login and passcode for authentication with the STOMP server.
+	// If no authentication is required, leave blank.
+	Login, Passcode string
+
+	// Value for the "host" header entry when connecting to the
+	// STOMP server. Leave blank for default value.
+	Host string
+
+	// Comma-separated list of acceptable STOMP versions. 
+	// Leave blank for default protocol negotiation, which is
+	// the recommended setting.
+	AcceptVersion string
+
+	// Value to pass in the "heart-beat" header entry when connecting
+	// to the STOMP server. Format is two non-negative integer values
+	// separated by a comma. Leave blank for default heart-beat negotiation,
+	// which is the recommended setting.
+	HeartBeat string
+
+	// Other header entries for STOMP servers that accept non-standard
+	// header entries in the CONNECT frame.
+	NonStandard map[string]string
+}
+
 // A Client is a STOMP client.
 type Client struct {
-	Login    string // Login for authentication
-	Passcode string // Passcode for authentication
-
-	version string // STOMP protocol version
+	conn    io.ReadWriteCloser
 	readCh  chan *message.Frame
 	writeCh chan writeRequest
+	version string
+	session string
 }
 
 type writeRequest struct {
@@ -45,48 +70,76 @@ type writeRequest struct {
 	C     chan *message.Frame // response channel
 }
 
-func NewClient() *Client {
-	return &Client{}
+func Dial(network, addr string, opts ConnectOptions) (*Client, error) {
+	c, err := net.Dial(network, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	if opts.Host == "" {
+		host, _, err := net.SplitHostPort(c.RemoteAddr().String())
+		if err != nil {
+			c.Close()
+			return nil, err
+		}
+		opts.Host = host
+	}
+
+	return Connect(c, opts)
 }
 
-func (c *Client) Connect(rw io.ReadWriter, headers map[string]string) error {
-	c.readCh = make(chan *message.Frame, 8)
-	c.writeCh = make(chan writeRequest, 8)
-	reader := message.NewReader(rw)
-	writer := message.NewWriter(rw)
+func Connect(conn io.ReadWriteCloser, opts ConnectOptions) (*Client, error) {
+	reader := message.NewReader(conn)
+	writer := message.NewWriter(conn)
 
-	connectFrame := message.NewFrame(message.CONNECT)
-	for key, value := range headers {
+	// set default values
+	if opts.AcceptVersion == "" {
+		opts.AcceptVersion = "1.0,1.1,1.2"
+	}
+	if opts.HeartBeat == "" {
+		opts.HeartBeat = "60000,60000"
+	}
+	if opts.Host == "" {
+		// Attempt to get host from net.Conn object if possible
+		if connection, ok := conn.(net.Conn); ok {
+			host, _, err := net.SplitHostPort(connection.RemoteAddr().String())
+			if err == nil {
+				opts.Host = host
+			}
+		}
+
+		// If host is still blank, use default
+		if opts.Host == "" {
+			opts.Host = "default"
+		}
+	}
+
+	connectFrame := message.NewFrame(message.CONNECT,
+		message.Host, opts.Host,
+		message.AcceptVersion, opts.AcceptVersion,
+		message.HeartBeat, opts.HeartBeat)
+	if opts.Login != "" || opts.Passcode != "" {
+		connectFrame.Append(message.Login, opts.Login)
+		connectFrame.Append(message.Passcode, opts.Passcode)
+	}
+	for key, value := range opts.NonStandard {
 		connectFrame.Append(key, value)
 	}
 
-	// ensure mandatory header "accept-version" is set
-	if _, ok := connectFrame.Contains(message.AcceptVersion); !ok {
-		connectFrame.Append(message.AcceptVersion, "1.1,1.2")
-	}
-
-	// ensure mandatory header "host" is set
-	if _, ok := connectFrame.Contains(message.Host); !ok {
-		// no host, try to get it from the network connection
-		if conn, ok := rw.(net.Conn); ok {
-			host, _, err := net.SplitHostPort(conn.RemoteAddr().String())
-			if err != nil {
-				return err
-			}
-			connectFrame.Append(message.Host, host)
-		} else {
-			// not a network connection, host is unknown
-			connectFrame.Append(message.Host, "unknown")
-		}
-	}
 	writer.Write(connectFrame)
 	response, err := reader.Read()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if response.Command != message.CONNECTED {
-		return newError(response)
+		return nil, newError(response)
+	}
+
+	c := &Client{
+		conn:    conn,
+		readCh:  make(chan *message.Frame, 8),
+		writeCh: make(chan writeRequest, 8),
 	}
 
 	if version, ok := response.Contains(message.Version); ok {
@@ -95,10 +148,23 @@ func (c *Client) Connect(rw io.ReadWriter, headers map[string]string) error {
 		c.version = "1.0"
 	}
 
+	c.session, _ = response.Contains(message.Session)
+
+	// TODO(jpj): make any non-standard headers in the CONNECTED
+	// frame available.
+
 	go readLoop(c, reader)
 	go processLoop(c, writer)
 
-	return nil
+	return c, nil
+}
+
+func (c *Client) Version() string {
+	return c.version
+}
+
+func (c *Client) Session() string {
+	return c.session
 }
 
 // readLoop is a goroutine that reads frames from the
