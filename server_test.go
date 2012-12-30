@@ -40,8 +40,9 @@ func (s *ServerSuite) TestConnectAndDisconnect(c *C) {
 	conn.Close()
 }
 
-func (s *ServerSuite) TestSendMessages(c *C) {
+func (s *ServerSuite) TestSendToQueuesAndTopics(c *C) {
 	ch := make(chan bool, 2)
+	println("number cpus:", runtime.NumCPU())
 
 	addr := ":59092"
 
@@ -50,28 +51,55 @@ func (s *ServerSuite) TestSendMessages(c *C) {
 	defer func() { l.Close() }()
 	go Serve(l)
 
-	count := 100
-	go runReceiver(c, ch, count, "/queue/test-1", addr)
-	go runSender(c, ch, count, "/queue/test-1", addr)
-	go runSender(c, ch, count, "/queue/test-2", addr)
-	go runReceiver(c, ch, count, "/queue/test-2", addr)
-	go runReceiver(c, ch, count, "/queue/test-3", addr)
-	go runSender(c, ch, count, "/queue/test-3", addr)
-	go runSender(c, ch, count, "/queue/test-4", addr)
-	go runReceiver(c, ch, count, "/queue/test-4", addr)
+	// channel to communicate that the go routine has started
+	started := make(chan bool)
 
-	for i := 0; i < 8; i++ {
+	count := 100
+	go runReceiver(c, ch, count, "/topic/test-1", addr, started)
+	<-started
+	go runReceiver(c, ch, count, "/topic/test-1", addr, started)
+	<-started
+	go runReceiver(c, ch, count, "/topic/test-2", addr, started)
+	<-started
+	go runReceiver(c, ch, count, "/topic/test-2", addr, started)
+	<-started
+	go runReceiver(c, ch, count, "/topic/test-1", addr, started)
+	<-started
+	go runReceiver(c, ch, count, "/queue/test-1", addr, started)
+	<-started
+	go runSender(c, ch, count, "/queue/test-1", addr, started)
+	<-started
+	go runSender(c, ch, count, "/queue/test-2", addr, started)
+	<-started
+	go runReceiver(c, ch, count, "/queue/test-2", addr, started)
+	<-started
+	go runSender(c, ch, count, "/topic/test-1", addr, started)
+	<-started
+	go runReceiver(c, ch, count, "/queue/test-3", addr, started)
+	<-started
+	go runSender(c, ch, count, "/queue/test-3", addr, started)
+	<-started
+	go runSender(c, ch, count, "/queue/test-4", addr, started)
+	<-started
+	go runSender(c, ch, count, "/topic/test-2", addr, started)
+	<-started
+	go runReceiver(c, ch, count, "/queue/test-4", addr, started)
+	<-started
+
+	for i := 0; i < 15; i++ {
 		<-ch
 	}
 }
 
-func runSender(c *C, ch chan bool, count int, destination, addr string) {
+func runSender(c *C, ch chan bool, count int, destination, addr string, started chan bool) {
 	conn, err := net.Dial("tcp", "127.0.0.1"+addr)
 	c.Assert(err, IsNil)
 
 	client := &Client{}
 	err = client.Connect(conn, nil)
 	c.Assert(err, IsNil)
+
+	started <- true
 
 	for i := 0; i < count; i++ {
 		client.Send(SendMessage{
@@ -85,7 +113,7 @@ func runSender(c *C, ch chan bool, count int, destination, addr string) {
 	ch <- true
 }
 
-func runReceiver(c *C, ch chan bool, count int, destination, addr string) {
+func runReceiver(c *C, ch chan bool, count int, destination, addr string, started chan bool) {
 	conn, err := net.Dial("tcp", "127.0.0.1"+addr)
 	c.Assert(err, IsNil)
 
@@ -96,6 +124,8 @@ func runReceiver(c *C, ch chan bool, count int, destination, addr string) {
 	sub, err := client.Subscribe(destination, AckAuto)
 	c.Assert(err, IsNil)
 	c.Assert(sub, NotNil)
+
+	started <- true
 
 	for i := 0; i < count; i++ {
 		msg := <-sub.C
