@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"github.com/jjeffery/stomp/frame"
 	"github.com/jjeffery/stomp/message"
 	. "launchpad.net/gocheck"
 )
@@ -13,26 +14,26 @@ func (s *MemoryQueueSuite) Test1(c *C) {
 	mq := NewMemoryQueueStorage()
 	mq.Start()
 
-	f1 := message.NewFrame(message.MESSAGE,
-		message.Destination, "/queue/test",
-		message.MessageId, "msg-001",
-		message.Subscription, "1")
+	f1 := message.NewFrame(frame.MESSAGE,
+		frame.Destination, "/queue/test",
+		frame.MessageId, "msg-001",
+		frame.Subscription, "1")
 
 	err := mq.Enqueue("/queue/test", f1)
 	c.Assert(err, IsNil)
 
-	f2 := message.NewFrame(message.MESSAGE,
-		message.Destination, "/queue/test",
-		message.MessageId, "msg-002",
-		message.Subscription, "1")
+	f2 := message.NewFrame(frame.MESSAGE,
+		frame.Destination, "/queue/test",
+		frame.MessageId, "msg-002",
+		frame.Subscription, "1")
 
 	err = mq.Enqueue("/queue/test", f2)
 	c.Assert(err, IsNil)
 
-	f3 := message.NewFrame(message.MESSAGE,
-		message.Destination, "/queue/test2",
-		message.MessageId, "msg-003",
-		message.Subscription, "2")
+	f3 := message.NewFrame(frame.MESSAGE,
+		frame.Destination, "/queue/test2",
+		frame.MessageId, "msg-003",
+		frame.Subscription, "2")
 
 	err = mq.Enqueue("/queue/test2", f3)
 	c.Assert(err, IsNil)

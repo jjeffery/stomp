@@ -1,6 +1,7 @@
 package stomp
 
 import (
+	"github.com/jjeffery/stomp/frame"
 	"github.com/jjeffery/stomp/message"
 	"github.com/jjeffery/stomp/testutil"
 	. "launchpad.net/gocheck"
@@ -69,7 +70,7 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 			receipt, _ := f2.Contains("receipt")
 			c.Check(receipt, Equals, "1")
 
-			writer.Write(message.NewFrame("RECEIPT", message.ReceiptId, "1"))
+			writer.Write(message.NewFrame("RECEIPT", frame.ReceiptId, "1"))
 		}()
 
 		client, err := Connect(fc1, tc.Options)

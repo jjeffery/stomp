@@ -363,7 +363,7 @@ func (tx *Transaction) Commit() error {
 	panic("not implemented")
 }
 
-func (tx *Transaction) Send(msg *SendMessage) error {
+func (tx *Transaction) Send(msg *Message) error {
 	panic("not implemented")
 }
 
@@ -373,13 +373,4 @@ func (tx *Transaction) Ack(m *Message) error {
 
 func (tx *Transaction) Nack(m *Message) error {
 	panic("not implemented")
-}
-
-// A SendMessage is a message that is sent to the server.
-type SendMessage struct {
-	Destination string            // Destination
-	ContentType string            // MIME content type
-	Receipt     bool              // Is a receipt required
-	Headers     map[string]string // Optional headers
-	Body        []byte            // Content of message
 }

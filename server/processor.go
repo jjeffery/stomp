@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/jjeffery/stomp/message"
+	"github.com/jjeffery/stomp/frame"
 	"github.com/jjeffery/stomp/server/client"
 	"github.com/jjeffery/stomp/server/queue"
 	"github.com/jjeffery/stomp/server/topic"
@@ -62,7 +62,7 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 			}
 
 		case client.EnqueueOp:
-			destination, ok := r.Frame.Contains(message.Destination)
+			destination, ok := r.Frame.Contains(frame.Destination)
 			if !ok {
 				// should not happen, already checked in lower layer
 				panic("missing destination")
@@ -77,7 +77,7 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 			}
 
 		case client.RequeueOp:
-			destination, ok := r.Frame.Contains(message.Destination)
+			destination, ok := r.Frame.Contains(frame.Destination)
 			if !ok {
 				// should not happen, already checked in lower layer
 				panic("missing destination")

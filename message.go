@@ -2,6 +2,7 @@ package stomp
 
 import (
 	"errors"
+	"github.com/jjeffery/stomp/frame"
 	"github.com/jjeffery/stomp/message"
 	"strconv"
 )
@@ -39,11 +40,11 @@ func (msg *Message) createSendFrame() (*message.Frame, error) {
 	if msg.Destination == "" {
 		return nil, errors.New("no destination specififed")
 	}
-	f := message.NewFrame(message.SEND, message.Destination, msg.Destination)
+	f := message.NewFrame(frame.SEND, frame.Destination, msg.Destination)
 	if msg.ContentType != "" {
-		f.Append(message.ContentType, msg.ContentType)
+		f.Append(frame.ContentType, msg.ContentType)
 	}
-	f.Append(message.ContentLength, strconv.Itoa(len(msg.Body)))
+	f.Append(frame.ContentLength, strconv.Itoa(len(msg.Body)))
 	f.Body = msg.Body
 
 	for key, values := range msg.Header {
