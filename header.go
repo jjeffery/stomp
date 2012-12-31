@@ -42,7 +42,7 @@ func (h Header) Del(key string) {
 	delete(h, key)
 }
 
-// Clone returns a deep copy of a Header
+// Clone returns a deep copy of a Header.
 func (h Header) Clone() Header {
 	hc := Header{}
 	for k, v := range h {

@@ -106,7 +106,7 @@ func runSender(c *C, ch chan bool, count int, destination, addr string, started 
 	started <- true
 
 	for i := 0; i < count; i++ {
-		client.Send(stomp.SendMessage{
+		client.Send(stomp.Message{
 			Destination: destination,
 			ContentType: "text/plain",
 			Body:        []byte(fmt.Sprintf("%s test message %d", destination, i)),

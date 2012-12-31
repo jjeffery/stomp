@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"strconv"
 )
 
 // The AckMode type is an enumeration of the acknowledgement modes for a 
@@ -56,8 +55,8 @@ type ConnectOptions struct {
 	NonStandard map[string]string
 }
 
-// A Client is a STOMP client.
-type Client struct {
+// A Conn is a connect to a STOMP server.
+type Conn struct {
 	conn    io.ReadWriteCloser
 	readCh  chan *message.Frame
 	writeCh chan writeRequest
@@ -70,7 +69,7 @@ type writeRequest struct {
 	C     chan *message.Frame // response channel
 }
 
-func Dial(network, addr string, opts ConnectOptions) (*Client, error) {
+func Dial(network, addr string, opts ConnectOptions) (*Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
 		return nil, err
@@ -88,7 +87,7 @@ func Dial(network, addr string, opts ConnectOptions) (*Client, error) {
 	return Connect(c, opts)
 }
 
-func Connect(conn io.ReadWriteCloser, opts ConnectOptions) (*Client, error) {
+func Connect(conn io.ReadWriteCloser, opts ConnectOptions) (*Conn, error) {
 	reader := message.NewReader(conn)
 	writer := message.NewWriter(conn)
 
@@ -136,7 +135,7 @@ func Connect(conn io.ReadWriteCloser, opts ConnectOptions) (*Client, error) {
 		return nil, newError(response)
 	}
 
-	c := &Client{
+	c := &Conn{
 		conn:    conn,
 		readCh:  make(chan *message.Frame, 8),
 		writeCh: make(chan writeRequest, 8),
@@ -159,18 +158,18 @@ func Connect(conn io.ReadWriteCloser, opts ConnectOptions) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) Version() string {
+func (c *Conn) Version() string {
 	return c.version
 }
 
-func (c *Client) Session() string {
+func (c *Conn) Session() string {
 	return c.session
 }
 
 // readLoop is a goroutine that reads frames from the
 // reader and places them onto a channel for processing
 // by the processLoop goroutine
-func readLoop(c *Client, reader *message.Reader) {
+func readLoop(c *Conn, reader *message.Reader) {
 	for {
 		f, err := reader.Read()
 		if err != nil {
@@ -183,7 +182,7 @@ func readLoop(c *Client, reader *message.Reader) {
 
 // processLoop is a goroutine that handles io with
 // the server.
-func processLoop(c *Client, writer *message.Writer) {
+func processLoop(c *Conn, writer *message.Writer) {
 	channels := make(map[string]chan *message.Frame)
 
 	for {
@@ -270,7 +269,13 @@ func sendError(m map[string]chan *message.Frame, err error) {
 	}
 }
 
-func (c *Client) Disconnect() error {
+// Disconnect will disconnect from the STOMP server. This function
+// follows the suggested protocol for graceful disconnection: it
+// sends a DISCONNECT frame with a receipt header element. Once the
+// RECEIPT frame has been received, the connection with the STOMP
+// server is closed and any further attempt to write to the server
+// will fail.
+func (c *Conn) Disconnect() error {
 	ch := make(chan *message.Frame)
 	c.writeCh <- writeRequest{
 		Frame: message.NewFrame(message.DISCONNECT, message.Receipt, allocateId()),
@@ -282,34 +287,47 @@ func (c *Client) Disconnect() error {
 		return newError(response)
 	}
 
-	// TODO: should we do anything to close the connection?
-	// not easy to do, seeing as we only have a ReadWriter.
-
-	return nil
+	return c.conn.Close()
 }
 
-func (c *Client) Send(msg SendMessage) error {
-	if msg.Destination == "" {
-		return errors.New("no destination specififed")
+// SendWithReceipt sends a message to the STOMP server,
+// and does not return until the STOMP server acknowledges
+// receipt of the message.
+//
+// Note that this does not guarantee that the message has been
+// delivered for processing, only that the STOMP server has received
+// the message. Upon return, the message may be on a queue waiting
+// to be processed.
+func (c *Conn) SendWithReceipt(msg Message) error {
+	f, err := msg.createSendFrame()
+	if err != nil {
+		return err
 	}
-	f := message.NewFrame(message.SEND, message.Destination, msg.Destination)
-	if msg.ContentType != "" {
-		f.Append(message.ContentType, msg.ContentType)
-	}
-	f.Append(message.ContentLength, strconv.Itoa(len(msg.Body)))
-	f.Body = msg.Body
+
+	receipt := allocateId()
+	f.Set(message.Receipt, receipt)
 
 	request := writeRequest{Frame: f}
 
-	if msg.Receipt {
-		request.C = make(chan *message.Frame)
-		c.writeCh <- request
-		response := <-request.C
-		if response.Command == message.RECEIPT {
-			return nil
-		}
-		return newError(response)
+	request.C = make(chan *message.Frame)
+	c.writeCh <- request
+	response := <-request.C
+	if response.Command == message.RECEIPT {
+		// TODO: check receipt-id
+		return nil
 	}
+	return newError(response)
+}
+
+// Send sends a message to the STOMP server, and does not
+// wait for acknowledgement of receipt by the STOMP server.
+func (c *Conn) Send(msg Message) error {
+	f, err := msg.createSendFrame()
+	if err != nil {
+		return err
+	}
+
+	request := writeRequest{Frame: f}
 
 	// no receipt required, so send and assume success
 	c.writeCh <- request
@@ -317,7 +335,7 @@ func (c *Client) Send(msg SendMessage) error {
 }
 
 // Subscribe to a destination. Returns a channel for receiving message frames.
-func (c *Client) Subscribe(destination string, ack AckMode) (*Subscription, error) {
+func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error) {
 	ch := make(chan *message.Frame)
 	id := allocateId()
 	request := writeRequest{
@@ -341,15 +359,15 @@ func (c *Client) Subscribe(destination string, ack AckMode) (*Subscription, erro
 	return sub, nil
 }
 
-func (c *Client) Ack(m *Message) error {
+func (c *Conn) Ack(m *Message) error {
 	panic("not implemented")
 }
 
-func (c *Client) Nack(m *Message) error {
+func (c *Conn) Nack(m *Message) error {
 	panic("not implemented")
 }
 
-func (c *Client) Begin() (*Transaction, error) {
+func (c *Conn) Begin() (*Transaction, error) {
 	panic("not implemented")
 }
 

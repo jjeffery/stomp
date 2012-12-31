@@ -14,7 +14,7 @@ type Subscription struct {
 	C           chan *Message
 	id          string
 	destination string
-	client      *Client
+	client      *Conn
 	ackMode     AckMode
 }
 
@@ -61,10 +61,14 @@ func (s *Subscription) readLoop(ch chan *message.Frame) {
 			msg := &Message{
 				Destination:  destination,
 				ContentType:  contentType,
-				Client:       s.client,
+				Conn:         s.client,
 				Subscription: s,
-				Headers:      f.Headers,
+				Header:       Header{},
 				Body:         f.Body,
+			}
+			for i := 0; i < f.Len(); i++ {
+				k, v := f.GetAt(i)
+				msg.Add(k, v)
 			}
 			s.C <- msg
 		} else if f.Command == message.ERROR {
@@ -75,16 +79,6 @@ func (s *Subscription) readLoop(ch chan *message.Frame) {
 		}
 
 	}
-}
-
-// A Message is a message that is received from the server.
-type Message struct {
-	Destination  string        // Destination the message was sent to.
-	ContentType  string        // MIME content
-	Client       *Client       // Associated client
-	Subscription *Subscription // Associated subscription
-	Headers      Headers       // Optional headers
-	Body         []byte        // Content of message
 }
 
 // The Headers interface represents a collection of headers, each having 
