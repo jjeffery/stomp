@@ -1,3 +1,6 @@
+/*
+Package server contains a simple STOMP server implementation.
+*/
 package server
 
 import (

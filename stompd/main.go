@@ -1,3 +1,6 @@
+/*
+A simple, stand-alone STOMP server.
+*/
 package main
 
 import (

@@ -5,25 +5,21 @@ import (
 	"runtime"
 )
 
-type IdSuite struct{}
-
-var _ = Suite(&IdSuite{})
-
 // only used during testing, does not need to be thread-safe
 func resetId() {
 	_lastId = 0
 }
 
-func (s *IdSuite) SetUpSuite(c *C) {
+func (s *StompSuite) SetUpSuite(c *C) {
 	resetId()
 	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 
-func (s *IdSuite) TearDownSuite(c *C) {
+func (s *StompSuite) TearDownSuite(c *C) {
 	runtime.GOMAXPROCS(1)
 }
 
-func (s *IdSuite) TestAllocateId(c *C) {
+func (s *StompSuite) TestAllocateId(c *C) {
 	c.Assert(allocateId(), Equals, "1")
 	c.Assert(allocateId(), Equals, "2")
 

@@ -20,7 +20,9 @@ func (addr *FakeAddr) String() string {
 	return addr.Value
 }
 
-// fakeConn is a fake connection used for testing.
+// FakeConn is a fake connection used for testing. It implements
+// the net.Conn interface and is useful for simulating I/O between
+// STOMP clients and a STOMP server.
 type FakeConn struct {
 	C          *C
 	writer     io.WriteCloser

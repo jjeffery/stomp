@@ -6,15 +6,7 @@ import (
 	. "launchpad.net/gocheck"
 )
 
-type ClientSuite struct{}
-
-var _ = Suite(&ClientSuite{})
-
-func (s *ClientSuite) SetUpTest(c *C) {
-	resetId()
-}
-
-func (s *ClientSuite) Test_successful_connect_and_disconnect(c *C) {
+func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 	testcases := []struct {
 		Options           ConnectOptions
 		NegotiatedVersion string

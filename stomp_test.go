@@ -10,3 +10,7 @@ import (
 func TestStomp(t *testing.T) {
 	gocheck.TestingT(t)
 }
+
+type StompSuite struct{}
+
+var _ = gocheck.Suite(&StompSuite{})
