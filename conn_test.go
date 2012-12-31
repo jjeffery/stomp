@@ -8,27 +8,27 @@ import (
 
 func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 	testcases := []struct {
-		Options           ConnectOptions
+		Options           Options
 		NegotiatedVersion string
 		ExpectedVersion   string
 		ExpectedSession   string
 		ExpectedHost      string
 	}{
 		{
-			Options:         ConnectOptions{},
+			Options:         Options{},
 			ExpectedVersion: "1.0",
 			ExpectedSession: "",
 			ExpectedHost:    "the-server",
 		},
 		{
-			Options:           ConnectOptions{},
+			Options:           Options{},
 			NegotiatedVersion: "1.1",
 			ExpectedVersion:   "1.1",
 			ExpectedSession:   "the-session",
 			ExpectedHost:      "the-server",
 		},
 		{
-			Options:           ConnectOptions{Host: "xxx"},
+			Options:           Options{Host: "xxx"},
 			NegotiatedVersion: "1.2",
 			ExpectedVersion:   "1.2",
 			ExpectedSession:   "the-session",

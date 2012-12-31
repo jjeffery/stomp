@@ -5,7 +5,7 @@ import (
 )
 
 func ExampleDial() error {
-	conn, err := stomp.Dial("tcp", "192.168.1.1:61613", stomp.ConnectOptions{})
+	conn, err := stomp.Dial("tcp", "192.168.1.1:61613", stomp.Options{})
 	if err != nil {
 		return err
 	}

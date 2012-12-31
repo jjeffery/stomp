@@ -2,35 +2,15 @@ package stomp
 
 import (
 	"errors"
+	"github.com/jjeffery/stomp/frame"
 	"github.com/jjeffery/stomp/message"
 	"io"
 	"log"
 	"net"
 )
 
-// The AckMode type is an enumeration of the acknowledgement modes for a 
-// STOMP subscription. Valid values are AckAuto, AckClient and 
-// AckClientIndividual, which are documented in the constants section.
-type AckMode string
-
-// These constants are the valid values for the AckMode type. When a STOMP
-// client subscribes to a destination on the server, it specifies how it
-// will acknowledge messages it receives from the server.
-const (
-	// No acknowledgement is required, the server assumes that the client 
-	// received the message.
-	AckAuto = AckMode("auto")
-
-	// Client acknowledges messages. When a client acknowledges a message,
-	// any previously received messages are also acknowledged.
-	AckClient = AckMode("client")
-
-	// Client acknowledges message. Each message is acknowledged individually.
-	AckClientIndividual = AckMode("client-individual")
-)
-
 // Options for connecting to the STOMP server
-type ConnectOptions struct {
+type Options struct {
 	// Login and passcode for authentication with the STOMP server.
 	// If no authentication is required, leave blank.
 	Login, Passcode string
@@ -55,7 +35,8 @@ type ConnectOptions struct {
 	NonStandard map[string]string
 }
 
-// A Conn is a connect to a STOMP server.
+// A Conn is a connection to a STOMP server. Create a Conn using either
+// the Dial or Connect function.
 type Conn struct {
 	conn    io.ReadWriteCloser
 	readCh  chan *message.Frame
@@ -69,7 +50,7 @@ type writeRequest struct {
 	C     chan *message.Frame // response channel
 }
 
-func Dial(network, addr string, opts ConnectOptions) (*Conn, error) {
+func Dial(network, addr string, opts Options) (*Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
 		return nil, err
@@ -87,7 +68,7 @@ func Dial(network, addr string, opts ConnectOptions) (*Conn, error) {
 	return Connect(c, opts)
 }
 
-func Connect(conn io.ReadWriteCloser, opts ConnectOptions) (*Conn, error) {
+func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 	reader := message.NewReader(conn)
 	writer := message.NewWriter(conn)
 
@@ -113,13 +94,13 @@ func Connect(conn io.ReadWriteCloser, opts ConnectOptions) (*Conn, error) {
 		}
 	}
 
-	connectFrame := message.NewFrame(message.CONNECT,
-		message.Host, opts.Host,
-		message.AcceptVersion, opts.AcceptVersion,
-		message.HeartBeat, opts.HeartBeat)
+	connectFrame := message.NewFrame(frame.CONNECT,
+		frame.Host, opts.Host,
+		frame.AcceptVersion, opts.AcceptVersion,
+		frame.HeartBeat, opts.HeartBeat)
 	if opts.Login != "" || opts.Passcode != "" {
-		connectFrame.Append(message.Login, opts.Login)
-		connectFrame.Append(message.Passcode, opts.Passcode)
+		connectFrame.Append(frame.Login, opts.Login)
+		connectFrame.Append(frame.Passcode, opts.Passcode)
 	}
 	for key, value := range opts.NonStandard {
 		connectFrame.Append(key, value)
@@ -131,7 +112,7 @@ func Connect(conn io.ReadWriteCloser, opts ConnectOptions) (*Conn, error) {
 		return nil, err
 	}
 
-	if response.Command != message.CONNECTED {
+	if response.Command != frame.CONNECTED {
 		return nil, newError(response)
 	}
 
@@ -141,13 +122,13 @@ func Connect(conn io.ReadWriteCloser, opts ConnectOptions) (*Conn, error) {
 		writeCh: make(chan writeRequest, 8),
 	}
 
-	if version, ok := response.Contains(message.Version); ok {
+	if version, ok := response.Contains(frame.Version); ok {
 		c.version = version
 	} else {
 		c.version = "1.0"
 	}
 
-	c.session, _ = response.Contains(message.Session)
+	c.session, _ = response.Contains(frame.Session)
 
 	// TODO(jpj): make any non-standard headers in the CONNECTED
 	// frame available.
@@ -195,8 +176,8 @@ func processLoop(c *Conn, writer *message.Writer) {
 			}
 
 			switch f.Command {
-			case message.RECEIPT:
-				if id, ok := f.Contains(message.ReceiptId); ok {
+			case frame.RECEIPT:
+				if id, ok := f.Contains(frame.ReceiptId); ok {
 					if ch, ok := channels[id]; ok {
 						ch <- f
 						delete(channels, id)
@@ -209,7 +190,7 @@ func processLoop(c *Conn, writer *message.Writer) {
 					return
 				}
 
-			case message.ERROR:
+			case frame.ERROR:
 				log.Println("received ERROR")
 				for _, ch := range channels {
 					ch <- f
@@ -218,8 +199,8 @@ func processLoop(c *Conn, writer *message.Writer) {
 
 				return
 
-			case message.MESSAGE:
-				if id, ok := f.Contains(message.Subscription); ok {
+			case frame.MESSAGE:
+				if id, ok := f.Contains(frame.Subscription); ok {
 					if ch, ok := channels[id]; ok {
 						ch <- f
 					} else {
@@ -233,22 +214,22 @@ func processLoop(c *Conn, writer *message.Writer) {
 				sendError(channels, errors.New("write channel closed"))
 			}
 			if req.C != nil {
-				if receipt, ok := req.Frame.Contains(message.Receipt); ok {
+				if receipt, ok := req.Frame.Contains(frame.Receipt); ok {
 					// remember the channel for this receipt
 					channels[receipt] = req.C
 				}
 			}
 
 			switch req.Frame.Command {
-			case message.SUBSCRIBE:
-				id, _ := req.Frame.Contains(message.Id)
+			case frame.SUBSCRIBE:
+				id, _ := req.Frame.Contains(frame.Id)
 				channels[id] = req.C
-			case message.UNSUBSCRIBE:
-				id, _ := req.Frame.Contains(message.Id)
+			case frame.UNSUBSCRIBE:
+				id, _ := req.Frame.Contains(frame.Id)
 				// is this trying to be too clever -- add a receipt
 				// header so that when the server responds with a 
 				// RECEIPT frame, the corresponding channel will be closed
-				req.Frame.Set(message.Receipt, id)
+				req.Frame.Set(frame.Receipt, id)
 			}
 
 			// frame to send
@@ -263,7 +244,7 @@ func processLoop(c *Conn, writer *message.Writer) {
 
 // Send an error to all receipt channels.
 func sendError(m map[string]chan *message.Frame, err error) {
-	frame := message.NewFrame(message.ERROR, message.Message, err.Error())
+	frame := message.NewFrame(frame.ERROR, frame.Message, err.Error())
 	for _, ch := range m {
 		ch <- frame
 	}
@@ -278,12 +259,12 @@ func sendError(m map[string]chan *message.Frame, err error) {
 func (c *Conn) Disconnect() error {
 	ch := make(chan *message.Frame)
 	c.writeCh <- writeRequest{
-		Frame: message.NewFrame(message.DISCONNECT, message.Receipt, allocateId()),
+		Frame: message.NewFrame(frame.DISCONNECT, frame.Receipt, allocateId()),
 		C:     ch,
 	}
 
 	response := <-ch
-	if response.Command != message.RECEIPT {
+	if response.Command != frame.RECEIPT {
 		return newError(response)
 	}
 
@@ -305,14 +286,14 @@ func (c *Conn) SendWithReceipt(msg Message) error {
 	}
 
 	receipt := allocateId()
-	f.Set(message.Receipt, receipt)
+	f.Set(frame.Receipt, receipt)
 
 	request := writeRequest{Frame: f}
 
 	request.C = make(chan *message.Frame)
 	c.writeCh <- request
 	response := <-request.C
-	if response.Command == message.RECEIPT {
+	if response.Command == frame.RECEIPT {
 		// TODO: check receipt-id
 		return nil
 	}
@@ -339,10 +320,10 @@ func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error)
 	ch := make(chan *message.Frame)
 	id := allocateId()
 	request := writeRequest{
-		Frame: message.NewFrame(message.SUBSCRIBE,
-			message.Id, id,
-			message.Destination, destination,
-			message.Ack, string(ack)),
+		Frame: message.NewFrame(frame.SUBSCRIBE,
+			frame.Id, id,
+			frame.Destination, destination,
+			frame.Ack, ack.String()),
 		C: ch,
 	}
 
