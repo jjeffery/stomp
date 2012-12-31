@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"github.com/jjeffery/stomp/frame"
 	"github.com/jjeffery/stomp/message"
 	"io"
 	"log"
@@ -75,8 +76,8 @@ func (c *Conn) Send(f *message.Frame) {
 // will be based on the contents of the err parameter.
 func (c *Conn) SendError(err error) {
 	f := new(message.Frame)
-	f.Command = message.ERROR
-	f.Headers.Append(message.Message, err.Error())
+	f.Command = frame.ERROR
+	f.Headers.Append(frame.Message, err.Error())
 	c.Send(f) // will close after successful send
 }
 
@@ -85,14 +86,14 @@ func (c *Conn) SendError(err error) {
 // whose contents have caused the error. Include the receipt-id 
 // header if the frame contains a receipt header.
 func (c *Conn) sendErrorImmediately(err error, f *message.Frame) {
-	errorFrame := message.NewFrame(message.ERROR,
-		message.Message, err.Error())
+	errorFrame := message.NewFrame(frame.ERROR,
+		frame.Message, err.Error())
 
 	// Include a receipt-id header if the frame that prompted the error had
 	// a receipt header (as suggested by the STOMP protocol spec).
 	if f != nil {
-		if receipt, ok := f.Contains(message.Receipt); ok {
-			errorFrame.Append(message.ReceiptId, receipt)
+		if receipt, ok := f.Contains(frame.Receipt); ok {
+			errorFrame.Append(frame.ReceiptId, receipt)
 		}
 	}
 
@@ -227,7 +228,7 @@ func (c *Conn) processLoop() {
 
 			// if the frame just sent to the client is an error
 			// frame, we disconnect
-			if f.Command == message.ERROR {
+			if f.Command == frame.ERROR {
 				// sent an ERROR frame, so disconnect
 				return
 			}
@@ -291,7 +292,7 @@ func (c *Conn) processLoop() {
 					return
 				}
 
-				if sub.ack == message.AckAuto {
+				if sub.ack == frame.AckAuto {
 					// subscription does not require acknowledgement,
 					// so send the subscription back the upper layer
 					// straight away
@@ -397,18 +398,18 @@ func (c *Conn) cleanupSubChannel() {
 
 // Send a frame to the client, allocating necessary headers prior.
 func (c *Conn) allocateMessageId(f *message.Frame, sub *Subscription) {
-	if f.Command == message.MESSAGE {
+	if f.Command == frame.MESSAGE {
 		// allocate the value of message-id for this frame
 		c.lastMsgId++
 		messageId := strconv.FormatUint(c.lastMsgId, 10)
-		f.Set(message.MessageId, messageId)
+		f.Set(frame.MessageId, messageId)
 
 		// if there is any requirement by the client to acknowledge, set
 		// the ack header as per STOMP 1.2
-		if sub == nil || sub.ack == message.AckAuto {
-			f.Remove(message.Ack)
+		if sub == nil || sub.ack == frame.AckAuto {
+			f.Remove(frame.Ack)
 		} else {
-			f.Set(message.Ack, messageId)
+			f.Set(frame.Ack, messageId)
 		}
 	}
 }
@@ -416,7 +417,7 @@ func (c *Conn) allocateMessageId(f *message.Frame, sub *Subscription) {
 // State function for expecting connect frame.
 func connecting(c *Conn, f *message.Frame) error {
 	switch f.Command {
-	case message.CONNECT, message.STOMP:
+	case frame.CONNECT, frame.STOMP:
 		return c.handleConnect(f)
 	}
 	return notConnected
@@ -425,27 +426,27 @@ func connecting(c *Conn, f *message.Frame) error {
 // State function for after connect frame received.
 func connected(c *Conn, f *message.Frame) error {
 	switch f.Command {
-	case message.CONNECT, message.STOMP:
+	case frame.CONNECT, frame.STOMP:
 		return unexpectedCommand
-	case message.DISCONNECT:
+	case frame.DISCONNECT:
 		return c.handleDisconnect(f)
-	case message.BEGIN:
+	case frame.BEGIN:
 		return c.handleBegin(f)
-	case message.ABORT:
+	case frame.ABORT:
 		return c.handleAbort(f)
-	case message.COMMIT:
+	case frame.COMMIT:
 		return c.handleCommit(f)
-	case message.SEND:
+	case frame.SEND:
 		return c.handleSend(f)
-	case message.SUBSCRIBE:
+	case frame.SUBSCRIBE:
 		return c.handleSubscribe(f)
-	case message.UNSUBSCRIBE:
+	case frame.UNSUBSCRIBE:
 		return c.handleUnsubscribe(f)
-	case message.ACK:
+	case frame.ACK:
 		return c.handleAck(f)
-	case message.NACK:
+	case frame.NACK:
 		return c.handleNack(f)
-	case message.MESSAGE, message.RECEIPT, message.ERROR:
+	case frame.MESSAGE, frame.RECEIPT, frame.ERROR:
 		// should only be sent by the server, should not come from the client
 		return unexpectedCommand
 	}
@@ -455,7 +456,7 @@ func connected(c *Conn, f *message.Frame) error {
 func (c *Conn) handleConnect(f *message.Frame) error {
 	var err error
 
-	if _, ok := f.Contains(message.Receipt); ok {
+	if _, ok := f.Contains(frame.Receipt); ok {
 		// CONNNECT and STOMP frames are not allowed to have
 		// a receipt header.
 		return receiptInConnect
@@ -463,8 +464,8 @@ func (c *Conn) handleConnect(f *message.Frame) error {
 
 	// if either of these fields are absent, pass nil to the
 	// authenticator function.
-	login, _ := f.Contains(message.Login)
-	passcode, _ := f.Contains(message.Passcode)
+	login, _ := f.Contains(frame.Login)
+	passcode, _ := f.Contains(frame.Passcode)
 	if !c.config.Authenticate(login, passcode) {
 		// sleep to slow down a rogue client a little bit
 		log.Println("authentication failed")
@@ -507,10 +508,10 @@ func (c *Conn) handleConnect(f *message.Frame) error {
 	// go-routine
 	c.writeTimeout = time.Duration(cy) * time.Millisecond
 
-	response := message.NewFrame(message.CONNECTED,
-		message.Version, string(c.version),
-		message.Server, "stompd/x.y.z", // TODO: get version
-		message.HeartBeat, fmt.Sprintf("%d,%d", cy, cx))
+	response := message.NewFrame(frame.CONNECTED,
+		frame.Version, string(c.version),
+		frame.Server, "stompd/x.y.z", // TODO: get version
+		frame.HeartBeat, fmt.Sprintf("%d,%d", cy, cx))
 
 	c.sendImmediately(response)
 	c.stateFunc = connected
@@ -525,14 +526,14 @@ func (c *Conn) handleConnect(f *message.Frame) error {
 // a receipt header. If the frame does contain a receipt header,
 // it will be removed from the frame.
 func (c *Conn) sendReceiptImmediately(f *message.Frame) error {
-	if receipt, ok := f.Contains(message.Receipt); ok {
+	if receipt, ok := f.Contains(frame.Receipt); ok {
 		// Remove the receipt header from the frame. This is handy
 		// for transactions, because the frame has its receipt 
 		// header removed prior to entering the transaction store.
 		// When the frame is processed upon transaction commit, it
 		// will not have a receipt header anymore.
-		f.Remove(message.Receipt)
-		return c.sendImmediately(message.NewFrame(message.RECEIPT, message.ReceiptId, receipt))
+		f.Remove(frame.Receipt)
+		return c.sendImmediately(message.NewFrame(frame.RECEIPT, frame.ReceiptId, receipt))
 	}
 	return nil
 }
@@ -550,7 +551,7 @@ func (c *Conn) handleDisconnect(f *message.Frame) error {
 func (c *Conn) handleBegin(f *message.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
-	if transaction, ok := f.Contains(message.Transaction); ok {
+	if transaction, ok := f.Contains(frame.Transaction); ok {
 		// Send a receipt and remove the header
 		err := c.sendReceiptImmediately(f)
 		if err != nil {
@@ -565,7 +566,7 @@ func (c *Conn) handleBegin(f *message.Frame) error {
 func (c *Conn) handleCommit(f *message.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
-	if transaction, ok := f.Contains(message.Transaction); ok {
+	if transaction, ok := f.Contains(frame.Transaction); ok {
 		// Send a receipt and remove the header
 		err := c.sendReceiptImmediately(f)
 		if err != nil {
@@ -584,7 +585,7 @@ func (c *Conn) handleCommit(f *message.Frame) error {
 func (c *Conn) handleAbort(f *message.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
-	if transaction, ok := f.Contains(message.Transaction); ok {
+	if transaction, ok := f.Contains(frame.Transaction); ok {
 		// Send a receipt and remove the header
 		err := c.sendReceiptImmediately(f)
 		if err != nil {
@@ -596,19 +597,19 @@ func (c *Conn) handleAbort(f *message.Frame) error {
 }
 
 func (c *Conn) handleSubscribe(f *message.Frame) error {
-	id, ok := f.Contains(message.Id)
+	id, ok := f.Contains(frame.Id)
 	if !ok {
 		return missingHeader
 	}
 
-	dest, ok := f.Contains(message.Destination)
+	dest, ok := f.Contains(frame.Destination)
 	if !ok {
 		return missingHeader
 	}
 
-	ack, ok := f.Contains(message.Ack)
+	ack, ok := f.Contains(frame.Ack)
 	if !ok {
-		ack = message.AckAuto
+		ack = frame.AckAuto
 	}
 
 	sub, ok := c.subs[id]
@@ -625,7 +626,7 @@ func (c *Conn) handleSubscribe(f *message.Frame) error {
 }
 
 func (c *Conn) handleUnsubscribe(f *message.Frame) error {
-	id, ok := f.Contains(message.Id)
+	id, ok := f.Contains(frame.Id)
 	if !ok {
 		return missingHeader
 	}
@@ -647,9 +648,9 @@ func (c *Conn) handleAck(f *message.Frame) error {
 	var err error
 	var msgId string
 
-	if ack, ok := f.Contains(message.Ack); ok {
+	if ack, ok := f.Contains(frame.Ack); ok {
 		msgId = ack
-	} else if msgId, ok = f.Contains(message.MessageId); !ok {
+	} else if msgId, ok = f.Contains(frame.MessageId); !ok {
 		return missingHeader
 	}
 
@@ -665,7 +666,7 @@ func (c *Conn) handleAck(f *message.Frame) error {
 		return err
 	}
 
-	if tx, ok := f.Contains(message.Transaction); ok {
+	if tx, ok := f.Contains(frame.Transaction); ok {
 		// the transaction header is removed from the frame
 		err = c.txStore.Add(tx, f)
 		if err != nil {
@@ -690,9 +691,9 @@ func (c *Conn) handleNack(f *message.Frame) error {
 	var err error
 	var msgId string
 
-	if ack, ok := f.Contains(message.Ack); ok {
+	if ack, ok := f.Contains(frame.Ack); ok {
 		msgId = ack
-	} else if msgId, ok = f.Contains(message.MessageId); !ok {
+	} else if msgId, ok = f.Contains(frame.MessageId); !ok {
 		return missingHeader
 	}
 
@@ -708,7 +709,7 @@ func (c *Conn) handleNack(f *message.Frame) error {
 		return err
 	}
 
-	if tx, ok := f.Contains(message.Transaction); ok {
+	if tx, ok := f.Contains(frame.Transaction); ok {
 		// the transaction header is removed from the frame
 		err = c.txStore.Add(tx, f)
 		if err != nil {
@@ -741,7 +742,7 @@ func (c *Conn) handleSend(f *message.Frame) error {
 		return err
 	}
 
-	if tx, ok := f.Contains(message.Transaction); ok {
+	if tx, ok := f.Contains(frame.Transaction); ok {
 		// the transaction header is removed from the frame
 		err = c.txStore.Add(tx, f)
 		if err != nil {
@@ -750,7 +751,7 @@ func (c *Conn) handleSend(f *message.Frame) error {
 	} else {
 		// not in a transaction
 		// change from SEND to MESSAGE
-		f.Command = message.MESSAGE
+		f.Command = frame.MESSAGE
 		c.requestChannel <- Request{Op: EnqueueOp, Frame: f}
 	}
 

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"github.com/jjeffery/stomp/frame"
 	"github.com/jjeffery/stomp/message"
 )
 
@@ -37,12 +38,12 @@ func (s *Subscription) Id() string {
 
 func (s *Subscription) IsAckedBy(msgId uint64) bool {
 	switch s.ack {
-	case message.AckAuto:
+	case frame.AckAuto:
 		return true
-	case message.AckClient:
+	case frame.AckClient:
 		// any later message acknowledges an earlier message
 		return msgId >= s.msgId
-	case message.AckClientIndividual:
+	case frame.AckClientIndividual:
 		return msgId == s.msgId
 	}
 
@@ -80,5 +81,5 @@ func (s *Subscription) setSubscriptionHeader(f *message.Frame) {
 	if s.frame != nil {
 		panic("subscription already has a frame pending")
 	}
-	f.Set(message.Subscription, s.id)
+	f.Set(frame.Subscription, s.id)
 }
