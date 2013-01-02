@@ -2,6 +2,7 @@ package client
 
 import (
 	"container/list"
+	"github.com/jjeffery/stomp/frame"
 	"github.com/jjeffery/stomp/message"
 )
 
@@ -56,7 +57,7 @@ func (txs *txStore) Commit(tx string, commitFunc func(f *message.Frame) error) e
 
 func (txs *txStore) Add(tx string, f *message.Frame) error {
 	if list, ok := txs.transactions[tx]; ok {
-		f.Remove(message.Transaction)
+		f.Remove(frame.Transaction)
 		list.PushBack(f)
 		return nil
 	}

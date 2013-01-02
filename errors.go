@@ -4,6 +4,11 @@ import (
 	"github.com/jjeffery/stomp/message"
 )
 
+var (
+	invalidCommand     = newErrorMessage("invalid command")
+	invalidFrameFormat = newErrorMessage("invalid frame format")
+)
+
 // StompError implements the Error interface, and provides
 // additional information about a STOMP error.
 type Error struct {

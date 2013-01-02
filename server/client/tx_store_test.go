@@ -1,6 +1,7 @@
 package client
 
 import (
+	"github.com/jjeffery/stomp/frame"
 	"github.com/jjeffery/stomp/message"
 	. "launchpad.net/gocheck"
 )
@@ -28,17 +29,17 @@ func (s *TxStoreSuite) TestSuccessfulTx(c *C) {
 	err = txs.Begin("tx2")
 	c.Assert(err, IsNil)
 
-	f1 := message.NewFrame(message.MESSAGE,
-		message.Destination, "/queue/1")
+	f1 := message.NewFrame(frame.MESSAGE,
+		frame.Destination, "/queue/1")
 
-	f2 := message.NewFrame(message.MESSAGE,
-		message.Destination, "/queue/2")
+	f2 := message.NewFrame(frame.MESSAGE,
+		frame.Destination, "/queue/2")
 
-	f3 := message.NewFrame(message.MESSAGE,
-		message.Destination, "/queue/3")
+	f3 := message.NewFrame(frame.MESSAGE,
+		frame.Destination, "/queue/3")
 
-	f4 := message.NewFrame(message.MESSAGE,
-		message.Destination, "/queue/4")
+	f4 := message.NewFrame(frame.MESSAGE,
+		frame.Destination, "/queue/4")
 
 	err = txs.Add("tx1", f1)
 	c.Assert(err, IsNil)

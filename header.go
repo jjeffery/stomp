@@ -1,5 +1,10 @@
 package stomp
 
+import (
+	"github.com/jjeffery/stomp/frame"
+	"strconv"
+)
+
 // A Header represents a STOMP header mapping 
 // keys to sets of values. 
 //
@@ -53,4 +58,20 @@ func (h Header) Clone() Header {
 		}
 	}
 	return hc
+}
+
+func (h Header) ContentLength() (contentLength int, ok bool, err error) {
+	text := h.Get(frame.ContentLength)
+	if text == "" {
+		return
+	}
+
+	n, err := strconv.ParseUint(text, 10, 32)
+	if err != nil {
+		return
+	}
+
+	contentLength = int(n)
+	ok = true
+	return
 }
