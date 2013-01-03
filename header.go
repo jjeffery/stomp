@@ -42,6 +42,27 @@ func (h Header) Get(key string) string {
 	return values[0]
 }
 
+// Contains gets the first value associated with the given key, 
+// and also returns a bool indicating whether the header entry 
+// exists.
+//
+// If there are no values associated with the key, Get returns ""
+// for the value, and ok is false.
+func (h Header) Contains(key string) (value string, ok bool) {
+	if h == nil {
+		return
+	}
+
+	values, ok := h[key]
+	if !ok {
+		return
+	}
+
+	value = values[0]
+	ok = true
+	return
+}
+
 // Del deletes the values associated with key.
 func (h Header) Del(key string) {
 	delete(h, key)

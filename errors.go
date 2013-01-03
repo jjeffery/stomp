@@ -1,7 +1,7 @@
 package stomp
 
 import (
-	"github.com/jjeffery/stomp/message"
+	"github.com/jjeffery/stomp/frame"
 )
 
 var (
@@ -13,7 +13,7 @@ var (
 // additional information about a STOMP error.
 type Error struct {
 	Message string
-	Frame   *message.Frame
+	Frame   *Frame
 }
 
 func (e Error) Error() string {
@@ -24,11 +24,11 @@ func newErrorMessage(msg string) Error {
 	return Error{Message: msg}
 }
 
-func newError(f *message.Frame) Error {
+func newError(f *Frame) Error {
 	e := Error{Frame: f}
 
-	if f.Command == message.ERROR {
-		if message, ok := f.Contains(message.Message); ok {
+	if f.Command == frame.ERROR {
+		if message := f.Get(frame.Message); message != "" {
 			e.Message = message
 		} else {
 			e.Message = "ERROR frame, missing message header"

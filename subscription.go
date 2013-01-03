@@ -8,7 +8,7 @@ import (
 )
 
 // The Subscription type represents a client subscription to
-// a destination. The subscription is created by calling Client.Subscribe.
+// a destination. The subscription is created by calling Conn.Subscribe.
 //
 // Once a client has subscribed, it can receive messages from the C channel.
 type Subscription struct {
@@ -50,7 +50,7 @@ func (s *Subscription) Read() (*Message, error) {
 	panic("not implemented")
 }
 
-func (s *Subscription) readLoop(ch chan *message.Frame) {
+func (s *Subscription) readLoop(ch chan *Frame) {
 	for {
 		f, ok := <-ch
 		if !ok {
@@ -65,12 +65,8 @@ func (s *Subscription) readLoop(ch chan *message.Frame) {
 				ContentType:  contentType,
 				Conn:         s.client,
 				Subscription: s,
-				Header:       Header{},
+				Header:       f.Header.Clone(),
 				Body:         f.Body,
-			}
-			for i := 0; i < f.Len(); i++ {
-				k, v := f.GetAt(i)
-				msg.Add(k, v)
 			}
 			s.C <- msg
 		} else if f.Command == frame.ERROR {

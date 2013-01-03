@@ -3,7 +3,6 @@ package stomp
 import (
 	"errors"
 	"github.com/jjeffery/stomp/frame"
-	"github.com/jjeffery/stomp/message"
 	"io"
 	"log"
 	"net"
@@ -39,15 +38,15 @@ type Options struct {
 // the Dial or Connect function.
 type Conn struct {
 	conn    io.ReadWriteCloser
-	readCh  chan *message.Frame
+	readCh  chan *Frame
 	writeCh chan writeRequest
 	version string
 	session string
 }
 
 type writeRequest struct {
-	Frame *message.Frame      // frame to send
-	C     chan *message.Frame // response channel
+	Frame *Frame      // frame to send
+	C     chan *Frame // response channel
 }
 
 func Dial(network, addr string, opts Options) (*Conn, error) {
@@ -69,8 +68,8 @@ func Dial(network, addr string, opts Options) (*Conn, error) {
 }
 
 func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
-	reader := message.NewReader(conn)
-	writer := message.NewWriter(conn)
+	reader := NewReader(conn)
+	writer := NewWriter(conn)
 
 	// set default values
 	if opts.AcceptVersion == "" {
@@ -94,16 +93,16 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 		}
 	}
 
-	connectFrame := message.NewFrame(frame.CONNECT,
+	connectFrame := NewFrame(frame.CONNECT,
 		frame.Host, opts.Host,
 		frame.AcceptVersion, opts.AcceptVersion,
 		frame.HeartBeat, opts.HeartBeat)
 	if opts.Login != "" || opts.Passcode != "" {
-		connectFrame.Append(frame.Login, opts.Login)
-		connectFrame.Append(frame.Passcode, opts.Passcode)
+		connectFrame.Set(frame.Login, opts.Login)
+		connectFrame.Set(frame.Passcode, opts.Passcode)
 	}
 	for key, value := range opts.NonStandard {
-		connectFrame.Append(key, value)
+		connectFrame.Add(key, value)
 	}
 
 	writer.Write(connectFrame)
@@ -118,17 +117,17 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 
 	c := &Conn{
 		conn:    conn,
-		readCh:  make(chan *message.Frame, 8),
+		readCh:  make(chan *Frame, 8),
 		writeCh: make(chan writeRequest, 8),
 	}
 
-	if version, ok := response.Contains(frame.Version); ok {
+	if version := response.Get(frame.Version); version != "" {
 		c.version = version
 	} else {
 		c.version = "1.0"
 	}
 
-	c.session, _ = response.Contains(frame.Session)
+	c.session = response.Get(frame.Session)
 
 	// TODO(jpj): make any non-standard headers in the CONNECTED
 	// frame available.
@@ -150,7 +149,7 @@ func (c *Conn) Session() string {
 // readLoop is a goroutine that reads frames from the
 // reader and places them onto a channel for processing
 // by the processLoop goroutine
-func readLoop(c *Conn, reader *message.Reader) {
+func readLoop(c *Conn, reader *Reader) {
 	for {
 		f, err := reader.Read()
 		if err != nil {
@@ -163,8 +162,8 @@ func readLoop(c *Conn, reader *message.Reader) {
 
 // processLoop is a goroutine that handles io with
 // the server.
-func processLoop(c *Conn, writer *message.Writer) {
-	channels := make(map[string]chan *message.Frame)
+func processLoop(c *Conn, writer *Writer) {
+	channels := make(map[string]chan *Frame)
 
 	for {
 		select {
@@ -243,8 +242,8 @@ func processLoop(c *Conn, writer *message.Writer) {
 }
 
 // Send an error to all receipt channels.
-func sendError(m map[string]chan *message.Frame, err error) {
-	frame := message.NewFrame(frame.ERROR, frame.Message, err.Error())
+func sendError(m map[string]chan *Frame, err error) {
+	frame := NewFrame(frame.ERROR, frame.Message, err.Error())
 	for _, ch := range m {
 		ch <- frame
 	}
@@ -257,9 +256,9 @@ func sendError(m map[string]chan *message.Frame, err error) {
 // server is closed and any further attempt to write to the server
 // will fail.
 func (c *Conn) Disconnect() error {
-	ch := make(chan *message.Frame)
+	ch := make(chan *Frame)
 	c.writeCh <- writeRequest{
-		Frame: message.NewFrame(frame.DISCONNECT, frame.Receipt, allocateId()),
+		Frame: NewFrame(frame.DISCONNECT, frame.Receipt, allocateId()),
 		C:     ch,
 	}
 
@@ -290,7 +289,7 @@ func (c *Conn) SendWithReceipt(msg Message) error {
 
 	request := writeRequest{Frame: f}
 
-	request.C = make(chan *message.Frame)
+	request.C = make(chan *Frame)
 	c.writeCh <- request
 	response := <-request.C
 	if response.Command == frame.RECEIPT {
@@ -317,10 +316,10 @@ func (c *Conn) Send(msg Message) error {
 
 // Subscribe to a destination. Returns a channel for receiving message frames.
 func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error) {
-	ch := make(chan *message.Frame)
+	ch := make(chan *Frame)
 	id := allocateId()
 	request := writeRequest{
-		Frame: message.NewFrame(frame.SUBSCRIBE,
+		Frame: NewFrame(frame.SUBSCRIBE,
 			frame.Id, id,
 			frame.Destination, destination,
 			frame.Ack, ack.String()),

@@ -3,14 +3,13 @@ package stomp
 import (
 	"errors"
 	"github.com/jjeffery/stomp/frame"
-	"github.com/jjeffery/stomp/message"
 	"strconv"
 )
 
 // A Message is a message that is sent to or received from the server.
 type Message struct {
 	// Destination the message is sent to. The STOMP server should
-	// in turn send this message to a STOMP clients that has subscribed 
+	// in turn send this message to a STOMP client that has subscribed 
 	// to the destination.
 	Destination string
 
@@ -36,20 +35,20 @@ type Message struct {
 	Body []byte // Content of message
 }
 
-func (msg *Message) createSendFrame() (*message.Frame, error) {
+func (msg *Message) createSendFrame() (*Frame, error) {
 	if msg.Destination == "" {
 		return nil, errors.New("no destination specififed")
 	}
-	f := message.NewFrame(frame.SEND, frame.Destination, msg.Destination)
+	f := NewFrame(frame.SEND, frame.Destination, msg.Destination)
 	if msg.ContentType != "" {
-		f.Append(frame.ContentType, msg.ContentType)
+		f.Set(frame.ContentType, msg.ContentType)
 	}
-	f.Append(frame.ContentLength, strconv.Itoa(len(msg.Body)))
+	f.Set(frame.ContentLength, strconv.Itoa(len(msg.Body)))
 	f.Body = msg.Body
 
 	for key, values := range msg.Header {
 		for _, value := range values {
-			f.Append(key, value)
+			f.Add(key, value)
 		}
 	}
 
