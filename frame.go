@@ -5,7 +5,7 @@ package stomp
 // body.
 type Frame struct {
 	Command string
-	Header
+	*Header
 	Body []byte
 }
 
@@ -13,7 +13,7 @@ type Frame struct {
 // should contain an even number of entries. Each even index is the header 
 // name, and the odd indexes are the assocated header values.
 func NewFrame(command string, headers ...string) *Frame {
-	f := &Frame{Command: command, Header: Header{}}
+	f := &Frame{Command: command, Header: &Header{}}
 	for index := 0; index < len(headers); index += 2 {
 		f.Add(headers[index], headers[index+1])
 	}

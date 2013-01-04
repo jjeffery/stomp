@@ -5,12 +5,12 @@ import (
 )
 
 func (s *StompSuite) TestHeaderGetSetAddDel(c *C) {
-	h := Header{}
+	h := &Header{}
 	c.Assert(h.Get("xxx"), Equals, "")
 	h.Add("xxx", "yyy")
 	c.Assert(h.Get("xxx"), Equals, "yyy")
 	h.Add("xxx", "zzz")
-	c.Assert(h["xxx"], DeepEquals, []string{"yyy", "zzz"})
+	c.Assert(h.GetAll("xxx"), DeepEquals, []string{"yyy", "zzz"})
 	h.Set("xxx", "111")
 	c.Assert(h.Get("xxx"), Equals, "111")
 	h.Del("xxx")
@@ -32,10 +32,7 @@ func (s *StompSuite) TestHeaderClone(c *C) {
 func (s *StompSuite) TestLit(c *C) {
 	_ = Frame{
 		Command: "CONNECT",
-		Header: Header{
-			"login":    []string{"xxx"},
-			"passcode": []string{"yyy"},
-		},
-		Body: []byte{1, 2, 3, 4},
+		Header:  NewHeader("login", "xxx", "passcode", "yyy"),
+		Body:    []byte{1, 2, 3, 4},
 	}
 }

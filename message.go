@@ -28,7 +28,7 @@ type Message struct {
 	// these are the header entries received with the message.
 	// When sending to the server, these are optional header entries
 	// that accompany the message to its destination.
-	Header
+	*Header
 
 	// The message body, which is an arbitrary sequence of bytes.
 	// The ContentType indicates the format of this body.
@@ -46,10 +46,9 @@ func (msg *Message) createSendFrame() (*Frame, error) {
 	f.Set(frame.ContentLength, strconv.Itoa(len(msg.Body)))
 	f.Body = msg.Body
 
-	for key, values := range msg.Header {
-		for _, value := range values {
-			f.Add(key, value)
-		}
+	for i := 0; i < msg.Header.Len(); i++ {
+		key, value := msg.Header.GetAt(i)
+		f.Add(key, value)
 	}
 
 	return f, nil
