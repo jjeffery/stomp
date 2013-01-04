@@ -3,7 +3,6 @@ package stomp
 import (
 	"fmt"
 	"github.com/jjeffery/stomp/frame"
-	"github.com/jjeffery/stomp/message"
 	"log"
 )
 
@@ -41,7 +40,7 @@ func (s *Subscription) AckMode() AckMode {
 
 // Unsubscribes and closes the channel C.
 func (s *Subscription) Unsubscribe() error {
-	_ = message.NewFrame(frame.UNSUBSCRIBE, frame.Id, s.id)
+	_ = NewFrame(frame.UNSUBSCRIBE, frame.Id, s.id)
 	panic("not implemented")
 }
 

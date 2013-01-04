@@ -46,9 +46,11 @@ func (msg *Message) createSendFrame() (*Frame, error) {
 	f.Set(frame.ContentLength, strconv.Itoa(len(msg.Body)))
 	f.Body = msg.Body
 
-	for i := 0; i < msg.Header.Len(); i++ {
-		key, value := msg.Header.GetAt(i)
-		f.Add(key, value)
+	if msg.Header != nil {
+		for i := 0; i < msg.Header.Len(); i++ {
+			key, value := msg.Header.GetAt(i)
+			f.Add(key, value)
+		}
 	}
 
 	return f, nil
