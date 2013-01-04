@@ -29,6 +29,17 @@ func (s *StompSuite) TestHeaderClone(c *C) {
 	c.Assert(hc.Get("yyy"), Equals, "zzz")
 }
 
+func (s *StompSuite) TestHeaderContains(c *C) {
+	h := NewHeader("xxx", "yyy", "zzz", "aaa", "xxx", "ccc")
+	v, ok := h.Contains("xxx")
+	c.Assert(v, Equals, "yyy")
+	c.Assert(ok, Equals, true)
+	
+	v, ok = h.Contains("123")
+	c.Assert(v, Equals, "")
+	c.Assert(ok, Equals, false)
+}
+
 func (s *StompSuite) TestLit(c *C) {
 	_ = Frame{
 		Command: "CONNECT",

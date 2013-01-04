@@ -77,7 +77,8 @@ func (h *Header) GetAt(index int) (key, value string) {
 // If there are no values associated with the key, Get returns ""
 // for the value, and ok is false.
 func (h *Header) Contains(key string) (value string, ok bool) {
-	if i, ok := h.index(key); ok {
+	var i int
+	if i, ok = h.index(key); ok {
 		value = h.slice[i+1]
 	}
 	return

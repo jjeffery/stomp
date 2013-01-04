@@ -2,7 +2,6 @@ package stomp
 
 import (
 	"github.com/jjeffery/stomp/frame"
-	"github.com/jjeffery/stomp/message"
 	"github.com/jjeffery/stomp/testutil"
 	. "launchpad.net/gocheck"
 )
@@ -47,20 +46,20 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 				fc2.Close()
 				close(stop)
 			}()
-			reader := message.NewReader(fc2)
-			writer := message.NewWriter(fc2)
+			reader := NewReader(fc2)
+			writer := NewWriter(fc2)
 
 			f1, err := reader.Read()
 			c.Assert(err, IsNil)
 			c.Assert(f1.Command, Equals, "CONNECT")
 			host, _ := f1.Contains("host")
 			c.Check(host, Equals, tc.ExpectedHost)
-			connectedFrame := message.NewFrame("CONNECTED")
+			connectedFrame := NewFrame("CONNECTED")
 			if tc.NegotiatedVersion != "" {
-				connectedFrame.Append("version", tc.NegotiatedVersion)
+				connectedFrame.Add("version", tc.NegotiatedVersion)
 			}
 			if tc.ExpectedSession != "" {
-				connectedFrame.Append("session", tc.ExpectedSession)
+				connectedFrame.Add("session", tc.ExpectedSession)
 			}
 			writer.Write(connectedFrame)
 
@@ -70,7 +69,7 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 			receipt, _ := f2.Contains("receipt")
 			c.Check(receipt, Equals, "1")
 
-			writer.Write(message.NewFrame("RECEIPT", frame.ReceiptId, "1"))
+			writer.Write(NewFrame("RECEIPT", frame.ReceiptId, "1"))
 		}()
 
 		client, err := Connect(fc1, tc.Options)

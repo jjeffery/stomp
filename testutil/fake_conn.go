@@ -63,7 +63,8 @@ func NewFakeConn(c *C) (client *FakeConn, server *FakeConn) {
 }
 
 func (fc *FakeConn) Read(p []byte) (n int, err error) {
-	return fc.reader.Read(p)
+	n, err = fc.reader.Read(p)
+	return
 }
 
 func (fc *FakeConn) Write(p []byte) (n int, err error) {
