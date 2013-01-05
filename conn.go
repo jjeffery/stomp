@@ -354,7 +354,7 @@ func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error)
 	sub := &Subscription{
 		id:          id,
 		destination: destination,
-		client:      c,
+		conn:        c,
 		ackMode:     ack,
 		C:           make(chan *Message, 16),
 	}

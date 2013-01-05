@@ -14,8 +14,9 @@ type Subscription struct {
 	C           chan *Message
 	id          string
 	destination string
-	client      *Conn
+	conn        *Conn
 	ackMode     AckMode
+	completed   bool
 }
 
 // BUG(jpj): If the client does not read messages from the Subscription.C 
@@ -38,10 +39,21 @@ func (s *Subscription) AckMode() AckMode {
 	return s.ackMode
 }
 
+// Active returns whether the subscription is still active.
+// Returns false if the subscription has been unsubscribed.
+func (s *Subscription) Active() bool {
+	return !s.completed
+}
+
 // Unsubscribes and closes the channel C.
 func (s *Subscription) Unsubscribe() error {
-	_ = NewFrame(frame.UNSUBSCRIBE, frame.Id, s.id)
-	panic("not implemented")
+	if s.completed {
+		return completedSubscription
+	}
+	f := NewFrame(frame.UNSUBSCRIBE, frame.Id, s.id)
+	s.conn.sendFrame(f)
+	s.completed = true
+	return nil
 }
 
 // Read a message from the subscription
@@ -57,12 +69,12 @@ func (s *Subscription) readLoop(ch chan *Frame) {
 		}
 
 		if f.Command == frame.MESSAGE {
-			destination, _ := f.Contains(frame.Destination)
-			contentType, _ := f.Contains(frame.ContentType)
+			destination := f.Get(frame.Destination)
+			contentType := f.Get(frame.ContentType)
 			msg := &Message{
 				Destination:  destination,
 				ContentType:  contentType,
-				Conn:         s.client,
+				Conn:         s.conn,
 				Subscription: s,
 				Header:       f.Header.Clone(),
 				Body:         f.Body,
@@ -70,10 +82,12 @@ func (s *Subscription) readLoop(ch chan *Frame) {
 			s.C <- msg
 		} else if f.Command == frame.ERROR {
 			message, _ := f.Contains(frame.Message)
-			text := fmt.Sprintf("ERROR message:%s", message)
+			text := fmt.Sprintf("Subscription %s: %s: ERROR message:%s",
+				s.id,
+				s.destination,
+				message)
 			log.Println(text)
 			return
 		}
-
 	}
 }

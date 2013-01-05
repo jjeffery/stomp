@@ -1,10 +1,35 @@
 package stomp
 
 import (
+	"fmt"
 	"github.com/jjeffery/stomp/frame"
 	"github.com/jjeffery/stomp/testutil"
 	. "launchpad.net/gocheck"
 )
+
+func (s *StompSuite) Test_unsuccessful_connect(c *C) {
+	fc1, fc2 := testutil.NewFakeConn(c)
+	stop := make(chan struct{})
+
+	go func() {
+		defer func() {
+			fc2.Close()
+			close(stop)
+		}()
+
+		reader := NewReader(fc2)
+		writer := NewWriter(fc2)
+		f1, err := reader.Read()
+		c.Assert(err, IsNil)
+		c.Assert(f1.Command, Equals, "CONNECT")
+		f2 := NewFrame("ERROR", "message", "auth-failed")
+		writer.Write(f2)
+	}()
+
+	conn, err := Connect(fc1, Options{})
+	c.Assert(conn, IsNil)
+	c.Assert(err, ErrorMatches, "auth-failed")
+}
 
 func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 	testcases := []struct {
@@ -83,4 +108,87 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 
 		<-stop
 	}
+}
+
+func (s *StompSuite) Test_subscribe(c *C) {
+	fc1, fc2 := testutil.NewFakeConn(c)
+	stop := make(chan struct{})
+
+	go func() {
+		defer func() {
+			fc2.Close()
+			close(stop)
+		}()
+
+		reader := NewReader(fc2)
+		writer := NewWriter(fc2)
+		f1, err := reader.Read()
+		c.Assert(err, IsNil)
+		c.Assert(f1.Command, Equals, "CONNECT")
+		f2 := NewFrame("CONNECTED", "version", "1.1")
+		writer.Write(f2)
+		f3, err := reader.Read()
+		c.Assert(err, IsNil)
+		c.Assert(f3.Command, Equals, "SUBSCRIBE")
+		id, ok := f3.Contains("id")
+		c.Assert(ok, Equals, true)
+		destination := f3.Get("destination")
+		c.Assert(destination, Equals, "/queue/test-1")
+		ack := f3.Get("ack")
+		c.Assert(ack, Equals, "client-individual")
+
+		for i := 1; i < 4; i++ {
+			messageId := fmt.Sprintf("message-%d", i)
+			bodyText := fmt.Sprintf("Message body %d", i)
+			f4 := NewFrame("MESSAGE",
+				frame.Subscription, id,
+				frame.MessageId, messageId,
+				frame.Destination, destination)
+			f4.Body = []byte(bodyText)
+			writer.Write(f4)
+
+			f5, _ := reader.Read()
+			c.Assert(f5.Command, Equals, "ACK")
+			c.Assert(f5.Get("subscription"), Equals, id)
+			c.Assert(f5.Get("message-id"), Equals, messageId)
+		}
+
+		f6, _ := reader.Read()
+		c.Assert(f6.Command, Equals, "UNSUBSCRIBE")
+		c.Assert(f6.Get(frame.Receipt), Not(Equals), "")
+		c.Assert(f6.Get(frame.Id), Equals, id)
+		writer.Write(NewFrame(frame.RECEIPT,
+			frame.ReceiptId, f6.Get(frame.Receipt)))
+
+		f7, _ := reader.Read()
+		c.Assert(f7.Command, Equals, "DISCONNECT")
+		writer.Write(NewFrame(frame.RECEIPT,
+			frame.ReceiptId, f7.Get(frame.Receipt)))
+	}()
+
+	conn, err := Connect(fc1, Options{})
+	c.Assert(conn, NotNil)
+	c.Assert(err, IsNil)
+	sub, err := conn.Subscribe("/queue/test-1", AckClientIndividual)
+	c.Assert(sub, NotNil)
+	c.Assert(err, IsNil)
+
+	for i := 1; i < 4; i++ {
+		msg := <-sub.C
+		messageId := fmt.Sprintf("message-%d", i)
+		bodyText := fmt.Sprintf("Message body %d", i)
+		c.Assert(msg.Subscription, Equals, sub)
+		c.Assert(msg.Body, DeepEquals, []byte(bodyText))
+		c.Assert(msg.Destination, Equals, "/queue/test-1")
+		c.Assert(msg.Header.Get(frame.MessageId), Equals, messageId)
+
+		c.Assert(msg.ShouldAck(), Equals, true)
+		msg.Conn.Ack(msg)
+	}
+
+	err = sub.Unsubscribe()
+	c.Assert(err, IsNil)
+
+	conn.Disconnect()
+
 }
