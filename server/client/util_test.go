@@ -1,7 +1,6 @@
 package client
 
 import (
-	"github.com/jjeffery/stomp/message"
 	. "launchpad.net/gocheck"
 	"math"
 	"time"
@@ -20,5 +19,5 @@ func (s *UtilSuite) TestAsMilliseconds(c *C) {
 	c.Check(asMilliseconds(d, math.MaxInt32), Equals, math.MaxInt32)
 
 	d = time.Duration(365) * time.Duration(24) * time.Hour
-	c.Check(asMilliseconds(d, message.MaxHeartBeat), Equals, message.MaxHeartBeat)
+	c.Check(asMilliseconds(d, maxHeartBeat), Equals, maxHeartBeat)
 }

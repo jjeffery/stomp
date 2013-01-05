@@ -49,3 +49,35 @@ func (s *FrameSuite) TestDetermineVersion_IncompatibleVersions(c *C) {
 	c.Check(version, Equals, stomp.Version(""))
 	c.Check(err, Equals, unknownVersion)
 }
+
+func (s *FrameSuite) TestHeartBeat(c *C) {
+	f := stomp.NewFrame(frame.CONNECT,
+		frame.AcceptVersion, "1.2",
+		frame.Host, "XX")
+
+	// no heart-beat header means zero values
+	x, y, err := getHeartBeat(f)
+	c.Check(x, Equals, 0)
+	c.Check(y, Equals, 0)
+	c.Check(err, IsNil)
+
+	f.Header.Add("heart-beat", "123,456")
+	x, y, err = getHeartBeat(f)
+	c.Check(x, Equals, 123)
+	c.Check(y, Equals, 456)
+	c.Check(err, IsNil)
+
+	f.Header.Set(frame.HeartBeat, "invalid")
+	x, y, err = getHeartBeat(f)
+	c.Check(x, Equals, 0)
+	c.Check(y, Equals, 0)
+	c.Check(err, Equals, invalidHeartBeat)
+
+	f.Header.Del(frame.HeartBeat)
+	_, _, err = getHeartBeat(f)
+	c.Check(err, IsNil)
+
+	f.Command = frame.SEND
+	_, _, err = getHeartBeat(f)
+	c.Check(err, Equals, invalidOperationForFrame)
+}
