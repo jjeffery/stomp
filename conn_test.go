@@ -158,15 +158,14 @@ func connectHelper(c *C, version Version) (*Conn, *fakeReaderWriter) {
 }
 
 func (s *StompSuite) Test_subscribe(c *C) {
-	subscribeHelper(c, AckAuto, V10)
-	subscribeHelper(c, AckAuto, V11)
-	subscribeHelper(c, AckAuto, V12)
-	subscribeHelper(c, AckClient, V10)
-	subscribeHelper(c, AckClient, V11)
-	subscribeHelper(c, AckClient, V12)
-	subscribeHelper(c, AckClientIndividual, V10)
-	subscribeHelper(c, AckClientIndividual, V11)
-	subscribeHelper(c, AckClientIndividual, V12)
+	ackModes := []AckMode{AckAuto, AckClient, AckClientIndividual}
+	versions := []Version{V10, V11, V12}
+
+	for _, ackMode := range ackModes {
+		for _, version := range versions {
+			subscribeHelper(c, ackMode, version)
+		}
+	}
 }
 
 func subscribeHelper(c *C, ackMode AckMode, version Version) {
@@ -253,18 +252,21 @@ func subscribeHelper(c *C, ackMode AckMode, version Version) {
 }
 
 func (s *StompSuite) TestTransaction(c *C) {
-	subscribeTransactionHelper(c, AckAuto, V10)
-	subscribeTransactionHelper(c, AckAuto, V11)
-	subscribeTransactionHelper(c, AckAuto, V12)
-	subscribeTransactionHelper(c, AckClient, V10)
-	subscribeTransactionHelper(c, AckClient, V11)
-	subscribeTransactionHelper(c, AckClient, V12)
-	subscribeTransactionHelper(c, AckClientIndividual, V10)
-	subscribeTransactionHelper(c, AckClientIndividual, V11)
-	subscribeTransactionHelper(c, AckClientIndividual, V12)
+
+	ackModes := []AckMode{AckAuto, AckClient, AckClientIndividual}
+	versions := []Version{V10, V11, V12}
+	aborts := []bool{false, true}
+
+	for _, ackMode := range ackModes {
+		for _, version := range versions {
+			for _, abort := range aborts {
+				subscribeTransactionHelper(c, ackMode, version, abort)
+			}
+		}
+	}
 }
 
-func subscribeTransactionHelper(c *C, ackMode AckMode, version Version) {
+func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bool) {
 	conn, rw := connectHelper(c, version)
 	stop := make(chan struct{})
 
@@ -324,7 +326,11 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version) {
 
 			commitFrame, _ := rw.Read()
 			c.Assert(commitFrame, NotNil)
-			c.Assert(commitFrame.Command, Equals, "COMMIT")
+			if abort {
+				c.Assert(commitFrame.Command, Equals, "ABORT")
+			} else {
+				c.Assert(commitFrame.Command, Equals, "COMMIT")
+			}
 			c.Assert(commitFrame.Get("transaction"), Equals, tx)
 		}
 
@@ -365,7 +371,11 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version) {
 			Body:        []byte(bodyText),
 		})
 		c.Assert(err, IsNil)
-		tx.Commit()
+		if abort {
+			tx.Abort()
+		} else {
+			tx.Commit()
+		}
 	}
 
 	err = sub.Unsubscribe()
