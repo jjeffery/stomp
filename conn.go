@@ -336,7 +336,10 @@ func (c *Conn) sendFrameWithReceipt(f *Frame) error {
 	return nil
 }
 
-// Subscribe to a destination. Returns a channel for receiving message frames.
+// Subscribe creates a subscription on the STOMP server.
+// The subscription has a destination, and messages sent to that destination
+// will be received by this subscription. A subscription has a channel
+// on which the calling program can receive messages.
 func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error) {
 	ch := make(chan *Frame)
 	id := allocateId()
@@ -361,6 +364,9 @@ func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error)
 	return sub, nil
 }
 
+// Ack acknowledges a message received from the STOMP server.
+// If the message was received on a subscription with AckMode == AckAuto,
+// then no operation is performed.
 func (c *Conn) Ack(m *Message) error {
 	f, err := c.createAckNackFrame(m, true)
 	if err != nil {

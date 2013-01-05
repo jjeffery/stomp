@@ -35,6 +35,17 @@ type Message struct {
 	Body []byte // Content of message
 }
 
+// ShouldAck returns true if this message should be acknowledged to
+// the STOMP server that sent it.
+func (msg *Message) ShouldAck() bool {
+	if msg.Subscription == nil {
+		// not received from the server, so no acknowledgement required
+		return false
+	}
+
+	return msg.Subscription.AckMode() != AckAuto
+}
+
 func (msg *Message) createSendFrame() (*Frame, error) {
 	if msg.Destination == "" {
 		return nil, errors.New("no destination specififed")
