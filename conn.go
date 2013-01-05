@@ -396,7 +396,7 @@ func (c *Conn) Nack(m *Message) error {
 // will be processed atomically by the STOMP server based on the transaction. 
 func (c *Conn) Begin() *Transaction {
 	id := allocateId()
-	f := NewFrame(frame.BEGIN, frame.Id, id)
+	f := NewFrame(frame.BEGIN, frame.Transaction, id)
 	c.sendFrame(f)
 	return &Transaction{id: id, conn: c}
 }

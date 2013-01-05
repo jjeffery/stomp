@@ -58,7 +58,7 @@ func (tx *Transaction) Commit() error {
 	return nil
 }
 
-func (tx *Transaction) Send(msg *Message) error {
+func (tx *Transaction) Send(msg Message) error {
 	if tx.completed {
 		return completedTransaction
 	}
@@ -68,7 +68,7 @@ func (tx *Transaction) Send(msg *Message) error {
 		return err
 	}
 
-	f.Set(frame.Transaction, tx.id)
+	f.Header.Set(frame.Transaction, tx.id)
 	tx.conn.sendFrame(f)
 	return nil
 }

@@ -4,8 +4,27 @@ import (
 	"fmt"
 	"github.com/jjeffery/stomp/frame"
 	"github.com/jjeffery/stomp/testutil"
+	"io"
 	. "launchpad.net/gocheck"
 )
+
+type fakeReaderWriter struct {
+	reader *Reader
+	writer *Writer
+	conn   io.ReadWriteCloser
+}
+
+func (rw *fakeReaderWriter) Read() (*Frame, error) {
+	return rw.reader.Read()
+}
+
+func (rw *fakeReaderWriter) Write(f *Frame) error {
+	return rw.writer.Write(f)
+}
+
+func (rw *fakeReaderWriter) Close() error {
+	return rw.conn.Close()
+}
 
 func (s *StompSuite) Test_unsuccessful_connect(c *C) {
 	fc1, fc2 := testutil.NewFakeConn(c)
@@ -110,36 +129,57 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 	}
 }
 
-func (s *StompSuite) Test_subscribe(c *C) {
-	Helper_subscribe(c, AckAuto, V10)
-	Helper_subscribe(c, AckAuto, V11)
-	Helper_subscribe(c, AckAuto, V12)
-	Helper_subscribe(c, AckClient, V10)
-	Helper_subscribe(c, AckClient, V11)
-	Helper_subscribe(c, AckClient, V12)
-	Helper_subscribe(c, AckClientIndividual, V10)
-	Helper_subscribe(c, AckClientIndividual, V11)
-	Helper_subscribe(c, AckClientIndividual, V12)
-}
-
-func Helper_subscribe(c *C, ackMode AckMode, version Version) {
+// Sets up a connection for testing
+func connectHelper(c *C, version Version) (*Conn, *fakeReaderWriter) {
 	fc1, fc2 := testutil.NewFakeConn(c)
 	stop := make(chan struct{})
 
-	go func() {
-		defer func() {
-			fc2.Close()
-			close(stop)
-		}()
+	reader := NewReader(fc2)
+	writer := NewWriter(fc2)
 
-		reader := NewReader(fc2)
-		writer := NewWriter(fc2)
+	go func() {
 		f1, err := reader.Read()
 		c.Assert(err, IsNil)
 		c.Assert(f1.Command, Equals, "CONNECT")
 		f2 := NewFrame("CONNECTED", "version", version.String())
 		writer.Write(f2)
-		f3, err := reader.Read()
+		close(stop)
+	}()
+
+	conn, err := Connect(fc1, Options{})
+	c.Assert(conn, NotNil)
+	c.Assert(err, IsNil)
+	<-stop
+	return conn, &fakeReaderWriter{
+		reader: reader,
+		writer: writer,
+		conn:   fc2,
+	}
+}
+
+func (s *StompSuite) Test_subscribe(c *C) {
+	subscribeHelper(c, AckAuto, V10)
+	subscribeHelper(c, AckAuto, V11)
+	subscribeHelper(c, AckAuto, V12)
+	subscribeHelper(c, AckClient, V10)
+	subscribeHelper(c, AckClient, V11)
+	subscribeHelper(c, AckClient, V12)
+	subscribeHelper(c, AckClientIndividual, V10)
+	subscribeHelper(c, AckClientIndividual, V11)
+	subscribeHelper(c, AckClientIndividual, V12)
+}
+
+func subscribeHelper(c *C, ackMode AckMode, version Version) {
+	conn, rw := connectHelper(c, version)
+	stop := make(chan struct{})
+
+	go func() {
+		defer func() {
+			rw.Close()
+			close(stop)
+		}()
+
+		f3, err := rw.Read()
 		c.Assert(err, IsNil)
 		c.Assert(f3.Command, Equals, "SUBSCRIBE")
 		id, ok := f3.Contains("id")
@@ -160,10 +200,10 @@ func Helper_subscribe(c *C, ackMode AckMode, version Version) {
 				f4.Add(frame.Ack, messageId)
 			}
 			f4.Body = []byte(bodyText)
-			writer.Write(f4)
+			rw.Write(f4)
 
 			if ackMode.ShouldAck() {
-				f5, _ := reader.Read()
+				f5, _ := rw.Read()
 				c.Assert(f5.Command, Equals, "ACK")
 				if version == V12 {
 					c.Assert(f5.Get("id"), Equals, messageId)
@@ -174,22 +214,19 @@ func Helper_subscribe(c *C, ackMode AckMode, version Version) {
 			}
 		}
 
-		f6, _ := reader.Read()
+		f6, _ := rw.Read()
 		c.Assert(f6.Command, Equals, "UNSUBSCRIBE")
 		c.Assert(f6.Get(frame.Receipt), Not(Equals), "")
 		c.Assert(f6.Get(frame.Id), Equals, id)
-		writer.Write(NewFrame(frame.RECEIPT,
+		rw.Write(NewFrame(frame.RECEIPT,
 			frame.ReceiptId, f6.Get(frame.Receipt)))
 
-		f7, _ := reader.Read()
+		f7, _ := rw.Read()
 		c.Assert(f7.Command, Equals, "DISCONNECT")
-		writer.Write(NewFrame(frame.RECEIPT,
+		rw.Write(NewFrame(frame.RECEIPT,
 			frame.ReceiptId, f7.Get(frame.Receipt)))
 	}()
 
-	conn, err := Connect(fc1, Options{})
-	c.Assert(conn, NotNil)
-	c.Assert(err, IsNil)
 	sub, err := conn.Subscribe("/queue/test-1", ackMode)
 	c.Assert(sub, NotNil)
 	c.Assert(err, IsNil)
@@ -207,6 +244,128 @@ func Helper_subscribe(c *C, ackMode AckMode, version Version) {
 		if msg.ShouldAck() {
 			msg.Conn.Ack(msg)
 		}
+	}
+
+	err = sub.Unsubscribe()
+	c.Assert(err, IsNil)
+
+	conn.Disconnect()
+}
+
+func (s *StompSuite) TestTransaction(c *C) {
+	subscribeTransactionHelper(c, AckAuto, V10)
+	subscribeTransactionHelper(c, AckAuto, V11)
+	subscribeTransactionHelper(c, AckAuto, V12)
+	subscribeTransactionHelper(c, AckClient, V10)
+	subscribeTransactionHelper(c, AckClient, V11)
+	subscribeTransactionHelper(c, AckClient, V12)
+	subscribeTransactionHelper(c, AckClientIndividual, V10)
+	subscribeTransactionHelper(c, AckClientIndividual, V11)
+	subscribeTransactionHelper(c, AckClientIndividual, V12)
+}
+
+func subscribeTransactionHelper(c *C, ackMode AckMode, version Version) {
+	conn, rw := connectHelper(c, version)
+	stop := make(chan struct{})
+
+	go func() {
+		defer func() {
+			rw.Close()
+			close(stop)
+		}()
+
+		f3, err := rw.Read()
+		c.Assert(err, IsNil)
+		c.Assert(f3.Command, Equals, "SUBSCRIBE")
+		id, ok := f3.Contains("id")
+		c.Assert(ok, Equals, true)
+		destination := f3.Get("destination")
+		c.Assert(destination, Equals, "/queue/test-1")
+		ack := f3.Get("ack")
+		c.Assert(ack, Equals, ackMode.String())
+
+		for i := 1; i <= 5; i++ {
+			messageId := fmt.Sprintf("message-%d", i)
+			bodyText := fmt.Sprintf("Message body %d", i)
+			f4 := NewFrame("MESSAGE",
+				frame.Subscription, id,
+				frame.MessageId, messageId,
+				frame.Destination, destination)
+			if version == V12 {
+				f4.Add(frame.Ack, messageId)
+			}
+			f4.Body = []byte(bodyText)
+			rw.Write(f4)
+
+			beginFrame, err := rw.Read()
+			c.Assert(err, IsNil)
+			c.Assert(beginFrame, NotNil)
+			c.Check(beginFrame.Command, Equals, "BEGIN")
+			tx, ok := beginFrame.Contains(frame.Transaction)
+
+			c.Assert(ok, Equals, true)
+
+			if ackMode.ShouldAck() {
+				f5, _ := rw.Read()
+				c.Assert(f5.Command, Equals, "ACK")
+				if version == V12 {
+					c.Assert(f5.Get("id"), Equals, messageId)
+				} else {
+					c.Assert(f5.Get("subscription"), Equals, id)
+					c.Assert(f5.Get("message-id"), Equals, messageId)
+				}
+				c.Assert(f5.Get("transaction"), Equals, tx)
+			}
+
+			sendFrame, _ := rw.Read()
+			c.Assert(sendFrame, NotNil)
+			c.Assert(sendFrame.Command, Equals, "SEND")
+			c.Assert(sendFrame.Get("transaction"), Equals, tx)
+
+			commitFrame, _ := rw.Read()
+			c.Assert(commitFrame, NotNil)
+			c.Assert(commitFrame.Command, Equals, "COMMIT")
+			c.Assert(commitFrame.Get("transaction"), Equals, tx)
+		}
+
+		f6, _ := rw.Read()
+		c.Assert(f6.Command, Equals, "UNSUBSCRIBE")
+		c.Assert(f6.Get(frame.Receipt), Not(Equals), "")
+		c.Assert(f6.Get(frame.Id), Equals, id)
+		rw.Write(NewFrame(frame.RECEIPT,
+			frame.ReceiptId, f6.Get(frame.Receipt)))
+
+		f7, _ := rw.Read()
+		c.Assert(f7.Command, Equals, "DISCONNECT")
+		rw.Write(NewFrame(frame.RECEIPT,
+			frame.ReceiptId, f7.Get(frame.Receipt)))
+	}()
+
+	sub, err := conn.Subscribe("/queue/test-1", ackMode)
+	c.Assert(sub, NotNil)
+	c.Assert(err, IsNil)
+
+	for i := 1; i <= 5; i++ {
+		msg := <-sub.C
+		messageId := fmt.Sprintf("message-%d", i)
+		bodyText := fmt.Sprintf("Message body %d", i)
+		c.Assert(msg.Subscription, Equals, sub)
+		c.Assert(msg.Body, DeepEquals, []byte(bodyText))
+		c.Assert(msg.Destination, Equals, "/queue/test-1")
+		c.Assert(msg.Header.Get(frame.MessageId), Equals, messageId)
+
+		c.Assert(msg.ShouldAck(), Equals, ackMode.ShouldAck())
+		tx := msg.Conn.Begin()
+		c.Assert(tx.Id(), Not(Equals), "")
+		if msg.ShouldAck() {
+			tx.Ack(msg)
+		}
+		err = tx.Send(Message{
+			Destination: "/queue/another-queue",
+			Body:        []byte(bodyText),
+		})
+		c.Assert(err, IsNil)
+		tx.Commit()
 	}
 
 	err = sub.Unsubscribe()
