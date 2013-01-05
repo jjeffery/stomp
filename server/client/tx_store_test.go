@@ -1,8 +1,8 @@
 package client
 
 import (
+	"github.com/jjeffery/stomp"
 	"github.com/jjeffery/stomp/frame"
-	"github.com/jjeffery/stomp/message"
 	. "launchpad.net/gocheck"
 )
 
@@ -29,16 +29,16 @@ func (s *TxStoreSuite) TestSuccessfulTx(c *C) {
 	err = txs.Begin("tx2")
 	c.Assert(err, IsNil)
 
-	f1 := message.NewFrame(frame.MESSAGE,
+	f1 := stomp.NewFrame(frame.MESSAGE,
 		frame.Destination, "/queue/1")
 
-	f2 := message.NewFrame(frame.MESSAGE,
+	f2 := stomp.NewFrame(frame.MESSAGE,
 		frame.Destination, "/queue/2")
 
-	f3 := message.NewFrame(frame.MESSAGE,
+	f3 := stomp.NewFrame(frame.MESSAGE,
 		frame.Destination, "/queue/3")
 
-	f4 := message.NewFrame(frame.MESSAGE,
+	f4 := stomp.NewFrame(frame.MESSAGE,
 		frame.Destination, "/queue/4")
 
 	err = txs.Add("tx1", f1)
@@ -49,17 +49,17 @@ func (s *TxStoreSuite) TestSuccessfulTx(c *C) {
 	c.Assert(err, IsNil)
 	err = txs.Add("tx2", f4)
 
-	var tx1 []*message.Frame
+	var tx1 []*stomp.Frame
 
-	txs.Commit("tx1", func(f *message.Frame) error {
+	txs.Commit("tx1", func(f *stomp.Frame) error {
 		tx1 = append(tx1, f)
 		return nil
 	})
 	c.Check(err, IsNil)
 
-	var tx2 []*message.Frame
+	var tx2 []*stomp.Frame
 
-	err = txs.Commit("tx2", func(f *message.Frame) error {
+	err = txs.Commit("tx2", func(f *stomp.Frame) error {
 		tx2 = append(tx2, f)
 		return nil
 	})
@@ -74,7 +74,7 @@ func (s *TxStoreSuite) TestSuccessfulTx(c *C) {
 	c.Check(tx2[0], Equals, f4)
 
 	// already committed, so should cause an error
-	err = txs.Commit("tx1", func(f *message.Frame) error {
+	err = txs.Commit("tx1", func(f *stomp.Frame) error {
 		c.Fatal("should not be called")
 		return nil
 	})

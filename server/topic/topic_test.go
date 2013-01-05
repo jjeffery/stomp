@@ -1,8 +1,8 @@
 package topic
 
 import (
+	"github.com/jjeffery/stomp"
 	"github.com/jjeffery/stomp/frame"
-	"github.com/jjeffery/stomp/message"
 	. "launchpad.net/gocheck"
 )
 
@@ -13,7 +13,7 @@ var _ = Suite(&TopicSuite{})
 func (s *TopicSuite) TestTopicWithoutSubscription(c *C) {
 	topic := newTopic("destination")
 
-	f := message.NewFrame(frame.MESSAGE,
+	f := stomp.NewFrame(frame.MESSAGE,
 		frame.Destination, "destination")
 
 	topic.Enqueue(f)
@@ -25,7 +25,7 @@ func (s *TopicSuite) TestTopicWithOneSubscription(c *C) {
 	topic := newTopic("destination")
 	topic.Subscribe(sub)
 
-	f := message.NewFrame(frame.MESSAGE,
+	f := stomp.NewFrame(frame.MESSAGE,
 		frame.Destination, "destination")
 
 	topic.Enqueue(f)
@@ -42,7 +42,7 @@ func (s *TopicSuite) TestTopicWithTwoSubscriptions(c *C) {
 	topic.Subscribe(sub1)
 	topic.Subscribe(sub2)
 
-	f := message.NewFrame(frame.MESSAGE,
+	f := stomp.NewFrame(frame.MESSAGE,
 		frame.Destination, "destination",
 		"xxx", "yyy")
 
@@ -56,9 +56,9 @@ func (s *TopicSuite) TestTopicWithTwoSubscriptions(c *C) {
 
 type fakeSubscription struct {
 	// frames received by the subscription
-	Frames []*message.Frame
+	Frames []*stomp.Frame
 }
 
-func (s *fakeSubscription) SendTopicFrame(f *message.Frame) {
+func (s *fakeSubscription) SendTopicFrame(f *stomp.Frame) {
 	s.Frames = append(s.Frames, f)
 }

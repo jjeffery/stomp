@@ -1,7 +1,7 @@
 package queue
 
 import (
-	"github.com/jjeffery/stomp/message"
+	"github.com/jjeffery/stomp"
 )
 
 // Interface for queue storage. The intent is that
@@ -13,16 +13,16 @@ type Storage interface {
 	// Pushes a MESSAGE frame to the end of the queue. Sets
 	// the "message-id" header of the frame before adding to
 	// the queue.
-	Enqueue(queue string, frame *message.Frame) error
+	Enqueue(queue string, frame *stomp.Frame) error
 
 	// Pushes a MESSAGE frame to the head of the queue. Sets
 	// the "message-id" header of the frame if it is not
 	// already set.
-	Requeue(queue string, frame *message.Frame) error
+	Requeue(queue string, frame *stomp.Frame) error
 
 	// Removes a frame from the head of the queue.
 	// Returns nil if no frame is available.
-	Dequeue(queue string) (*message.Frame, error)
+	Dequeue(queue string) (*stomp.Frame, error)
 
 	// Called at server startup. Allows the queue storage
 	// to perform any initialization.

@@ -2,8 +2,8 @@ package client
 
 import (
 	"container/list"
+	"github.com/jjeffery/stomp"
 	"github.com/jjeffery/stomp/frame"
-	"github.com/jjeffery/stomp/message"
 )
 
 type txStore struct {
@@ -41,10 +41,10 @@ func (txs *txStore) Abort(tx string) error {
 // to be sent to the request channel for processing. Calls the commit
 // function (commitFunc) in order for each request that is part of the
 // transaction.
-func (txs *txStore) Commit(tx string, commitFunc func(f *message.Frame) error) error {
+func (txs *txStore) Commit(tx string, commitFunc func(f *stomp.Frame) error) error {
 	if list, ok := txs.transactions[tx]; ok {
 		for element := list.Front(); element != nil; element = list.Front() {
-			err := commitFunc(list.Remove(element).(*message.Frame))
+			err := commitFunc(list.Remove(element).(*stomp.Frame))
 			if err != nil {
 				return err
 			}
@@ -55,9 +55,9 @@ func (txs *txStore) Commit(tx string, commitFunc func(f *message.Frame) error) e
 	return txUnknown
 }
 
-func (txs *txStore) Add(tx string, f *message.Frame) error {
+func (txs *txStore) Add(tx string, f *stomp.Frame) error {
 	if list, ok := txs.transactions[tx]; ok {
-		f.Remove(frame.Transaction)
+		f.Del(frame.Transaction)
 		list.PushBack(f)
 		return nil
 	}

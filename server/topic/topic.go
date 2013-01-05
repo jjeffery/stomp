@@ -5,7 +5,7 @@ package topic
 
 import (
 	"container/list"
-	"github.com/jjeffery/stomp/message"
+	"github.com/jjeffery/stomp"
 )
 
 // A Topic is used for broadcasting to subscribed clients.
@@ -43,7 +43,7 @@ func (t *Topic) Unsubscribe(sub Subscription) {
 
 // Enqueue send a message to the topic. All subscriptions receive a copy
 // of the message.
-func (t *Topic) Enqueue(f *message.Frame) {
+func (t *Topic) Enqueue(f *stomp.Frame) {
 	switch t.subs.Len() {
 	case 0:
 	// no subscription, so do nothing

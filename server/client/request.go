@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/jjeffery/stomp/message"
+	"github.com/jjeffery/stomp"
 	"strconv"
 )
 
@@ -24,8 +24,8 @@ const (
 
 // Client requests received to be processed by main processing loop
 type Request struct {
-	Op    RequestOp      // opcode for request
-	Sub   *Subscription  // SubscribeOp, UnsubscribeOp
-	Frame *message.Frame // EnqueueOp, RequeueOp
-	Conn  *Conn          // ConnectedOp, DisconnectedOp
+	Op    RequestOp     // opcode for request
+	Sub   *Subscription // SubscribeOp, UnsubscribeOp
+	Frame *stomp.Frame  // EnqueueOp, RequeueOp
+	Conn  *Conn         // ConnectedOp, DisconnectedOp
 }

@@ -20,6 +20,12 @@ func NewFrame(command string, headers ...string) *Frame {
 	return f
 }
 
+// Clone creates a deep copy of the frame and its header. The cloned
+// frame shares the body with the original frame.
+func (f *Frame) Clone() *Frame {
+	return &Frame{Command: f.Command, Header: f.Header.Clone(), Body: f.Body}
+}
+
 func (f *Frame) Validate() error {
 	// TODO(jpj): implement
 	return nil
