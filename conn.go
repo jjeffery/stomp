@@ -403,7 +403,7 @@ func (c *Conn) Begin() *Transaction {
 
 // Create an ACK or NACK frame. Complicated by version incompatibilities.
 func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*Frame, error) {
-	if c.version == V10 && !ack {
+	if !ack && !c.version.SupportsNack() {
 		return nil, nackNotSupported
 	}
 

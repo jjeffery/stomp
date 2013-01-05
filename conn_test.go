@@ -256,17 +256,21 @@ func (s *StompSuite) TestTransaction(c *C) {
 	ackModes := []AckMode{AckAuto, AckClient, AckClientIndividual}
 	versions := []Version{V10, V11, V12}
 	aborts := []bool{false, true}
+	nacks := []bool{false, true}
 
 	for _, ackMode := range ackModes {
 		for _, version := range versions {
 			for _, abort := range aborts {
-				subscribeTransactionHelper(c, ackMode, version, abort)
+				for _, nack := range nacks {
+					subscribeTransactionHelper(c, ackMode, version, abort, nack)
+				}
 			}
 		}
 	}
 }
 
-func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bool) {
+func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bool, nack bool) {
+	//println("subscribeTransactionHelper(", ackMode.String(), version, abort, nack, ")")
 	conn, rw := connectHelper(c, version)
 	stop := make(chan struct{})
 
@@ -309,7 +313,11 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 
 			if ackMode.ShouldAck() {
 				f5, _ := rw.Read()
-				c.Assert(f5.Command, Equals, "ACK")
+				if nack && version.SupportsNack() {
+					c.Assert(f5.Command, Equals, "NACK")
+				} else {
+					c.Assert(f5.Command, Equals, "ACK")
+				}
 				if version == V12 {
 					c.Assert(f5.Get("id"), Equals, messageId)
 				} else {
@@ -364,7 +372,11 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 		tx := msg.Conn.Begin()
 		c.Assert(tx.Id(), Not(Equals), "")
 		if msg.ShouldAck() {
-			tx.Ack(msg)
+			if nack && version.SupportsNack() {
+				tx.Nack(msg)
+			} else {
+				tx.Ack(msg)
+			}
 		}
 		err = tx.Send(Message{
 			Destination: "/queue/another-queue",
