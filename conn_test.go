@@ -10,7 +10,7 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 	testcases := []struct {
 		Options           Options
 		NegotiatedVersion string
-		ExpectedVersion   string
+		ExpectedVersion   Version
 		ExpectedSession   string
 		ExpectedHost      string
 	}{

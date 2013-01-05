@@ -4,6 +4,47 @@ import (
 	"github.com/jjeffery/stomp"
 )
 
+// Creates a new Header.
+func ExampleNewHeader() {
+	/*
+		Creates a header that looks like the following:
+
+			login:scott
+			passcode:tiger
+			host:stompserver
+			accept-version:1.1,1.2
+	*/
+	h := stomp.NewHeader(
+		"login", "scott",
+		"passcode", "tiger",
+		"host", "stompserver",
+		"accept-version", "1.1,1.2")
+	doSomethingWith(h)
+}
+
+// Creates a STOMP frame.
+func ExampleNewFrame() {
+	/*
+		Creates a STOMP frame that looks like the following:
+
+			CONNECT
+			login:scott
+			passcode:tiger
+			host:stompserver
+			accept-version:1.1,1.2
+	*/
+	f := stomp.NewFrame("CONNECT",
+		"login", "scott",
+		"passcode", "tiger",
+		"host", "stompserver",
+		"accept-version", "1.1,1.2")
+	doSomethingWith(f)
+}
+
+func doSomethingWith(f interface{}) {
+
+}
+
 // Connect to a STOMP server using default options.
 func ExampleDial_1() error {
 	conn, err := stomp.Dial("tcp", "192.168.1.1:61613", stomp.Options{})

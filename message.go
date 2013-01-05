@@ -17,7 +17,7 @@ type Message struct {
 	ContentType string // MIME content
 
 	// Connection that the message was received on. 
-	// Ignored for message sent to the server.
+	// Ignored for messages sent to the server.
 	Conn *Conn
 
 	// Subscription associated with the message.

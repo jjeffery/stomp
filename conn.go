@@ -31,7 +31,7 @@ type Options struct {
 
 	// Other header entries for STOMP servers that accept non-standard
 	// header entries in the CONNECT frame.
-	NonStandard map[string]string
+	NonStandard *Header
 }
 
 // A Conn is a connection to a STOMP server. Create a Conn using either
@@ -40,7 +40,7 @@ type Conn struct {
 	conn    io.ReadWriteCloser
 	readCh  chan *Frame
 	writeCh chan writeRequest
-	version string
+	version Version
 	session string
 }
 
@@ -101,8 +101,11 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 		connectFrame.Set(frame.Login, opts.Login)
 		connectFrame.Set(frame.Passcode, opts.Passcode)
 	}
-	for key, value := range opts.NonStandard {
-		connectFrame.Add(key, value)
+	if opts.NonStandard != nil {
+		for i := 0; i < opts.NonStandard.Len(); i++ {
+			key, value := opts.NonStandard.GetAt(i)
+			connectFrame.Add(key, value)
+		}
 	}
 
 	writer.Write(connectFrame)
@@ -122,9 +125,14 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 	}
 
 	if version := response.Get(frame.Version); version != "" {
-		c.version = version
+		switch Version(version) {
+		case V10, V11, V12:
+			c.version = Version(version)
+		default:
+			return nil, Error{Message: "unsupported version", Frame: response}
+		}
 	} else {
-		c.version = "1.0"
+		c.version = V10
 	}
 
 	c.session = response.Get(frame.Session)
@@ -138,10 +146,17 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 	return c, nil
 }
 
-func (c *Conn) Version() string {
+// Version returns the version of the STOMP protocol that
+// is being used to communicate with the STOMP server. This
+// version is negotiated with the server during the connect sequence.
+func (c *Conn) Version() Version {
 	return c.version
 }
 
+// Session returns the session identifier, which can be
+// returned by the STOMP server during the connect sequence.
+// If the STOMP server does not return a session header entry,
+// this value will be a blank string.
 func (c *Conn) Session() string {
 	return c.session
 }
@@ -250,11 +265,11 @@ func sendError(m map[string]chan *Frame, err error) {
 }
 
 // Disconnect will disconnect from the STOMP server. This function
-// follows the suggested protocol for graceful disconnection: it
-// sends a DISCONNECT frame with a receipt header element. Once the
-// RECEIPT frame has been received, the connection with the STOMP
-// server is closed and any further attempt to write to the server
-// will fail.
+// follows the STOMP standard's recommended protocol for graceful 
+// disconnection: it sends a DISCONNECT frame with a receipt header 
+// element. Once the RECEIPT frame has been received, the connection 
+// with the STOMP server is closed and any further attempt to write 
+// to the server will fail.
 func (c *Conn) Disconnect() error {
 	ch := make(chan *Frame)
 	c.writeCh <- writeRequest{
@@ -284,19 +299,7 @@ func (c *Conn) SendWithReceipt(msg Message) error {
 		return err
 	}
 
-	receipt := allocateId()
-	f.Set(frame.Receipt, receipt)
-
-	request := writeRequest{Frame: f}
-
-	request.C = make(chan *Frame)
-	c.writeCh <- request
-	response := <-request.C
-	if response.Command == frame.RECEIPT {
-		// TODO: check receipt-id
-		return nil
-	}
-	return newError(response)
+	return c.sendFrameWithReceipt(f)
 }
 
 // Send sends a message to the STOMP server, and does not
@@ -307,10 +310,29 @@ func (c *Conn) Send(msg Message) error {
 		return err
 	}
 
+	c.sendFrame(f)
+	return nil
+}
+
+func (c *Conn) sendFrame(f *Frame) {
+	request := writeRequest{Frame: f}
+	c.writeCh <- request
+}
+
+func (c *Conn) sendFrameWithReceipt(f *Frame) error {
+	receipt := allocateId()
+	f.Set(frame.Receipt, receipt)
+
 	request := writeRequest{Frame: f}
 
-	// no receipt required, so send and assume success
+	request.C = make(chan *Frame)
 	c.writeCh <- request
+	response := <-request.C
+	if response.Command != frame.RECEIPT {
+		return newError(response)
+	}
+	// TODO(jpj) Check receipt id
+
 	return nil
 }
 
@@ -340,36 +362,82 @@ func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error)
 }
 
 func (c *Conn) Ack(m *Message) error {
-	panic("not implemented")
+	f, err := c.createAckNackFrame(m, true)
+	if err != nil {
+		return err
+	}
+
+	if f != nil {
+		c.sendFrame(f)
+	}
+	return nil
 }
 
 func (c *Conn) Nack(m *Message) error {
-	panic("not implemented")
+	f, err := c.createAckNackFrame(m, false)
+	if err != nil {
+		return err
+	}
+
+	if f != nil {
+		c.sendFrame(f)
+	}
+	return nil
 }
 
-func (c *Conn) Begin() (*Transaction, error) {
-	panic("not implemented")
+// Begin is used to start a transaction. Transactions apply to sending
+// and acknowledging. Any messages sent or acknowledged during a transaction
+// will be processed atomically by the STOMP server based on the transaction. 
+func (c *Conn) Begin() *Transaction {
+	id := allocateId()
+	f := NewFrame(frame.BEGIN, frame.Id, id)
+	c.sendFrame(f)
+	return &Transaction{id: id, conn: c}
 }
 
-type Transaction struct {
-}
+// Create an ACK or NACK frame. Complicated by version incompatibilities.
+func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*Frame, error) {
+	if c.version == V10 && !ack {
+		return nil, nackNotSupported
+	}
 
-func (tx *Transaction) Abort() error {
-	panic("not implemented")
-}
+	if msg.Header == nil || msg.Subscription == nil || msg.Conn == nil {
+		return nil, notReceivedMessage
+	}
 
-func (tx *Transaction) Commit() error {
-	panic("not implemented")
-}
+	if msg.Subscription.AckMode() == AckAuto {
+		if ack {
+			// not much point sending an ACK to an auto subscription
+			return nil, nil
+		} else {
+			// sending a NACK for an ack:auto subscription makes no
+			// sense
+			return nil, cannotNackAutoSub
+		}
+	}
 
-func (tx *Transaction) Send(msg *Message) error {
-	panic("not implemented")
-}
+	var f *Frame
+	if ack {
+		f = NewFrame(frame.ACK)
+	} else {
+		f = NewFrame(frame.NACK)
+	}
 
-func (tx *Transaction) Ack(m *Message) error {
-	panic("not implemented")
-}
+	switch c.version {
+	case V10, V11:
+		f.Header.Add(frame.Subscription, msg.Subscription.Id())
+		if messageId, ok := msg.Header.Contains(frame.MessageId); ok {
+			f.Header.Add(frame.MessageId, messageId)
+		} else {
+			return nil, missingHeader(frame.MessageId)
+		}
+	case V12:
+		if ack, ok := msg.Header.Contains(frame.Ack); ok {
+			f.Header.Add(frame.Id, ack)
+		} else {
+			return nil, missingHeader(frame.Ack)
+		}
+	}
 
-func (tx *Transaction) Nack(m *Message) error {
-	panic("not implemented")
+	return f, nil
 }

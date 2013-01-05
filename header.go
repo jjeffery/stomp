@@ -5,15 +5,25 @@ import (
 	"strconv"
 )
 
-// A Header represents a STOMP header mapping 
-// keys to sets of values. 
+// A Header represents the header part of a STOMP frame.
+// The header in a STOMP frame consists of a list of header entries.
+// Each header entry is a key/value pair of strings.
 //
-// Normally a STOMP header
-// only has one value, but the STOMP standard does
-// allow multiple values for diagnostic purposes.
+// Normally a STOMP header only has one header entry for a given key, but 
+// the STOMP standard does allow for multiple header entries with the same
+// key. In this case, the first header entry contains the value, and any
+// subsequent header entries with the same key are ignored.
 //
-// This type is very similar to textproto.MIMEHeader. The main
-// difference is that STOMP header keys are case-sensitive.
+// Example header containing 6 header entries. Note that the second
+// header entry with the key "comment" would be ignored.
+//
+//	login:scott
+//	passcode:tiger
+//	host:stompserver
+//	accept-version:1.0,1.1,1.2
+//	comment:some comment
+//	comment:another comment
+//
 type Header struct {
 	slice []string
 }
@@ -84,13 +94,14 @@ func (h *Header) Contains(key string) (value string, ok bool) {
 	return
 }
 
-// Del deletes the values associated with key.
+// Del deletes all header entries with the specified key.
 func (h *Header) Del(key string) {
 	for i, ok := h.index(key); ok; i, ok = h.index(key) {
 		h.slice = append(h.slice[:i], h.slice[i+2:]...)
 	}
 }
 
+// Len returns the number of header entries in the header.
 func (h *Header) Len() int {
 	return len(h.slice) / 2
 }

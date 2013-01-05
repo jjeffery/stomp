@@ -21,9 +21,6 @@ func (a AckMode) String() string {
 	panic("invalid AckMode value")
 }
 
-// These constants are the valid values for the AckMode type. When a STOMP
-// client subscribes to a destination on the server, it specifies how it
-// will acknowledge messages it receives from the server.
 const (
 	// No acknowledgement is required, the server assumes that the client 
 	// received the message.
