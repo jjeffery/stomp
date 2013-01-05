@@ -87,18 +87,38 @@ func (tx *Transaction) SendWithReceipt(msg *Message) error {
 	return tx.conn.sendFrameWithReceipt(f)
 }
 
-func (tx *Transaction) Ack(m *Message) error {
+func (tx *Transaction) Ack(msg *Message) error {
 	if tx.completed {
 		return completedTransaction
 	}
 
-	panic("not implemented")
+	f, err := tx.conn.createAckNackFrame(msg, true)
+	if err != nil {
+		return err
+	}
+
+	if f != nil {
+		f.Set(frame.Transaction, tx.id)
+		tx.conn.sendFrame(f)
+	}
+
+	return nil
 }
 
-func (tx *Transaction) Nack(m *Message) error {
+func (tx *Transaction) Nack(msg *Message) error {
 	if tx.completed {
 		return completedTransaction
 	}
 
-	panic("not implemented")
+	f, err := tx.conn.createAckNackFrame(msg, false)
+	if err != nil {
+		return err
+	}
+
+	if f != nil {
+		f.Set(frame.Transaction, tx.id)
+		tx.conn.sendFrame(f)
+	}
+
+	return nil
 }
