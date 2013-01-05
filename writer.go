@@ -88,5 +88,10 @@ func (w *Writer) Write(f *Frame) error {
 	}
 
 	err = w.writer.Flush()
-	return err
+	if err != nil {
+		return err
+	}
+
+	//println("TX:", f.Command)
+	return nil
 }

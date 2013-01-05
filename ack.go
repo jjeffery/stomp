@@ -21,6 +21,19 @@ func (a AckMode) String() string {
 	panic("invalid AckMode value")
 }
 
+// ShouldAck returns true if this AckMode is an acknowledgement
+// mode which requires acknowledgement. Returns true for all values
+// except AckAuto, which returns false.
+func (a AckMode) ShouldAck() bool {
+	switch a {
+	case AckAuto:
+		return false
+	case AckClient, AckClientIndividual:
+		return true
+	}
+	panic("invalid AckMode value")
+}
+
 const (
 	// No acknowledgement is required, the server assumes that the client 
 	// received the message.

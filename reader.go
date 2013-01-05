@@ -132,6 +132,7 @@ func (r *Reader) Read() (*Frame, error) {
 	}
 
 	// pass back frame
+	//println("RX:", f.Command)
 	return f, nil
 }
 

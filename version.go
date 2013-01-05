@@ -8,3 +8,7 @@ const (
 	V11 Version = "1.1"
 	V12 Version = "1.2"
 )
+
+func (v Version) String() string {
+	return string(v)
+}

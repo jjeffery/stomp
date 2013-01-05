@@ -111,6 +111,18 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 }
 
 func (s *StompSuite) Test_subscribe(c *C) {
+	Helper_subscribe(c, AckAuto, V10)
+	Helper_subscribe(c, AckAuto, V11)
+	Helper_subscribe(c, AckAuto, V12)
+	Helper_subscribe(c, AckClient, V10)
+	Helper_subscribe(c, AckClient, V11)
+	Helper_subscribe(c, AckClient, V12)
+	Helper_subscribe(c, AckClientIndividual, V10)
+	Helper_subscribe(c, AckClientIndividual, V11)
+	Helper_subscribe(c, AckClientIndividual, V12)
+}
+
+func Helper_subscribe(c *C, ackMode AckMode, version Version) {
 	fc1, fc2 := testutil.NewFakeConn(c)
 	stop := make(chan struct{})
 
@@ -125,7 +137,7 @@ func (s *StompSuite) Test_subscribe(c *C) {
 		f1, err := reader.Read()
 		c.Assert(err, IsNil)
 		c.Assert(f1.Command, Equals, "CONNECT")
-		f2 := NewFrame("CONNECTED", "version", "1.1")
+		f2 := NewFrame("CONNECTED", "version", version.String())
 		writer.Write(f2)
 		f3, err := reader.Read()
 		c.Assert(err, IsNil)
@@ -135,22 +147,31 @@ func (s *StompSuite) Test_subscribe(c *C) {
 		destination := f3.Get("destination")
 		c.Assert(destination, Equals, "/queue/test-1")
 		ack := f3.Get("ack")
-		c.Assert(ack, Equals, "client-individual")
+		c.Assert(ack, Equals, ackMode.String())
 
-		for i := 1; i < 4; i++ {
+		for i := 1; i <= 5; i++ {
 			messageId := fmt.Sprintf("message-%d", i)
 			bodyText := fmt.Sprintf("Message body %d", i)
 			f4 := NewFrame("MESSAGE",
 				frame.Subscription, id,
 				frame.MessageId, messageId,
 				frame.Destination, destination)
+			if version == V12 {
+				f4.Add(frame.Ack, messageId)
+			}
 			f4.Body = []byte(bodyText)
 			writer.Write(f4)
 
-			f5, _ := reader.Read()
-			c.Assert(f5.Command, Equals, "ACK")
-			c.Assert(f5.Get("subscription"), Equals, id)
-			c.Assert(f5.Get("message-id"), Equals, messageId)
+			if ackMode.ShouldAck() {
+				f5, _ := reader.Read()
+				c.Assert(f5.Command, Equals, "ACK")
+				if version == V12 {
+					c.Assert(f5.Get("id"), Equals, messageId)
+				} else {
+					c.Assert(f5.Get("subscription"), Equals, id)
+					c.Assert(f5.Get("message-id"), Equals, messageId)
+				}
+			}
 		}
 
 		f6, _ := reader.Read()
@@ -169,11 +190,11 @@ func (s *StompSuite) Test_subscribe(c *C) {
 	conn, err := Connect(fc1, Options{})
 	c.Assert(conn, NotNil)
 	c.Assert(err, IsNil)
-	sub, err := conn.Subscribe("/queue/test-1", AckClientIndividual)
+	sub, err := conn.Subscribe("/queue/test-1", ackMode)
 	c.Assert(sub, NotNil)
 	c.Assert(err, IsNil)
 
-	for i := 1; i < 4; i++ {
+	for i := 1; i <= 5; i++ {
 		msg := <-sub.C
 		messageId := fmt.Sprintf("message-%d", i)
 		bodyText := fmt.Sprintf("Message body %d", i)
@@ -182,13 +203,14 @@ func (s *StompSuite) Test_subscribe(c *C) {
 		c.Assert(msg.Destination, Equals, "/queue/test-1")
 		c.Assert(msg.Header.Get(frame.MessageId), Equals, messageId)
 
-		c.Assert(msg.ShouldAck(), Equals, true)
-		msg.Conn.Ack(msg)
+		c.Assert(msg.ShouldAck(), Equals, ackMode.ShouldAck())
+		if msg.ShouldAck() {
+			msg.Conn.Ack(msg)
+		}
 	}
 
 	err = sub.Unsubscribe()
 	c.Assert(err, IsNil)
 
 	conn.Disconnect()
-
 }
