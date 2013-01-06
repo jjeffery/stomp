@@ -54,6 +54,7 @@ func (s *Subscription) Unsubscribe() error {
 	f := NewFrame(frame.UNSUBSCRIBE, frame.Id, s.id)
 	s.conn.sendFrame(f)
 	s.completed = true
+	close(s.C)
 	return nil
 }
 
@@ -97,6 +98,8 @@ func (s *Subscription) readLoop(ch chan *Frame) {
 				s.destination,
 				message)
 			log.Println(text)
+			s.completed = true
+			close(s.C)
 			return
 		}
 	}

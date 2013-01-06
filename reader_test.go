@@ -25,8 +25,10 @@ func (s *ReaderSuite) TestConnect(c *C) {
 	c.Assert(err, Equals, io.EOF)
 }
 
-func (s *ReaderSuite) TestSendWithoutContentLength(c *C) {
-	text := "SEND\ndestination:xxx\n\nPayload\x00"
+func (s *ReaderSuite) TestMultipleReads(c *C) {
+	text := "SEND\ndestination:xxx\n\nPayload\x00\n" +
+		"SEND\ndestination:yyy\ncontent-length:12\n\n" +
+		"123456789AB\x00\x00"
 
 	ioreaders := []io.Reader{
 		strings.NewReader(text),
@@ -46,6 +48,25 @@ func (s *ReaderSuite) TestSendWithoutContentLength(c *C) {
 		v := frame.Header.Get("destination")
 		c.Assert(v, Equals, "xxx")
 		c.Assert(string(frame.Body), Equals, "Payload")
+
+		// now read a heart-beat from the input
+		frame, err = reader.Read()
+		c.Assert(err, IsNil)
+		c.Assert(frame, IsNil)
+
+		// this frame has content-length
+		frame, err = reader.Read()
+		c.Assert(err, IsNil)
+		c.Assert(frame, NotNil)
+		c.Assert(frame.Command, Equals, "SEND")
+		c.Assert(frame.Header.Len(), Equals, 2)
+		v = frame.Header.Get("destination")
+		c.Assert(v, Equals, "yyy")
+		n, ok, err := frame.ContentLength()
+		c.Assert(n, Equals, 12)
+		c.Assert(ok, Equals, true)
+		c.Assert(err, IsNil)
+		c.Assert(string(frame.Body), Equals, "123456789AB\x00")
 
 		// ensure we are at the end of input
 		frame, err = reader.Read()
@@ -81,26 +102,13 @@ func (s *ReaderSuite) TestInvalidCommand(c *C) {
 	c.Check(err.Error(), Equals, "invalid command")
 }
 
-func (s *ReaderSuite) TestSendWithoutDestination(c *C) {
-	c.Skip("TODO: implement validate")
-
-	reader := NewReader(strings.NewReader("SEND\ndeestination:xxx\ncontent-length:5\n\n\x00\x01\x02\x03\x04\x00"))
+func (s *ReaderSuite) TestMissingNull(c *C) {
+	reader := NewReader(strings.NewReader("SEND\ndeestination:xxx\ncontent-length:5\n\n\x00\x01\x02\x03\x04\n"))
 
 	f, err := reader.Read()
 	c.Check(f, IsNil)
 	c.Assert(err, NotNil)
-	c.Check(err.Error(), Equals, "missing header: destination")
-}
-
-func (s *ReaderSuite) TestSubscribeWithoutDestination(c *C) {
-	c.Skip("TODO: implement validate")
-
-	reader := NewReader(strings.NewReader("SUBSCRIBE\ndeestination:xxx\nid:7\n\n\x00"))
-
-	frame, err := reader.Read()
-	c.Check(frame, IsNil)
-	c.Assert(err, NotNil)
-	c.Check(err.Error(), Equals, "missing header: destination")
+	c.Check(err.Error(), Equals, "invalid frame format")
 }
 
 func (s *ReaderSuite) TestSubscribeWithoutId(c *C) {

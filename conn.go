@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"time"
 )
 
 // Options for connecting to the STOMP server
@@ -37,12 +38,14 @@ type Options struct {
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
 type Conn struct {
-	conn    io.ReadWriteCloser
-	readCh  chan *Frame
-	writeCh chan writeRequest
-	version Version
-	session string
-	server  string
+	conn         io.ReadWriteCloser
+	readCh       chan *Frame
+	writeCh      chan writeRequest
+	version      Version
+	session      string
+	server       string
+	readTimeout  time.Duration
+	writeTimeout time.Duration
 }
 
 type writeRequest struct {
@@ -146,6 +149,18 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 		c.version = V10
 	}
 
+	if heartBeat, ok := response.Contains(frame.HeartBeat); ok {
+		readTimeout, writeTimeout, err := frame.ParseHeartBeat(heartBeat)
+		if err != nil {
+			return nil, Error{
+				Message: err.Error(),
+				Frame:   response,
+			}
+		}
+		c.readTimeout = readTimeout
+		c.writeTimeout = writeTimeout
+	}
+
 	// TODO(jpj): make any non-standard headers in the CONNECTED
 	// frame available.
 
@@ -197,13 +212,54 @@ func readLoop(c *Conn, reader *Reader) {
 func processLoop(c *Conn, writer *Writer) {
 	channels := make(map[string]chan *Frame)
 
+	var readTimeoutChannel <-chan time.Time
+	var readTimer *time.Timer
+	var writeTimeoutChannel <-chan time.Time
+	var writeTimer *time.Timer
+
 	for {
+		if c.readTimeout > 0 && readTimer == nil {
+			readTimer := time.NewTimer(c.readTimeout)
+			readTimeoutChannel = readTimer.C
+		}
+		if c.writeTimeout > 0 && writeTimer == nil {
+			writeTimer := time.NewTimer(c.writeTimeout)
+			writeTimeoutChannel = writeTimer.C
+		}
+
 		select {
+		case <-readTimeoutChannel:
+			// read timeout, close the connection
+			err := newErrorMessage("read timeout")
+			sendError(channels, err)
+			return
+
+		case <-writeTimeoutChannel:
+			// write timeout, send a heart-beat frame
+			err := writer.Write(nil)
+			if err != nil {
+				sendError(channels, err)
+				return
+			}
+			writeTimer = nil
+			writeTimeoutChannel = nil
+
 		case f, ok := <-c.readCh:
+			// stop the read timer
+			if readTimer != nil {
+				readTimer.Stop()
+				readTimer = nil
+				readTimeoutChannel = nil
+			}
+
 			if !ok {
 				err := newErrorMessage("connection closed")
 				sendError(channels, err)
 				return
+			}
+
+			if f == nil {
+				// heart-beat received
 			}
 
 			switch f.Command {
@@ -241,8 +297,15 @@ func processLoop(c *Conn, writer *Writer) {
 			}
 
 		case req, ok := <-c.writeCh:
+			// stop the write timeout
+			if writeTimer != nil {
+				writeTimer.Stop()
+				writeTimer = nil
+				writeTimeoutChannel = nil
+			}
 			if !ok {
 				sendError(channels, errors.New("write channel closed"))
+				return
 			}
 			if req.C != nil {
 				if receipt, ok := req.Frame.Contains(frame.Receipt); ok {

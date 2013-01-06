@@ -6,6 +6,7 @@ import (
 	"github.com/jjeffery/stomp/testutil"
 	"io"
 	. "launchpad.net/gocheck"
+	"time"
 )
 
 type fakeReaderWriter struct {
@@ -400,4 +401,62 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 	c.Assert(err, IsNil)
 
 	conn.Disconnect()
+}
+
+func (s *StompSuite) TestHeartBeatReadTimeout(c *C) {
+	conn, rw := createHeartBeatConnection(c, 100, 10000)
+
+	go func() {
+		f1, err := rw.Read()
+		c.Assert(err, IsNil)
+		c.Assert(f1.Command, Equals, "SUBSCRIBE")
+		messageFrame := NewFrame("MESSAGE",
+			"destination", f1.Get("destination"),
+			"message-id", "1",
+			"subscription", f1.Get("id"))
+		messageFrame.Body = []byte("Message body")
+		rw.Write(messageFrame)
+	}()
+
+	sub, err := conn.Subscribe("/queue/test1", AckAuto)
+	c.Assert(err, IsNil)
+	c.Check(conn.readTimeout, Equals, 100*time.Millisecond)
+	println("read timeout", conn.readTimeout.String())
+
+	msg, ok := <-sub.C
+	c.Assert(msg, NotNil)
+	c.Assert(ok, Equals, true)
+
+	msg, ok = <-sub.C
+	c.Assert(msg, IsNil)
+	c.Assert(ok, Equals, false)
+}
+
+func createHeartBeatConnection(c *C, readTimeout, writeTimeout int) (*Conn, *fakeReaderWriter) {
+	fc1, fc2 := testutil.NewFakeConn(c)
+	stop := make(chan struct{})
+
+	reader := NewReader(fc2)
+	writer := NewWriter(fc2)
+
+	go func() {
+		f1, err := reader.Read()
+		c.Assert(err, IsNil)
+		c.Assert(f1.Command, Equals, "CONNECT")
+		c.Assert(f1.Get("heart-beat"), Equals, "1,1")
+		f2 := NewFrame("CONNECTED", "version", "1.2")
+		f2.Add("heart-beat", fmt.Sprintf("%d,%d", readTimeout, writeTimeout))
+		writer.Write(f2)
+		close(stop)
+	}()
+
+	conn, err := Connect(fc1, Options{HeartBeat: "1,1"})
+	c.Assert(conn, NotNil)
+	c.Assert(err, IsNil)
+	<-stop
+	return conn, &fakeReaderWriter{
+		reader: reader,
+		writer: writer,
+		conn:   fc2,
+	}
 }

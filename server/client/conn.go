@@ -38,6 +38,7 @@ type Conn struct {
 	lastMsgId      uint64                              // last message-id value
 	subList        *SubscriptionList                   // List of subscriptions requiring acknowledgement
 	subs           map[string]*Subscription            // All subscriptions, keyed by id
+	validator      stomp.Validator                     // For validating STOMP frames
 }
 
 // Creates a new client connection. The config parameter contains
@@ -241,16 +242,18 @@ func (c *Conn) processLoop() {
 			// Just received a frame from the client.
 			// Validate the frame, checking for mandatory
 			// headers and prohibited headers.
-			err := f.Validate()
-			if err != nil {
-				log.Println("validation failed for", f.Command, "frame")
-				c.sendErrorImmediately(err, f)
-				return
+			if c.validator != nil {
+				err := c.validator.Validate(f)
+				if err != nil {
+					log.Println("validation failed for", f.Command, "frame", err)
+					c.sendErrorImmediately(err, f)
+					return
+				}
 			}
 
 			// Pass to the appropriate function for handling
 			// according to the current state of the connection.
-			err = c.stateFunc(c, f)
+			err := c.stateFunc(c, f)
 			if err != nil {
 				c.sendErrorImmediately(err, f)
 				return
@@ -476,9 +479,11 @@ func (c *Conn) handleConnect(f *stomp.Frame) error {
 		log.Println("protocol version negotiation failed")
 		return err
 	}
+	c.validator = stomp.NewValidator(c.version)
 
 	if c.version == stomp.V10 {
 		// don't want to handle V1.0 at the moment
+		// TODO: get working for V1.0
 		log.Println("unsupported version", c.version)
 		return unsupportedVersion
 	}

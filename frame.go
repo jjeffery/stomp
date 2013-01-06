@@ -1,5 +1,9 @@
 package stomp
 
+import (
+//"github.com/jjeffery/stomp/frame"
+)
+
 // A Frame represents a STOMP frame. A frame consists of a command
 // followed by a collection of header elements, and then an optional
 // body.
@@ -30,9 +34,55 @@ func (f *Frame) Clone() *Frame {
 	return &Frame{Command: f.Command, Header: f.Header.Clone(), Body: f.Body}
 }
 
-// TODO(jpj): move into a separate type, so version-specific validations
-// can be performed.
-func (f *Frame) Validate() error {
-	// TODO(jpj): implement
+// ValidateFor checks to see if the STOMP frame is valid for the 
+// given version of the STOMP protocol. It checks for mandatory
+// header entries.
+func (f *Frame) ValidateFor(version Version) error {
+	/*
+		if version == Version("") {
+			// unknown version, only valid for CONNECT or STOMP frame
+			switch f.Command {
+			case frame.CONNECT:
+				return f.verifyConnect(version, false)
+			case frame.STOMP:
+				return f.verif
+			}
+		}
+		if version != V10 &&
+			version != V11 &&
+			version != V12 {
+			return invalidVersion
+		}
+		switch f.Command {
+		case frame.CONNECT:
+			return f.verifyConnect(version, false)
+		case frame.STOMP:
+			return f.verifyConnect(version, true)
+
+		}*/
+	return nil
+}
+
+func (f *Frame) verifyConnect(version Version, isStomp bool) error {
+	switch version {
+	case V10:
+		if isStomp {
+
+		}
+	case V11:
+	case V12:
+	}
+	return nil
+}
+
+func (f *Frame) verifyMandatory(keys ...string) error {
+	for _, key := range keys {
+		if _, ok := f.Header.index(key); !ok {
+			return &Error{
+				Message: "missing header: " + key,
+				Frame:   f,
+			}
+		}
+	}
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 var (
 	invalidCommand        = newErrorMessage("invalid command")
 	invalidFrameFormat    = newErrorMessage("invalid frame format")
+	invalidVersion        = newErrorMessage("invalid version")
 	completedTransaction  = newErrorMessage("transaction is completed")
 	nackNotSupported      = newErrorMessage("NACK not supported in STOMP 1.0")
 	notReceivedMessage    = newErrorMessage("cannot ack/nack a message, not from server")
