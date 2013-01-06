@@ -25,7 +25,7 @@ const (
 // ParseHeartBeat parses the value of a STOMP heart-beat entry and
 // returns two time durations. Returns an error if the heart-beat
 // value is not in the correct format, or if the time durations are
-// too big to be represented by an unsigned, 64 bit integer.
+// too big to be represented by the time.Duration type.
 func ParseHeartBeat(heartBeat string) (time.Duration, time.Duration, error) {
 	if !heartBeatRegexp.MatchString(heartBeat) {
 		return 0, 0, invalidHeartBeat
