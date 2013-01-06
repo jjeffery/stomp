@@ -57,12 +57,14 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 		ExpectedVersion   Version
 		ExpectedSession   string
 		ExpectedHost      string
+		ExpectedServer    string
 	}{
 		{
 			Options:         Options{},
 			ExpectedVersion: "1.0",
 			ExpectedSession: "",
 			ExpectedHost:    "the-server",
+			ExpectedServer:  "some-server/1.1",
 		},
 		{
 			Options:           Options{},
@@ -105,6 +107,9 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 			if tc.ExpectedSession != "" {
 				connectedFrame.Add("session", tc.ExpectedSession)
 			}
+			if tc.ExpectedServer != "" {
+				connectedFrame.Add("server", tc.ExpectedServer)
+			}
 			writer.Write(connectedFrame)
 
 			f2, err := reader.Read()
@@ -121,6 +126,7 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 		c.Assert(client, NotNil)
 		c.Assert(client.Version(), Equals, tc.ExpectedVersion)
 		c.Assert(client.Session(), Equals, tc.ExpectedSession)
+		c.Assert(client.Server(), Equals, tc.ExpectedServer)
 
 		err = client.Disconnect()
 		c.Assert(err, IsNil)

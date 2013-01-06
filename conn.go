@@ -42,6 +42,7 @@ type Conn struct {
 	writeCh chan writeRequest
 	version Version
 	session string
+	server  string
 }
 
 type writeRequest struct {
@@ -130,6 +131,8 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 		conn:    conn,
 		readCh:  make(chan *Frame, 8),
 		writeCh: make(chan writeRequest, 8),
+		server:  response.Get(frame.Server),
+		session: response.Get(frame.Session),
 	}
 
 	if version := response.Get(frame.Version); version != "" {
@@ -142,8 +145,6 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 	} else {
 		c.version = V10
 	}
-
-	c.session = response.Get(frame.Session)
 
 	// TODO(jpj): make any non-standard headers in the CONNECTED
 	// frame available.
@@ -167,6 +168,14 @@ func (c *Conn) Version() Version {
 // this value will be a blank string.
 func (c *Conn) Session() string {
 	return c.session
+}
+
+// Server returns the STOMP server identification, which can
+// be returned by the STOMP server during the connect sequence.
+// If the STOMP server does not return a server header entry,
+// this value will be a blank string.
+func (c *Conn) Server() string {
+	return c.server
 }
 
 // readLoop is a goroutine that reads frames from the
