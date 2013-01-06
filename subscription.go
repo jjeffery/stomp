@@ -34,7 +34,8 @@ func (s *Subscription) Destination() string {
 	return s.destination
 }
 
-// The Acknowledgement mode for the subscription.
+// AckMode returns the Acknowledgement mode specified when the
+// subscription was created.
 func (s *Subscription) AckMode() AckMode {
 	return s.ackMode
 }
@@ -56,9 +57,18 @@ func (s *Subscription) Unsubscribe() error {
 	return nil
 }
 
-// Read a message from the subscription
+// Read a message from the subscription. This is a convenience
+// method: many callers will prefer to read from the channel C
+// directly.
 func (s *Subscription) Read() (*Message, error) {
-	panic("not implemented")
+	if s.completed {
+		return nil, completedSubscription
+	}
+	msg, ok := <-s.C
+	if !ok {
+		return nil, completedSubscription
+	}
+	return msg, nil
 }
 
 func (s *Subscription) readLoop(ch chan *Frame) {
@@ -76,7 +86,7 @@ func (s *Subscription) readLoop(ch chan *Frame) {
 				ContentType:  contentType,
 				Conn:         s.conn,
 				Subscription: s,
-				Header:       f.Header.Clone(),
+				Header:       f.Header,
 				Body:         f.Body,
 			}
 			s.C <- msg

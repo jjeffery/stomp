@@ -58,6 +58,9 @@ func (tx *Transaction) Commit() error {
 	return nil
 }
 
+// Send a message to the server as part of the transaction. The STOMP
+// server will not process the message until the transaction has been
+// committed.
 func (tx *Transaction) Send(msg Message) error {
 	if tx.completed {
 		return completedTransaction
@@ -73,6 +76,10 @@ func (tx *Transaction) Send(msg Message) error {
 	return nil
 }
 
+// SendWithReceipt sends a message to the server and waits for the 
+// server to acknowledge receipt. Although the STOMP server has received
+// the message, it will not process the message until the transaction 
+// has been committed.
 func (tx *Transaction) SendWithReceipt(msg *Message) error {
 	if tx.completed {
 		return completedTransaction
@@ -87,6 +94,10 @@ func (tx *Transaction) SendWithReceipt(msg *Message) error {
 	return tx.conn.sendFrameWithReceipt(f)
 }
 
+// Ack sends an acknowledgement for the message to the server. The STOMP
+// server will not process the acknowledgement until the transaction
+// has been committed. If the subscription has an AckMode of AckAuto, calling
+// this function has no effect.
 func (tx *Transaction) Ack(msg *Message) error {
 	if tx.completed {
 		return completedTransaction
@@ -105,6 +116,13 @@ func (tx *Transaction) Ack(msg *Message) error {
 	return nil
 }
 
+// Nack sends a negative acknowledgement for the message to the server,
+// indicating that this client cannot or will not process the message and
+// that it should be processed elsewhere. The STOMP server will not process
+// the negative acknowledgement until the transaction has been committed.
+// It is an error to call this method if the subscription has an AckMode
+// of AckAuto, because the STOMP server will not be expecting any kind
+// of acknowledgement (positive or negative) for this message.
 func (tx *Transaction) Nack(msg *Message) error {
 	if tx.completed {
 		return completedTransaction

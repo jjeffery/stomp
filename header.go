@@ -28,6 +28,10 @@ type Header struct {
 	slice []string
 }
 
+// NewHeader creates a new Header and populates it with header entries.
+// This function expects an even number of strings as parameters. The
+// even numbered indices are keys and the odd indices are values. See
+// the example for more information.
 func NewHeader(headerEntries ...string) *Header {
 	h := &Header{}
 	h.slice = append(h.slice, headerEntries...)
@@ -43,7 +47,9 @@ func (h *Header) Add(key, value string) {
 	h.slice = append(h.slice, key, value)
 }
 
-// Set sets the header entries associated with 
+// Set replaces the value existing header entry with the specified key.
+// If there is no existing header entry with the specified key, a new
+// header entry is added.
 func (h *Header) Set(key, value string) {
 	if i, ok := h.index(key); ok {
 		h.slice[i+1] = value

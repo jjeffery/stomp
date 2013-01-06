@@ -15,7 +15,11 @@ const (
 	nullByte   = byte(0)
 )
 
-// Reads STOMP frames from an underlying io.Reader.
+// The Reader type reads STOMP frames from an underlying io.Reader.
+// The reader is buffered, and the size of the buffer is the maximum
+// size permitted for the STOMP frame command and header section. If
+// a STOMP frame is rejected if its command and header section exceed
+// the buffer size.
 type Reader struct {
 	reader *bufio.Reader
 }

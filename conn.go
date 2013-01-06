@@ -49,6 +49,10 @@ type writeRequest struct {
 	C     chan *Frame // response channel
 }
 
+// Dial creates a network connection to a STOMP server and performs
+// the STOMP connect protocol sequence. The network endpoint of the
+// STOMP server is specified by network and addr. STOMP protocol
+// options can be specified in opts.
 func Dial(network, addr string, opts Options) (*Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
@@ -67,6 +71,10 @@ func Dial(network, addr string, opts Options) (*Conn, error) {
 	return Connect(c, opts)
 }
 
+// Connect creates a STOMP connection and performs the STOMP connect
+// protocol sequence. The connection to the STOMP server has already
+// been created by the program. The opts parameter provides the
+// opportunity to specify STOMP protocol options.
 func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 	reader := NewReader(conn)
 	writer := NewWriter(conn)
