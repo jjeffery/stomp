@@ -4,6 +4,7 @@ import (
 	"io"
 	. "launchpad.net/gocheck"
 	"strings"
+	"testing/iotest"
 )
 
 type ReaderSuite struct{}
@@ -25,21 +26,32 @@ func (s *ReaderSuite) TestConnect(c *C) {
 }
 
 func (s *ReaderSuite) TestSendWithoutContentLength(c *C) {
-	reader := NewReader(strings.NewReader("SEND\ndestination:xxx\n\nPayload\x00"))
+	text := "SEND\ndestination:xxx\n\nPayload\x00"
 
-	frame, err := reader.Read()
-	c.Assert(err, IsNil)
-	c.Assert(frame, NotNil)
-	c.Assert(frame.Command, Equals, "SEND")
-	c.Assert(frame.Header.Len(), Equals, 1)
-	v := frame.Header.Get("destination")
-	c.Assert(v, Equals, "xxx")
-	c.Assert(string(frame.Body), Equals, "Payload")
+	ioreaders := []io.Reader{
+		strings.NewReader(text),
+		iotest.DataErrReader(strings.NewReader(text)),
+		iotest.OneByteReader(strings.NewReader(text)),
+	}
 
-	// ensure we are at the end of input
-	frame, err = reader.Read()
-	c.Assert(frame, IsNil)
-	c.Assert(err, Equals, io.EOF)
+	for _, ioreader := range ioreaders {
+		// uncomment the following line to view the bytes being read
+		//ioreader = iotest.NewReadLogger("RX", ioreader)
+		reader := NewReader(ioreader)
+		frame, err := reader.Read()
+		c.Assert(err, IsNil)
+		c.Assert(frame, NotNil)
+		c.Assert(frame.Command, Equals, "SEND")
+		c.Assert(frame.Header.Len(), Equals, 1)
+		v := frame.Header.Get("destination")
+		c.Assert(v, Equals, "xxx")
+		c.Assert(string(frame.Body), Equals, "Payload")
+
+		// ensure we are at the end of input
+		frame, err = reader.Read()
+		c.Assert(frame, IsNil)
+		c.Assert(err, Equals, io.EOF)
+	}
 }
 
 func (s *ReaderSuite) TestSendWithContentLength(c *C) {

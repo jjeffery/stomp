@@ -46,23 +46,16 @@ func (r *Reader) Read() (*Frame, error) {
 	}
 
 	if len(commandSlice) == 0 {
-		// gobble up any additional cr or lf characters
-		for {
-			b, err := r.reader.ReadByte()
-			if err != nil {
-				return nil, err
-			}
-			if b != cr && b != newline {
-				r.reader.UnreadByte()
-				break
-			}
-		}
 		// received a heart-beat newline char (or cr-lf)
 		return nil, nil
 	}
 
 	f := NewFrame(string(commandSlice))
 	switch f.Command {
+	// TODO(jpj): Is it appropriate to perform validation on the
+	// command at this point. Probably better to validate higher up,
+	// this way this type can be useful for any other non-STOMP protocols
+	// which happen to use the same frame format.
 	case frame.CONNECT, frame.STOMP, frame.SEND, frame.SUBSCRIBE,
 		frame.UNSUBSCRIBE, frame.ACK, frame.NACK, frame.BEGIN,
 		frame.COMMIT, frame.ABORT, frame.DISCONNECT, frame.CONNECTED,
@@ -96,11 +89,6 @@ func (r *Reader) Read() (*Frame, error) {
 		// TODO: need to decode if STOMP 1.1 or later
 
 		f.Header.Add(name, value)
-	}
-
-	err = f.Validate()
-	if err != nil {
-		return nil, err
 	}
 
 	// get content length from the headers
