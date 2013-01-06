@@ -23,14 +23,6 @@ const (
 	// Default address for listening for connections.
 	DefaultAddr = ":61613"
 
-	// Default maximum bytes for the header part of STOMP frames.
-	// Override by setting Server.MaxHeaderBytes.
-	DefaultMaxHeaderBytes = 1 << 12 // 4KB
-
-	// Default maximum bytes for the body part of STOMP frames.
-	// Override by setting Server.MaxBodyBytes
-	DefaultMaxBodyBytes = 1 << 20 // 1MB
-
 	// Default read timeout for heart-beat.
 	// Override by setting Server.HeartBeat.
 	DefaultHeartBeat = time.Minute
@@ -45,12 +37,10 @@ type Authenticator interface {
 
 // A Server defines parameters for running a STOMP server.
 type Server struct {
-	Addr           string        // TCP address to listen on, DefaultAddr if empty
-	Authenticator  Authenticator // Authenticates login/passcodes. If nil no authentication is performed
-	QueueStorage   QueueStorage  // Implementation of queue storage. If nil, in-memory queues are used.
-	HeartBeat      time.Duration // Preferred value for heart-beat read/write timeout, if zero, then DefaultHeartBeat.
-	MaxHeaderBytes int           // Maximum size of STOMP headers in bytes, if zero then DefaultMaxHeaderBytes.
-	MaxBodyBytes   int           // Maximum size of STOMP body in bytes, if zero then DefaultMaxBodyBytes.
+	Addr          string        // TCP address to listen on, DefaultAddr if empty
+	Authenticator Authenticator // Authenticates login/passcodes. If nil no authentication is performed
+	QueueStorage  QueueStorage  // Implementation of queue storage. If nil, in-memory queues are used.
+	HeartBeat     time.Duration // Preferred value for heart-beat read/write timeout, if zero, then DefaultHeartBeat.
 }
 
 // ListenAndServe listens on the TCP network address addr and then calls Serve.
