@@ -168,13 +168,15 @@ func ExampleDial_1() error {
 
 // Connect to a STOMP server that requires authentication. In addition,
 // we are only prepared to use STOMP protocol version 1.1 or 1.2, and
-// the virtual host is named "dragon".
+// the virtual host is named "dragon". In this example the STOMP
+// server also accepts a non-standard header called 'nonce'.
 func ExampleDial_2() error {
 	conn, err := stomp.Dial("tcp", "192.168.1.1:61613", stomp.Options{
 		Login:         "scott",
 		Passcode:      "leopard",
 		AcceptVersion: "1.1,1.2",
 		Host:          "dragon",
+		NonStandard:   stomp.NewHeader("nonce", "B256B26D320A"),
 	})
 	if err != nil {
 		return err
