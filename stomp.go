@@ -2,8 +2,9 @@
 Package stomp provides operations that allow communication with a message broker that supports the STOMP protocol. 
 STOMP is the Streaming Text-Oriented Messaging Protocol. See http://stomp.github.com/ for more details.
 
-This package provides support for all STOMP protocol features in 1.0, 1.1 and 1.2 including protocol negotiation,
-heart-beating, and value encoding.
+This package provides support for all STOMP protocol features in the STOMP protocol specifications, 
+versions 1.0, 1.1 and 1.2. These features including protocol negotiation, heart-beating, value encoding,
+and graceful shutdown.
 
 Connecting to a STOMP server is achieved using the stomp.Dial function, or the stomp.Connect function. See 
 the examples section for a summary of how to use these functions. Both functions return a stomp.Conn object
@@ -14,10 +15,13 @@ subscriptions for receiving messages from the STOMP server. Transactions can be 
 messages and/ or acknowledge multiple received messages from the server in one, atomic transaction. The 
 examples section has examples of using subscriptions and transactions.
 
+The client program can instruct the stomp.Conn to gracefully disconnect from the STOMP server using the 
+Disconnect method. This will perform a graceful shutdown sequence as specified in the STOMP specification.
+
 This package also exports types that represent a STOMP frame, and operate on STOMP frames. These types
 include stomp.Frame, stomp.Reader, stomp.Writer and stomp.Validator. While a program can
-use this package to communicate with a STOMP server without using these types directly, they could be
-useful implementing a STOMP server in go.
+use this package to communicate with a STOMP server without using these types directly, they are useful 
+for implementing a STOMP server in go.
 
 The server subpackage provides a simple implementation of a STOMP server
 that is useful for testing and could be useful for applications that require a simple,
