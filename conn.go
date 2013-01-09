@@ -394,6 +394,22 @@ func (c *Conn) Send(msg Message) error {
 	return nil
 }
 
+// TODO(jpj): This is a
+
+// Send sends a message to the STOMP server, which in turn sends the message to the specified destination.
+// The content type should be specified, according to the STOMP specification, but if contentType is an empty
+// string, the message will be delivered without a content type header entry. The body array contains the
+// message body, and its content should be consistent with the specified content type.
+//
+// If receipt is false, then this method returns without waiting for confirmation of receipt from the server, 
+// if set to true the method will not return until the server has confirmed receipt.
+//
+// The message can contain optional, user-defined header entries in userDefined. If there are no optional header
+// entries, then set userDefined to nil.
+func (c *Conn) Send2(destination, contentType string, body []byte, receipt bool, userDefined *Header) error {
+	panic("not implemented")
+}
+
 func (c *Conn) sendFrame(f *Frame) {
 	request := writeRequest{Frame: f}
 	c.writeCh <- request

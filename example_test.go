@@ -7,6 +7,22 @@ import (
 	"time"
 )
 
+func ExampleConn_Send2(c *stomp.Conn) error {
+	// send with receipt and an optional header
+	err := c.Send2("/queue/test-1", "text/plain", []byte("Message number 1"), true, stomp.NewHeader("expires", "2020-12-31 23:59:59"))
+	if err != nil {
+		return err
+	}
+
+	// send with no receipt and no optional headers
+	err = c.Send2("/queue/test-2", "application/xml", []byte("<message>hello</message>"), false, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Creates a new Header.
 func ExampleNewHeader() {
 	/*
