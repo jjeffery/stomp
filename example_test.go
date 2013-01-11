@@ -7,15 +7,20 @@ import (
 	"time"
 )
 
-func ExampleConn_Send2(c *stomp.Conn) error {
+func ExampleConn_Send(c *stomp.Conn) error {
 	// send with receipt and an optional header
-	err := c.Send2("/queue/test-1", "text/plain", []byte("Message number 1"), true, stomp.NewHeader("expires", "2020-12-31 23:59:59"))
+	err := c.Send(
+		"/queue/test-1",            // destination
+		"text/plain",               // content-type
+		[]byte("Message number 1"), // body
+		stomp.NewHeader("expires", "2020-12-31 23:59:59"))
 	if err != nil {
 		return err
 	}
 
 	// send with no receipt and no optional headers
-	err = c.Send2("/queue/test-2", "application/xml", []byte("<message>hello</message>"), false, nil)
+	err = c.Send("/queue/test-2", "application/xml",
+		[]byte("<message>hello</message>"), nil)
 	if err != nil {
 		return err
 	}
@@ -119,11 +124,8 @@ func ExampleTransaction() error {
 
 		doAnotherThingWith(msg, tx)
 
-		tx.Send(stomp.Message{
-			Destination: "/queue/another-one",
-			ContentType: "text/plain",
-			Body:        []byte(fmt.Sprintf("Message #%d", i)),
-		})
+		tx.Send("/queue/another-one", "text/plain",
+			[]byte(fmt.Sprintf("Message #%d", i)), nil)
 
 		// acknowledge the message
 		err = tx.Ack(msg)
@@ -170,11 +172,11 @@ func ExampleDial_1() error {
 		return err
 	}
 
-	err = conn.Send(stomp.Message{
-		Destination: "/queue/test-1",
-		ContentType: "text/plain",
-		Body:        []byte("Test message #1"),
-	})
+	err = conn.Send(
+		"/queue/test-1",           // destination
+		"text/plain",              // content-type
+		[]byte("Test message #1"), // body
+		nil)                       // no headers
 	if err != nil {
 		return err
 	}
@@ -198,11 +200,11 @@ func ExampleDial_2() error {
 		return err
 	}
 
-	err = conn.Send(stomp.Message{
-		Destination: "/queue/test-1",
-		ContentType: "text/plain",
-		Body:        []byte("Test message #1"),
-	})
+	err = conn.Send(
+		"/queue/test-1",           // destination
+		"text/plain",              // content-type
+		[]byte("Test message #1"), // body
+		nil)                       // no optional headers
 	if err != nil {
 		return err
 	}

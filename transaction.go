@@ -58,37 +58,45 @@ func (tx *Transaction) Commit() error {
 	return nil
 }
 
-// Send a message to the server as part of the transaction. The STOMP
-// server will not process the message until the transaction has been
-// committed.
-func (tx *Transaction) Send(msg Message) error {
+// Send sends a message to the STOMP server as part of a transaction. The server will not process the 
+// message until the transaction is committed.
+// This method returns without confirming that the STOMP server has received the message. If the STOMP server
+// does fail to receive the message for any reason, the connection will close.
+//
+// The content type should be specified, according to the STOMP specification, but if contentType is an empty
+// string, the message will be delivered without a content type header entry. The body array contains the
+// message body, and its content should be consistent with the specified content type.
+//
+// The message can contain optional, user-defined header entries in userDefined. If there are no optional header
+// entries, then set userDefined to nil.
+func (tx *Transaction) Send(destination, contentType string, body []byte, userDefined *Header) error {
 	if tx.completed {
 		return completedTransaction
 	}
 
-	f, err := msg.createSendFrame()
-	if err != nil {
-		return err
-	}
+	f := createSendFrame(destination, contentType, body, userDefined)
 
 	f.Header.Set(frame.Transaction, tx.id)
 	tx.conn.sendFrame(f)
 	return nil
 }
 
-// SendWithReceipt sends a message to the server and waits for the 
-// server to acknowledge receipt. Although the STOMP server has received
-// the message, it will not process the message until the transaction 
-// has been committed.
-func (tx *Transaction) SendWithReceipt(msg *Message) error {
+// Send sends a message to the STOMP server as part of a transaction. The server will not process the
+// message until the transaction is committed.
+// This method does not return until the STOMP server has confirmed receipt of the message.
+//
+// The content type should be specified, according to the STOMP specification, but if contentType is an empty
+// string, the message will be delivered without a content type header entry. The body array contains the
+// message body, and its content should be consistent with the specified content type.
+//
+// The message can contain optional, user-defined header entries in userDefined. If there are no optional header
+// entries, then set userDefined to nil.
+func (tx *Transaction) SendWithReceipt(destination, contentType string, body []byte, userDefined *Header) error {
 	if tx.completed {
 		return completedTransaction
 	}
 
-	f, err := msg.createSendFrame()
-	if err != nil {
-		return err
-	}
+	f := createSendFrame(destination, contentType, body, userDefined)
 
 	f.Set(frame.Transaction, tx.id)
 	return tx.conn.sendFrameWithReceipt(f)

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -365,49 +366,63 @@ func (c *Conn) Disconnect() error {
 	return c.conn.Close()
 }
 
-// SendWithReceipt sends a message to the STOMP server,
-// and does not return until the STOMP server acknowledges
-// receipt of the message.
-//
-// Note that this does not guarantee that the message has been
-// delivered for processing, only that the STOMP server has received
-// the message. Upon return, the message may be on a queue waiting
-// to be processed.
-func (c *Conn) SendWithReceipt(msg Message) error {
-	f, err := msg.createSendFrame()
-	if err != nil {
-		return err
-	}
-
-	return c.sendFrameWithReceipt(f)
-}
-
-// Send sends a message to the STOMP server, and does not
-// wait for acknowledgement of receipt by the STOMP server.
-func (c *Conn) Send(msg Message) error {
-	f, err := msg.createSendFrame()
-	if err != nil {
-		return err
-	}
-
-	c.sendFrame(f)
-	return nil
-}
-
-// TODO(jpj): This is a
-
 // Send sends a message to the STOMP server, which in turn sends the message to the specified destination.
+// This method returns without confirming that the STOMP server has received the message. If the STOMP server
+// does fail to receive the message for any reason, the connection will close.
+//
 // The content type should be specified, according to the STOMP specification, but if contentType is an empty
 // string, the message will be delivered without a content type header entry. The body array contains the
 // message body, and its content should be consistent with the specified content type.
 //
-// If receipt is false, then this method returns without waiting for confirmation of receipt from the server, 
-// if set to true the method will not return until the server has confirmed receipt.
+// The message can contain optional, user-defined header entries in userDefined. If there are no optional header
+// entries, then set userDefined to nil.
+func (c *Conn) Send(destination, contentType string, body []byte, userDefined *Header) error {
+	// TODO(jpj): Check that we are still connected before sending.
+	f := createSendFrame(destination, contentType, body, userDefined)
+	f.Del(frame.Transaction)
+	c.sendFrame(f)
+	return nil
+}
+
+// Send sends a message to the STOMP server, which in turn sends the message to the specified destination.
+// This method does not return until the STOMP server has confirmed receipt of the message.
+//
+// The content type should be specified, according to the STOMP specification, but if contentType is an empty
+// string, the message will be delivered without a content type header entry. The body array contains the
+// message body, and its content should be consistent with the specified content type.
 //
 // The message can contain optional, user-defined header entries in userDefined. If there are no optional header
 // entries, then set userDefined to nil.
-func (c *Conn) Send2(destination, contentType string, body []byte, receipt bool, userDefined *Header) error {
-	panic("not implemented")
+func (c *Conn) SendWithReceipt(destination, contentType string, body []byte, userDefined *Header) error {
+	// TODO(jpj): Check that we are still connected before sending.
+	f := createSendFrame(destination, contentType, body, userDefined)
+	f.Del(frame.Transaction)
+	return c.sendFrameWithReceipt(f)
+}
+
+func createSendFrame(destination, contentType string, body []byte, userDefined *Header) *Frame {
+	f := &Frame{
+		Command: frame.SEND,
+		Body:    body,
+	}
+	if userDefined == nil {
+		f.Header = NewHeader()
+	} else {
+		f.Header = userDefined.Clone()
+		f.Header.Del(frame.Receipt)
+	}
+
+	f.Header.Set(frame.Destination, destination)
+
+	if contentType == "" {
+		// no content type specified
+		f.Header.Del(frame.ContentType)
+	} else {
+		f.Header.Set(frame.ContentType, contentType)
+	}
+
+	f.Header.Set(frame.ContentLength, strconv.Itoa(len(body)))
+	return f
 }
 
 func (c *Conn) sendFrame(f *Frame) {

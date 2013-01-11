@@ -385,10 +385,7 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 				tx.Ack(msg)
 			}
 		}
-		err = tx.Send(Message{
-			Destination: "/queue/another-queue",
-			Body:        []byte(bodyText),
-		})
+		err = tx.Send("/queue/another-queue", "text/plain", []byte(bodyText), nil)
 		c.Assert(err, IsNil)
 		if abort {
 			tx.Abort()
@@ -430,6 +427,21 @@ func (s *StompSuite) TestHeartBeatReadTimeout(c *C) {
 	msg, ok = <-sub.C
 	c.Assert(msg, IsNil)
 	c.Assert(ok, Equals, false)
+}
+
+func (s *StompSuite) TestHeartBeatWriteTimeout(c *C) {
+	c.Skip("not finished yet")
+	conn, rw := createHeartBeatConnection(c, 10000, 100)
+
+	go func() {
+		f1, err := rw.Read()
+		c.Assert(err, IsNil)
+		c.Assert(f1, IsNil)
+
+	}()
+
+	time.Sleep(250)
+	conn.Disconnect()
 }
 
 func createHeartBeatConnection(c *C, readTimeout, writeTimeout int) (*Conn, *fakeReaderWriter) {
