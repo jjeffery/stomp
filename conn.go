@@ -10,7 +10,8 @@ import (
 	"time"
 )
 
-// Options for connecting to the STOMP server
+// Options for connecting to the STOMP server. Used with the
+// stomp.Dial and stomp.Connect functions, both of which have examples.
 type Options struct {
 	// Login and passcode for authentication with the STOMP server.
 	// If no authentication is required, leave blank.

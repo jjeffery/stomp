@@ -69,6 +69,9 @@ func (s *Subscription) Read() (*Message, error) {
 	if !ok {
 		return nil, completedSubscription
 	}
+	if msg.Err != nil {
+		return nil, msg.Err
+	}
 	return msg, nil
 }
 

@@ -34,35 +34,6 @@ func (f *Frame) Clone() *Frame {
 	return &Frame{Command: f.Command, Header: f.Header.Clone(), Body: f.Body}
 }
 
-// ValidateFor checks to see if the STOMP frame is valid for the 
-// given version of the STOMP protocol. It checks for mandatory
-// header entries.
-func (f *Frame) ValidateFor(version Version) error {
-	/*
-		if version == Version("") {
-			// unknown version, only valid for CONNECT or STOMP frame
-			switch f.Command {
-			case frame.CONNECT:
-				return f.verifyConnect(version, false)
-			case frame.STOMP:
-				return f.verif
-			}
-		}
-		if version != V10 &&
-			version != V11 &&
-			version != V12 {
-			return invalidVersion
-		}
-		switch f.Command {
-		case frame.CONNECT:
-			return f.verifyConnect(version, false)
-		case frame.STOMP:
-			return f.verifyConnect(version, true)
-
-		}*/
-	return nil
-}
-
 func (f *Frame) verifyConnect(version Version, isStomp bool) error {
 	switch version {
 	case V10:

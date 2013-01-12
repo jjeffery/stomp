@@ -87,6 +87,10 @@ func ExampleSubscription() error {
 	// receive 5 messages and then quit
 	for i := 0; i < 5; i++ {
 		msg := <-sub.C
+		if msg.Err != nil {
+			return msg.Err
+		}
+
 		doSomethingWith(msg)
 
 		// acknowledge the message
@@ -119,6 +123,9 @@ func ExampleTransaction() error {
 	// receive 5 messages and then quit
 	for i := 0; i < 5; i++ {
 		msg := <-sub.C
+		if msg.Err != nil {
+			return msg.Err
+		}
 
 		tx := conn.Begin()
 
