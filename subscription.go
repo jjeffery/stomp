@@ -98,6 +98,19 @@ func (s *Subscription) readLoop(ch chan *Frame) {
 				s.destination,
 				message)
 			log.Println(text)
+			contentType := f.Get(frame.ContentType)
+			msg := &Message{
+				Err: &Error{
+					Message: f.Get(frame.Message),
+					Frame:   f,
+				},
+				ContentType:  contentType,
+				Conn:         s.conn,
+				Subscription: s,
+				Header:       f.Header,
+				Body:         f.Body,
+			}
+			s.C <- msg
 			s.completed = true
 			close(s.C)
 			return

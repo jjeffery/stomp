@@ -425,6 +425,11 @@ func (s *StompSuite) TestHeartBeatReadTimeout(c *C) {
 	c.Assert(ok, Equals, true)
 
 	msg, ok = <-sub.C
+	c.Assert(msg, NotNil)
+	c.Assert(msg.Err, NotNil)
+	c.Assert(msg.Err.Error(), Equals, "read timeout")
+
+	msg, ok = <-sub.C
 	c.Assert(msg, IsNil)
 	c.Assert(ok, Equals, false)
 }
