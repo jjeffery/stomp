@@ -8,6 +8,7 @@ Features:
 * Supports STOMP Specifications Versions 1.0, 1.1, 1.2
 * Protocol negotiation to select the latest mutually supported protocol
 * Heart beating for testing the underlying network connection
+* Tested against RabbitMQ v3.0.1
 
 For more information see http://godoc.org/github.com/jjeffery/stomp
 
