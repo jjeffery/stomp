@@ -15,6 +15,7 @@ var queueName = flag.String("queue", "/queue/client_test", "Destination queue")
 var helpFlag = flag.Bool("help", false, "Print help text")
 var stop = make(chan bool)
 
+// these are the default options that work with RabbitMQ
 var options = stomp.Options{
 	Login:    "guest",
 	Passcode: "guest",
@@ -29,8 +30,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	subscribed := make(chan bool)
+	go recvMessages(subscribed)
+
+	// wait until we know the receiver has subscribed
+	<-subscribed
+	
 	go sendMessages()
-	go recvMessages()
 
 	<-stop
 	<-stop
@@ -59,7 +65,7 @@ func sendMessages() {
 	println("sender finished")
 }
 
-func recvMessages() {
+func recvMessages(subscribed chan bool) {
 	defer func() {
 		stop <- true
 	}()
@@ -75,6 +81,7 @@ func recvMessages() {
 		println("cannot subscribe to", *queueName, err.Error())
 		return
 	}
+	close(subscribed)
 
 	for i := 1; i <= *messageCount; i++ {
 		msg := <-sub.C
