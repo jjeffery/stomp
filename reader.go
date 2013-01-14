@@ -51,6 +51,7 @@ func (r *Reader) Read() (*Frame, error) {
 	}
 
 	f := NewFrame(string(commandSlice))
+	//println("RX:", f.Command)
 	switch f.Command {
 	// TODO(jpj): Is it appropriate to perform validation on the
 	// command at this point. Probably better to validate higher up,
@@ -85,6 +86,8 @@ func (r *Reader) Read() (*Frame, error) {
 
 		name := string(headerSlice[0:index])
 		value := string(headerSlice[index+1:])
+
+		//println("   ", name, ":", value)
 
 		// TODO: need to decode if STOMP 1.1 or later
 
@@ -124,7 +127,6 @@ func (r *Reader) Read() (*Frame, error) {
 	}
 
 	// pass back frame
-	//println("RX:", f.Command)
 	return f, nil
 }
 

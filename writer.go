@@ -48,9 +48,11 @@ func (w *Writer) Write(f *Frame) error {
 			return err
 		}
 
+		//println("TX:", f.Command)
 		if f.Header != nil {
 			for i := 0; i < f.Header.Len(); i++ {
 				key, value := f.Header.GetAt(i)
+				//println("   ", key, ":", value)
 				_, err = w.writer.Write([]byte(key))
 				if err != nil {
 					return err

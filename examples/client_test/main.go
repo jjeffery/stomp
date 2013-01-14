@@ -15,6 +15,12 @@ var queueName = flag.String("queue", "/queue/client_test", "Destination queue")
 var helpFlag = flag.Bool("help", false, "Print help text")
 var stop = make(chan bool)
 
+var options = stomp.Options{
+	Login:    "guest",
+	Passcode: "guest",
+	Host:     "/",
+}
+
 func main() {
 	flag.Parse()
 	if *helpFlag {
@@ -35,7 +41,7 @@ func sendMessages() {
 		stop <- true
 	}()
 
-	conn, err := stomp.Dial("tcp", *serverAddr, stomp.Options{})
+	conn, err := stomp.Dial("tcp", *serverAddr, options)
 	if err != nil {
 		println("cannot connect to server", err.Error())
 		return
@@ -58,7 +64,7 @@ func recvMessages() {
 		stop <- true
 	}()
 
-	conn, err := stomp.Dial("tcp", *serverAddr, stomp.Options{})
+	conn, err := stomp.Dial("tcp", *serverAddr, options)
 	if err != nil {
 		println("cannot connect to server", err.Error())
 		return
