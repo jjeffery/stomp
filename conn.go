@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const DefaultReadHeartBeatError = 5 * time.Second
+
 // Options for connecting to the STOMP server. Used with the
 // stomp.Dial and stomp.Connect functions, both of which have examples.
 type Options struct {
@@ -31,6 +33,12 @@ type Options struct {
 	// separated by a comma. Leave blank for default heart-beat negotiation,
 	// which is the recommended setting.
 	HeartBeat string
+
+	// Per specification and common sense we should expect some discrepancy
+	// in incoming heartbeats. It makes sense to add at least a couple of seconds.
+	// So if below is empty, it'll be changed to 5s. If it's negative, it'll be
+	// set to 0.
+	ReadHeartBeatError time.Duration
 
 	// Other header entries for STOMP servers that accept non-standard
 	// header entries in the CONNECT frame.
@@ -159,7 +167,14 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 				Frame:   response,
 			}
 		}
-		c.readTimeout = readTimeout
+		rtError := opts.ReadHeartBeatError
+		if rtError < 0 {
+			rtError = 0
+		} else if rtError == 0 {
+			rtError = DefaultReadHeartBeatError
+		}
+
+		c.readTimeout = readTimeout + rtError
 		c.writeTimeout = writeTimeout
 	}
 
@@ -262,6 +277,7 @@ func processLoop(c *Conn, writer *Writer) {
 
 			if f == nil {
 				// heart-beat received
+				continue
 			}
 
 			switch f.Command {
