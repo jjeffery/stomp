@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+// Default time span to add to read/write heart-beat timeouts
+// to avoid premature disconnections due to network latency.
 const DefaultReadHeartBeatError = 5 * time.Second
 
 // Options for connecting to the STOMP server. Used with the
@@ -34,10 +36,11 @@ type Options struct {
 	// which is the recommended setting.
 	HeartBeat string
 
-	// Per specification and common sense we should expect some discrepancy
-	// in incoming heartbeats. It makes sense to add at least a couple of seconds.
-	// So if below is empty, it'll be changed to 5s. If it's negative, it'll be
-	// set to 0.
+	// As per the STOMP specification, we should expect some discrepancy
+	// in incoming heartbeats. Add this time duration to the read timeout.
+	// If this value is zero, it will be set to DefaultReadHeartBeatError.
+	// If you really want to have zero error (eg for testing), set to a
+	// negative value.
 	ReadHeartBeatError time.Duration
 
 	// Other header entries for STOMP servers that accept non-standard

@@ -401,7 +401,7 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 }
 
 func (s *StompSuite) TestHeartBeatReadTimeout(c *C) {
-	conn, rw := createHeartBeatConnection(c, 100, 10000)
+	conn, rw := createHeartBeatConnection(c, 100, 10000, time.Millisecond*1)
 
 	go func() {
 		f1, err := rw.Read()
@@ -417,7 +417,7 @@ func (s *StompSuite) TestHeartBeatReadTimeout(c *C) {
 
 	sub, err := conn.Subscribe("/queue/test1", AckAuto)
 	c.Assert(err, IsNil)
-	c.Check(conn.readTimeout, Equals, 100*time.Millisecond)
+	c.Check(conn.readTimeout, Equals, 101*time.Millisecond)
 	println("read timeout", conn.readTimeout.String())
 
 	msg, ok := <-sub.C
@@ -436,7 +436,7 @@ func (s *StompSuite) TestHeartBeatReadTimeout(c *C) {
 
 func (s *StompSuite) TestHeartBeatWriteTimeout(c *C) {
 	c.Skip("not finished yet")
-	conn, rw := createHeartBeatConnection(c, 10000, 100)
+	conn, rw := createHeartBeatConnection(c, 10000, 100, time.Millisecond*1)
 
 	go func() {
 		f1, err := rw.Read()
@@ -449,7 +449,10 @@ func (s *StompSuite) TestHeartBeatWriteTimeout(c *C) {
 	conn.Disconnect()
 }
 
-func createHeartBeatConnection(c *C, readTimeout, writeTimeout int) (*Conn, *fakeReaderWriter) {
+func createHeartBeatConnection(
+	c *C, readTimeout,
+	writeTimeout int,
+	readTimeoutError time.Duration) (*Conn, *fakeReaderWriter) {
 	fc1, fc2 := testutil.NewFakeConn(c)
 	stop := make(chan struct{})
 
@@ -467,7 +470,7 @@ func createHeartBeatConnection(c *C, readTimeout, writeTimeout int) (*Conn, *fak
 		close(stop)
 	}()
 
-	conn, err := Connect(fc1, Options{HeartBeat: "1,1"})
+	conn, err := Connect(fc1, Options{HeartBeat: "1,1", ReadHeartBeatError: readTimeoutError})
 	c.Assert(conn, NotNil)
 	c.Assert(err, IsNil)
 	<-stop
