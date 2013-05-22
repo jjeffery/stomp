@@ -183,7 +183,7 @@ func ExampleDial_1() error {
 		"/queue/test-1",           // destination
 		"text/plain",              // content-type
 		[]byte("Test message #1"), // body
-		nil)                       // no headers
+		nil) // no headers
 	if err != nil {
 		return err
 	}
@@ -211,7 +211,7 @@ func ExampleDial_2() error {
 		"/queue/test-1",           // destination
 		"text/plain",              // content-type
 		[]byte("Test message #1"), // body
-		nil)                       // no optional headers
+		nil) // no optional headers
 	if err != nil {
 		return err
 	}

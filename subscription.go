@@ -19,8 +19,8 @@ type Subscription struct {
 	completed   bool
 }
 
-// BUG(jpj): If the client does not read messages from the Subscription.C 
-// channel quickly enough, the client will stop reading messages from the 
+// BUG(jpj): If the client does not read messages from the Subscription.C
+// channel quickly enough, the client will stop reading messages from the
 // server.
 
 // Identification for this subscription. Unique among

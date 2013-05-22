@@ -25,7 +25,7 @@ type Options struct {
 	// STOMP server. Leave blank for default value.
 	Host string
 
-	// Comma-separated list of acceptable STOMP versions. 
+	// Comma-separated list of acceptable STOMP versions.
 	// Leave blank for default protocol negotiation, which is
 	// the recommended setting.
 	AcceptVersion string
@@ -342,7 +342,7 @@ func processLoop(c *Conn, writer *Writer) {
 			case frame.UNSUBSCRIBE:
 				id, _ := req.Frame.Contains(frame.Id)
 				// is this trying to be too clever -- add a receipt
-				// header so that when the server responds with a 
+				// header so that when the server responds with a
 				// RECEIPT frame, the corresponding channel will be closed
 				req.Frame.Set(frame.Receipt, id)
 			}
@@ -366,10 +366,10 @@ func sendError(m map[string]chan *Frame, err error) {
 }
 
 // Disconnect will disconnect from the STOMP server. This function
-// follows the STOMP standard's recommended protocol for graceful 
-// disconnection: it sends a DISCONNECT frame with a receipt header 
-// element. Once the RECEIPT frame has been received, the connection 
-// with the STOMP server is closed and any further attempt to write 
+// follows the STOMP standard's recommended protocol for graceful
+// disconnection: it sends a DISCONNECT frame with a receipt header
+// element. Once the RECEIPT frame has been received, the connection
+// with the STOMP server is closed and any further attempt to write
 // to the server will fail.
 func (c *Conn) Disconnect() error {
 	ch := make(chan *Frame)
@@ -524,7 +524,7 @@ func (c *Conn) Nack(m *Message) error {
 
 // Begin is used to start a transaction. Transactions apply to sending
 // and acknowledging. Any messages sent or acknowledged during a transaction
-// will be processed atomically by the STOMP server based on the transaction. 
+// will be processed atomically by the STOMP server based on the transaction.
 func (c *Conn) Begin() *Transaction {
 	id := allocateId()
 	f := NewFrame(frame.BEGIN, frame.Transaction, id)

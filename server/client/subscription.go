@@ -62,7 +62,7 @@ func (s *Subscription) SendQueueFrame(f *stomp.Frame) {
 	s.frame = f
 
 	// let the connection deal with the subscription
-	// acknowledgement 
+	// acknowledgement
 	s.conn.subChannel <- s
 }
 

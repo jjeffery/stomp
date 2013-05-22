@@ -4,7 +4,7 @@ import (
 	"github.com/jjeffery/stomp/frame"
 )
 
-// The AckMode type is an enumeration of the acknowledgement modes for a 
+// The AckMode type is an enumeration of the acknowledgement modes for a
 // STOMP subscription.
 type AckMode int
 
@@ -35,7 +35,7 @@ func (a AckMode) ShouldAck() bool {
 }
 
 const (
-	// No acknowledgement is required, the server assumes that the client 
+	// No acknowledgement is required, the server assumes that the client
 	// received the message.
 	AckAuto AckMode = iota
 

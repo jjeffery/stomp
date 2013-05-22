@@ -13,20 +13,20 @@ import (
 // error between the client and the server.
 type Message struct {
 	// Indicates whether an error was received on the subscription.
-	// The error will contain details of the error. If the server 
+	// The error will contain details of the error. If the server
 	// sent an ERROR frame, then the Body, ContentType and Header fields
 	// will be populated according to the contents of the ERROR frame.
 	Err error
 
 	// Destination the message is sent to. The STOMP server should
-	// in turn send this message to a STOMP client that has subscribed 
+	// in turn send this message to a STOMP client that has subscribed
 	// to the destination.
 	Destination string
 
 	// MIME content type.
 	ContentType string // MIME content
 
-	// Connection that the message was received on. 
+	// Connection that the message was received on.
 	Conn *Conn
 
 	// Subscription associated with the message.

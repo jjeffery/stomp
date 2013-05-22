@@ -73,7 +73,7 @@ func (c *Conn) Send(f *stomp.Frame) {
 
 // Send and ERROR message to the client. The client
 // connection will disconnect as soon as the ERROR
-// message has been transmitted. The message header 
+// message has been transmitted. The message header
 // will be based on the contents of the err parameter.
 func (c *Conn) SendError(err error) {
 	f := stomp.NewFrame(frame.ERROR, frame.Message, err.Error())
@@ -82,7 +82,7 @@ func (c *Conn) SendError(err error) {
 
 // Send an ERROR frame to the client and immediately. The error
 // message is derived from err. If f is non-nil, it is the frame
-// whose contents have caused the error. Include the receipt-id 
+// whose contents have caused the error. Include the receipt-id
 // header if the frame contains a receipt header.
 func (c *Conn) sendErrorImmediately(err error, f *stomp.Frame) {
 	errorFrame := stomp.NewFrame(frame.ERROR,
@@ -131,7 +131,7 @@ func (c *Conn) readLoop() {
 				log.Println("read failed:", err, ":", c.rw.RemoteAddr())
 			}
 
-			// Close the read channel so that the processing loop will 
+			// Close the read channel so that the processing loop will
 			// know to terminate, if it has not already done so. This is
 			// the only channel that we close, because it is the only one
 			// we know who is writing to.
@@ -154,7 +154,7 @@ func (c *Conn) readLoop() {
 			cx, _, err := getHeartBeat(f)
 
 			// Ignore the error condition and treat as no read timeout.
-			// The processing loop will handle the error again and 
+			// The processing loop will handle the error again and
 			// process correctly.
 			if err == nil {
 				// Minimum value as per server config. If the client
@@ -162,7 +162,7 @@ func (c *Conn) readLoop() {
 				// server will insist on the longer time period.
 				min := asMilliseconds(c.config.HeartBeat(), maxHeartBeat)
 
-				// apply a minimum heartbeat 
+				// apply a minimum heartbeat
 				if cx > 0 && cx < min {
 					cx = min
 				}
@@ -204,7 +204,7 @@ func (c *Conn) processLoop() {
 				return
 			}
 
-			// have a frame to the client with 
+			// have a frame to the client with
 			// no acknowledgement required (topic)
 
 			// stop the heart-beat timer
@@ -363,7 +363,7 @@ func (c *Conn) cleanupConn() {
 }
 
 // Discard anything on the write channel. These frames
-// do not get acknowledged, and are either topic MESSAGE 
+// do not get acknowledged, and are either topic MESSAGE
 // frames or ERROR frames.
 func (c *Conn) discardWriteChannelFrames() {
 	for finished := false; !finished; {
@@ -499,7 +499,7 @@ func (c *Conn) handleConnect(f *stomp.Frame) error {
 	// server will insist on the longer time period.
 	min := asMilliseconds(c.config.HeartBeat(), maxHeartBeat)
 
-	// apply a minimum heartbeat 
+	// apply a minimum heartbeat
 	if cx > 0 && cx < min {
 		cx = min
 	}
@@ -531,7 +531,7 @@ func (c *Conn) handleConnect(f *stomp.Frame) error {
 func (c *Conn) sendReceiptImmediately(f *stomp.Frame) error {
 	if receipt, ok := f.Contains(frame.Receipt); ok {
 		// Remove the receipt header from the frame. This is handy
-		// for transactions, because the frame has its receipt 
+		// for transactions, because the frame has its receipt
 		// header removed prior to entering the transaction store.
 		// When the frame is processed upon transaction commit, it
 		// will not have a receipt header anymore.
