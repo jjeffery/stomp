@@ -71,7 +71,9 @@ func doSomethingWith(f interface{}) {
 
 }
 
-func doAnotherThingWith(f interface{}, g interface{})
+func doAnotherThingWith(f interface{}, g interface{}) {
+
+}
 
 func ExampleSubscription() error {
 	conn, err := stomp.Dial("tcp", "localhost:61613", stomp.Options{})
