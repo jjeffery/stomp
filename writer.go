@@ -84,7 +84,7 @@ func (w *Writer) Write(f *Frame) error {
 			}
 		}
 
-		// write the final null (0) byte	
+		// write the final null (0) byte
 		_, err = w.writer.Write(nullSlice)
 		if err != nil {
 			return err

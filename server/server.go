@@ -10,7 +10,7 @@ import (
 
 // The STOMP server has the concept of queues and topics. A message
 // sent to a queue destination will be transmitted to the next available
-// client that has subscribed. A message sent to a topic will be 
+// client that has subscribed. A message sent to a topic will be
 // transmitted to all subscribers that are currently subscribed to the
 // topic.
 //
@@ -18,7 +18,7 @@ import (
 // Destinations that do not start with this prefix are considered to be topics.
 const QueuePrefix = "/queue"
 
-// Default server parameters. 
+// Default server parameters.
 const (
 	// Default address for listening for connections.
 	DefaultAddr = ":61613"
@@ -56,8 +56,8 @@ func Serve(l net.Listener) error {
 	return s.Serve(l)
 }
 
-// ListenAndServe listens on the TCP network address s.Addr and 
-// then calls Serve to handle requests on the incoming connections. 
+// ListenAndServe listens on the TCP network address s.Addr and
+// then calls Serve to handle requests on the incoming connections.
 // If s.Addr is blank, then DefaultAddr is used.
 func (s *Server) ListenAndServe() error {
 	addr := s.Addr

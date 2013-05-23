@@ -35,7 +35,7 @@ func main() {
 
 	// wait until we know the receiver has subscribed
 	<-subscribed
-	
+
 	go sendMessages()
 
 	<-stop

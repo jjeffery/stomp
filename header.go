@@ -9,7 +9,7 @@ import (
 // The header in a STOMP frame consists of a list of header entries.
 // Each header entry is a key/value pair of strings.
 //
-// Normally a STOMP header only has one header entry for a given key, but 
+// Normally a STOMP header only has one header entry for a given key, but
 // the STOMP standard does allow for multiple header entries with the same
 // key. In this case, the first header entry contains the value, and any
 // subsequent header entries with the same key are ignored.
@@ -86,8 +86,8 @@ func (h *Header) GetAt(index int) (key, value string) {
 	return h.slice[index], h.slice[index+1]
 }
 
-// Contains gets the first value associated with the given key, 
-// and also returns a bool indicating whether the header entry 
+// Contains gets the first value associated with the given key,
+// and also returns a bool indicating whether the header entry
 // exists.
 //
 // If there are no values associated with the key, Get returns ""
@@ -120,7 +120,7 @@ func (h *Header) Clone() *Header {
 }
 
 // ContentLength returns the value of the "content-length" header entry.
-// If the "content-length" header is missing, then ok is false. If the 
+// If the "content-length" header is missing, then ok is false. If the
 // "content-length" entry is present but is not a valid non-negative integer
 // then err is non-nil.
 func (h *Header) ContentLength() (value int, ok bool, err error) {

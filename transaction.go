@@ -10,7 +10,7 @@ import (
 // are processed atomically by the STOMP server.
 //
 // Transactions are committed with the Commit method. When a transaction is
-// committed, all sent messages, acknowledgements and negative acknowledgements, 
+// committed, all sent messages, acknowledgements and negative acknowledgements,
 // are processed by the STOMP server. Alternatively transactions can be aborted,
 // in which case all sent messages, acknowledgements and negative
 // acknowledgements are discarded by the STOMP server.
@@ -58,7 +58,7 @@ func (tx *Transaction) Commit() error {
 	return nil
 }
 
-// Send sends a message to the STOMP server as part of a transaction. The server will not process the 
+// Send sends a message to the STOMP server as part of a transaction. The server will not process the
 // message until the transaction is committed.
 // This method returns without confirming that the STOMP server has received the message. If the STOMP server
 // does fail to receive the message for any reason, the connection will close.

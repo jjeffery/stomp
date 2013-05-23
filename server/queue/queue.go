@@ -67,7 +67,7 @@ func (q *Queue) Enqueue(f *stomp.Frame) error {
 	return nil
 }
 
-// Send a message to the front of the queue, probably because it 
+// Send a message to the front of the queue, probably because it
 // failed to be sent to a client. If a subscription is available
 // to receive the message, it is sent to the subscription without
 // making it to the queue. Otherwise, the message is queued until

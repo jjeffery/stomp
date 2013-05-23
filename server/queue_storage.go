@@ -4,9 +4,9 @@ import (
 	"github.com/jjeffery/stomp"
 )
 
-// QueueStorage is an interface that abstracts the queue storage mechanism. 
+// QueueStorage is an interface that abstracts the queue storage mechanism.
 // The intent is that different queue storage implementations can be
-// used, depending on preference. Queue storage mechanisms could include 
+// used, depending on preference. Queue storage mechanisms could include
 // in-memory, and various persistent storage mechanisms (eg file system, DB, etc).
 type QueueStorage interface {
 	// Enqueue adds a MESSAGE frame to the end of the queue.

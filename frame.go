@@ -9,7 +9,7 @@ import (
 // body.
 //
 // Users of this package will not normally need to make use of the Frame
-// type directly. It is a lower level type useful for implementing 
+// type directly. It is a lower level type useful for implementing
 // STOMP protocol handlers.
 type Frame struct {
 	Command string
@@ -17,8 +17,8 @@ type Frame struct {
 	Body []byte
 }
 
-// NewFrame creates a new STOMP frame with the specified command and headers. 
-// The headers should contain an even number of entries. Each even index is 
+// NewFrame creates a new STOMP frame with the specified command and headers.
+// The headers should contain an even number of entries. Each even index is
 // the header name, and the odd indexes are the assocated header values.
 func NewFrame(command string, headers ...string) *Frame {
 	f := &Frame{Command: command, Header: &Header{}}

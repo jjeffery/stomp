@@ -25,7 +25,7 @@ func newTopic(destination string) *Topic {
 }
 
 // Subscribe adds a subscription to a topic. Any message sent to the
-// topic will be transmitted to the subscription's client until 
+// topic will be transmitted to the subscription's client until
 // unsubscription occurs.
 func (t *Topic) Subscribe(sub Subscription) {
 	t.subs.PushBack(sub)
