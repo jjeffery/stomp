@@ -136,6 +136,60 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 	}
 }
 
+func (s *StompSuite) Test_successful_connect_with_nonstandard_header(c *C) {
+	resetId()
+	fc1, fc2 := testutil.NewFakeConn(c)
+	stop := make(chan struct{})
+
+	go func() {
+		defer func() {
+			fc2.Close()
+			close(stop)
+		}()
+		reader := NewReader(fc2)
+		writer := NewWriter(fc2)
+
+		f1, err := reader.Read()
+		c.Assert(err, IsNil)
+		c.Assert(f1.Command, Equals, "CONNECT")
+		c.Assert(f1.Get("login"), Equals, "guest")
+		c.Assert(f1.Get("passcode"), Equals, "guest")
+		c.Assert(f1.Get("host"), Equals, "/")
+		c.Assert(f1.Get("x-max-length"), Equals, "50")
+		connectedFrame := NewFrame("CONNECTED")
+		connectedFrame.Add("session", "session-0voRHrG-VbBedx1Gwwb62Q")
+		connectedFrame.Add("heart-beat", "0,0")
+		connectedFrame.Add("server", "RabbitMQ/3.2.1")
+		connectedFrame.Add("version", "1.0")
+		writer.Write(connectedFrame)
+
+		f2, err := reader.Read()
+		c.Assert(err, IsNil)
+		c.Assert(f2.Command, Equals, "DISCONNECT")
+		receipt, _ := f2.Contains("receipt")
+		c.Check(receipt, Equals, "1")
+
+		writer.Write(NewFrame("RECEIPT", frame.ReceiptId, "1"))
+	}()
+
+	client, err := Connect(fc1, Options{
+		Login:       "guest",
+		Passcode:    "guest",
+		Host:        "/",
+		NonStandard: NewHeader("x-max-length", "50"),
+	})
+	c.Assert(err, IsNil)
+	c.Assert(client, NotNil)
+	c.Assert(client.Version(), Equals, V10)
+	c.Assert(client.Session(), Equals, "session-0voRHrG-VbBedx1Gwwb62Q")
+	c.Assert(client.Server(), Equals, "RabbitMQ/3.2.1")
+
+	err = client.Disconnect()
+	c.Assert(err, IsNil)
+
+	<-stop
+}
+
 // Sets up a connection for testing
 func connectHelper(c *C, version Version) (*Conn, *fakeReaderWriter) {
 	fc1, fc2 := testutil.NewFakeConn(c)
