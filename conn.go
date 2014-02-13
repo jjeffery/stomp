@@ -441,7 +441,6 @@ func createSendFrame(destination, contentType string, body []byte, userDefined *
 		f.Header.Set(frame.ContentType, contentType)
 	}
 
-	f.Header.Set(frame.ContentLength, strconv.Itoa(len(body)))
 	return f
 }
 
@@ -471,15 +470,23 @@ func (c *Conn) sendFrameWithReceipt(f *Frame) error {
 // The subscription has a destination, and messages sent to that destination
 // will be received by this subscription. A subscription has a channel
 // on which the calling program can receive messages.
-func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error) {
+func (c *Conn) Subscribe(destination string, ack AckMode, headers *Header) (*Subscription, error) {
 	ch := make(chan *Frame)
 	id := allocateId()
+
+        subscribeFrame := NewFrame(frame.SUBSCRIBE,
+        	frame.Id, id,
+        	frame.Destination, destination,
+        	frame.Ack, ack.String())
+	for i := 0; i < headers.Len(); i++ {
+  	  key, value := headers.GetAt(i)
+
+  	  subscribeFrame.Add(key, value)
+	}
+
 	request := writeRequest{
-		Frame: NewFrame(frame.SUBSCRIBE,
-			frame.Id, id,
-			frame.Destination, destination,
-			frame.Ack, ack.String()),
-		C: ch,
+		Frame: subscribeFrame,
+		C: ch
 	}
 
 	sub := &Subscription{
