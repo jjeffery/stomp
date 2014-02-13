@@ -441,7 +441,6 @@ func createSendFrame(destination, contentType string, body []byte, userDefined *
 		f.Header.Set(frame.ContentType, contentType)
 	}
 
-	f.Header.Set(frame.ContentLength, strconv.Itoa(len(body)))
 	return f
 }
 
