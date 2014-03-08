@@ -26,5 +26,10 @@ for implementing a STOMP server in go.
 The server subpackage provides a simple implementation of a STOMP server
 that is useful for testing and could be useful for applications that require a simple,
 STOMP-compliant message broker.
+
+Source code and other details for the project are available at GitHub:
+
+   https://github.com/go-stomp/stomp
+
 */
 package stomp
