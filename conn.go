@@ -471,14 +471,12 @@ func (c *Conn) sendFrameWithReceipt(f *Frame) error {
 // The subscription has a destination, and messages sent to that destination
 // will be received by this subscription. A subscription has a channel
 // on which the calling program can receive messages.
-func (c *Conn) Subscribe(destination string, ack AckMode, headers *Header) (*Subscription, error) {
-  return SubscribeWithHeaders(destination, ack, nil);
+func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error) {
+  return c.SubscribeWithHeaders(destination, ack, nil);
 }
 
-// Subscribe creates a subscription on the STOMP server.
-// The subscription has a destination, and messages sent to that destination
-// will be received by this subscription. A subscription has a channel
-// on which the calling program can receive messages.
+// SubscribeWithHeaders is similar to Subscribe, but also sends optional headers with
+// the subscription.
 func (c *Conn) SubscribeWithHeaders(destination string, ack AckMode, headers *Header) (*Subscription, error) {
 	ch := make(chan *Frame)
 	id := allocateId()
@@ -500,7 +498,7 @@ func (c *Conn) SubscribeWithHeaders(destination string, ack AckMode, headers *He
 
 	request := writeRequest{
 		Frame: subscribeFrame,
-		C: ch
+		C: ch,
 	}
 
 	sub := &Subscription{
