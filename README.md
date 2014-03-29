@@ -10,12 +10,12 @@ Features:
 * Heart beating for testing the underlying network connection
 * Tested against RabbitMQ v3.0.1
 
-For more information see http://godoc.org/gopkg.in/v0/stomp
+For more information see http://gopkg.in/stomp.v1
 
 Also contains a package for implementing a simple STOMP server.
 Supports in-memory queues and topics, but can be easily extended to
 support other queue storage mechanisms.
 
 For more information on the STOMP server package see
-http://godoc.org/gopkg.in/v0/stomp/server 
+http://gopkg.in/stomp.v1/server 
 
