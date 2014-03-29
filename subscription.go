@@ -2,7 +2,7 @@ package stomp
 
 import (
 	"fmt"
-	"github.com/jjeffery/stomp/frame"
+	"gopkg.in/stomp.v1/frame"
 	"log"
 )
 

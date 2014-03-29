@@ -1,9 +1,5 @@
 package stomp
 
-import (
-//"github.com/jjeffery/stomp/frame"
-)
-
 // A Frame represents a STOMP frame. A frame consists of a command
 // followed by a collection of header elements, and then an optional
 // body.

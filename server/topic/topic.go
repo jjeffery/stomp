@@ -5,7 +5,7 @@ package topic
 
 import (
 	"container/list"
-	"github.com/jjeffery/stomp"
+	"gopkg.in/stomp.v1"
 )
 
 // A Topic is used for broadcasting to subscribed clients.

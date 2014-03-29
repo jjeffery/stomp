@@ -2,8 +2,8 @@ package client
 
 import (
 	"container/list"
-	"github.com/jjeffery/stomp"
-	"github.com/jjeffery/stomp/frame"
+	"gopkg.in/stomp.v1"
+	"gopkg.in/stomp.v1/frame"
 )
 
 type txStore struct {

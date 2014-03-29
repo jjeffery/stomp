@@ -2,8 +2,8 @@ package client
 
 import (
 	"fmt"
-	"github.com/jjeffery/stomp"
-	"github.com/jjeffery/stomp/frame"
+	"gopkg.in/stomp.v1"
+	"gopkg.in/stomp.v1/frame"
 	"io"
 	"log"
 	"net"

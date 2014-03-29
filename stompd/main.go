@@ -14,7 +14,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/jjeffery/stomp/server"
+	"gopkg.in/stomp.v1/server"
 	"log"
 	"net"
 	"os"

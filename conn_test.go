@@ -2,8 +2,8 @@ package stomp
 
 import (
 	"fmt"
-	"github.com/jjeffery/stomp/frame"
-	"github.com/jjeffery/stomp/testutil"
+	"gopkg.in/stomp.v1/frame"
+	"gopkg.in/stomp.v1/testutil"
 	"io"
 	. "launchpad.net/gocheck"
 	"time"

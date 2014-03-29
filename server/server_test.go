@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	"github.com/jjeffery/stomp"
+	"gopkg.in/stomp.v1"
 	. "launchpad.net/gocheck"
 	_ "log"
 	"net"

@@ -1,10 +1,10 @@
 package server
 
 import (
-	"github.com/jjeffery/stomp/frame"
-	"github.com/jjeffery/stomp/server/client"
-	"github.com/jjeffery/stomp/server/queue"
-	"github.com/jjeffery/stomp/server/topic"
+	"gopkg.in/stomp.v1/frame"
+	"gopkg.in/stomp.v1/server/client"
+	"gopkg.in/stomp.v1/server/queue"
+	"gopkg.in/stomp.v1/server/topic"
 	"log"
 	"net"
 	"strings"

@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/jjeffery/stomp"
+	"gopkg.in/stomp.v1"
 	"strconv"
 )
 

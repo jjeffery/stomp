@@ -2,7 +2,7 @@ package queue
 
 import (
 	"container/list"
-	"github.com/jjeffery/stomp"
+	"gopkg.in/stomp.v1"
 )
 
 // In-memory implementation of the QueueStorage interface.
