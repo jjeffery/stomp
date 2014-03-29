@@ -1,6 +1,8 @@
 stomp
 =====
 
+This repo has now moved to https://github.com/go-stomp/stomp.  See https://gopkg.in/stomp.v1
+
 Go language implementation of a STOMP client library.
 
 Features:
