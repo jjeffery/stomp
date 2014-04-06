@@ -1,8 +1,8 @@
 package stomp
 
 import (
+	. "gopkg.in/check.v1"
 	"io"
-	. "launchpad.net/gocheck"
 	"strings"
 	"testing/iotest"
 )

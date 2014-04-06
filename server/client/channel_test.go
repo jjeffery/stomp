@@ -1,7 +1,7 @@
 package client
 
 import (
-	. "launchpad.net/gocheck"
+	. "gopkg.in/check.v1"
 )
 
 // Test suite for testing that channels work the way I expect.

@@ -2,10 +2,10 @@ package stomp
 
 import (
 	"fmt"
+	. "gopkg.in/check.v1"
 	"gopkg.in/stomp.v1/frame"
 	"gopkg.in/stomp.v1/testutil"
 	"io"
-	. "launchpad.net/gocheck"
 	"time"
 )
 

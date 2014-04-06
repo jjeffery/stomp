@@ -2,8 +2,8 @@ package testutil
 
 import (
 	"errors"
+	. "gopkg.in/check.v1"
 	"io"
-	. "launchpad.net/gocheck"
 	"net"
 	"time"
 )

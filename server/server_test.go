@@ -2,8 +2,8 @@ package server
 
 import (
 	"fmt"
+	. "gopkg.in/check.v1"
 	"gopkg.in/stomp.v1"
-	. "launchpad.net/gocheck"
 	_ "log"
 	"net"
 	"runtime"

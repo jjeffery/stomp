@@ -1,12 +1,12 @@
 package client
 
 import (
-	"launchpad.net/gocheck"
+	"gopkg.in/check.v1"
 	"testing"
 )
 
 // Runs all gocheck tests in this package.
 // See other *_test.go files for gocheck tests.
 func TestClient(t *testing.T) {
-	gocheck.TestingT(t)
+	check.TestingT(t)
 }

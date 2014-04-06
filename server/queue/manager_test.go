@@ -1,7 +1,7 @@
 package queue
 
 import (
-	. "launchpad.net/gocheck"
+	. "gopkg.in/check.v1"
 )
 
 type ManagerSuite struct{}

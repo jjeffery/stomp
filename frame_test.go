@@ -1,7 +1,7 @@
 package stomp
 
 import (
-	. "launchpad.net/gocheck"
+	. "gopkg.in/check.v1"
 )
 
 type FrameSuite struct{}

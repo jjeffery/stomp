@@ -1,7 +1,7 @@
 package stomp
 
 import (
-	. "launchpad.net/gocheck"
+	. "gopkg.in/check.v1"
 )
 
 func (s *StompSuite) TestHeaderGetSetAddDel(c *C) {
