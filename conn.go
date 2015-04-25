@@ -488,18 +488,27 @@ func (c *Conn) sendFrameWithReceipt(f *Frame) error {
 // will be received by this subscription. A subscription has a channel
 // on which the calling program can receive messages.
 func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error) {
+	return c.SubscribeWithHeaders(destination, ack, NewHeader())
+}
+
+func (c *Conn) SubscribeWithHeaders(destination string, ack AckMode, userDefined *Header) (*Subscription, error) {
 	ch := make(chan *Frame)
-	id := allocateId()
-	request := writeRequest{
-		Frame: NewFrame(frame.SUBSCRIBE,
-			frame.Id, id,
-			frame.Destination, destination,
-			frame.Ack, ack.String()),
-		C: ch,
+	headers := userDefined.Clone()
+
+	if _, ok := headers.Contains(frame.Id); !ok {
+		headers.Add(frame.Id, allocateId())
 	}
 
+	headers.Add(frame.Destination, destination)
+	headers.Add(frame.Ack, ack.String())
+
+	f := NewFrame(frame.SUBSCRIBE)
+	f.Header = headers
+
+	request := writeRequest{Frame: f, C: ch}
+
 	sub := &Subscription{
-		id:          id,
+		id:          headers.Get(frame.Id),
 		destination: destination,
 		conn:        c,
 		ackMode:     ack,
