@@ -2,11 +2,12 @@ package stomp
 
 import (
 	"fmt"
+	"io"
+	"time"
+
 	. "gopkg.in/check.v1"
 	"gopkg.in/stomp.v1/frame"
 	"gopkg.in/stomp.v1/testutil"
-	"io"
-	"time"
 )
 
 type fakeReaderWriter struct {
@@ -221,15 +222,17 @@ func connectHelper(c *C, version Version) (*Conn, *fakeReaderWriter) {
 func (s *StompSuite) Test_subscribe(c *C) {
 	ackModes := []AckMode{AckAuto, AckClient, AckClientIndividual}
 	versions := []Version{V10, V11, V12}
+	header := NewHeader("id", "client-1", "custom", "true")
 
 	for _, ackMode := range ackModes {
 		for _, version := range versions {
-			subscribeHelper(c, ackMode, version)
+			subscribeHelper(c, ackMode, version, nil)
+			subscribeHelper(c, ackMode, version, header)
 		}
 	}
 }
 
-func subscribeHelper(c *C, ackMode AckMode, version Version) {
+func subscribeHelper(c *C, ackMode AckMode, version Version, header *Header) {
 	conn, rw := connectHelper(c, version)
 	stop := make(chan struct{})
 
@@ -242,8 +245,18 @@ func subscribeHelper(c *C, ackMode AckMode, version Version) {
 		f3, err := rw.Read()
 		c.Assert(err, IsNil)
 		c.Assert(f3.Command, Equals, "SUBSCRIBE")
+
 		id, ok := f3.Contains("id")
 		c.Assert(ok, Equals, true)
+
+		if header != nil {
+			for i := 0; i < header.Len(); i++ {
+				k, v := header.GetAt(i)
+				headerV, _ := f3.Contains(k)
+				c.Assert(headerV, Equals, v)
+			}
+		}
+
 		destination := f3.Get("destination")
 		c.Assert(destination, Equals, "/queue/test-1")
 		ack := f3.Get("ack")
@@ -287,7 +300,14 @@ func subscribeHelper(c *C, ackMode AckMode, version Version) {
 			frame.ReceiptId, f7.Get(frame.Receipt)))
 	}()
 
-	sub, err := conn.Subscribe("/queue/test-1", ackMode)
+	var sub *Subscription
+	var err error
+	if header != nil {
+		sub, err = conn.SubscribeWithHeaders("/queue/test-1", ackMode, header)
+	} else {
+		sub, err = conn.Subscribe("/queue/test-1", ackMode)
+	}
+
 	c.Assert(sub, NotNil)
 	c.Assert(err, IsNil)
 
