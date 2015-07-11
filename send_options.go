@@ -4,7 +4,7 @@ import (
 	"github.com/jjeffery/stomp/frame"
 )
 
-// SendOpt contains options for for the Conn.Send function.
+// SendOpt contains options for for the Conn.Send and Transaction.Send functions.
 var SendOpt struct {
 	// Receipt specifies that the client should request acknowledgement
 	// from the server before the send operation successfully completes.
