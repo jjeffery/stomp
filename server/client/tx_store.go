@@ -57,7 +57,7 @@ func (txs *txStore) Commit(tx string, commitFunc func(f *stomp.Frame) error) err
 
 func (txs *txStore) Add(tx string, f *stomp.Frame) error {
 	if list, ok := txs.transactions[tx]; ok {
-		f.Del(frame.Transaction)
+		f.Header.Del(frame.Transaction)
 		list.PushBack(f)
 		return nil
 	}

@@ -91,8 +91,8 @@ func (c *Conn) sendErrorImmediately(err error, f *stomp.Frame) {
 	// Include a receipt-id header if the frame that prompted the error had
 	// a receipt header (as suggested by the STOMP protocol spec).
 	if f != nil {
-		if receipt, ok := f.Contains(frame.Receipt); ok {
-			errorFrame.Add(frame.ReceiptId, receipt)
+		if receipt, ok := f.Header.Contains(frame.Receipt); ok {
+			errorFrame.Header.Add(frame.ReceiptId, receipt)
 		}
 	}
 
@@ -403,14 +403,14 @@ func (c *Conn) allocateMessageId(f *stomp.Frame, sub *Subscription) {
 		// allocate the value of message-id for this frame
 		c.lastMsgId++
 		messageId := strconv.FormatUint(c.lastMsgId, 10)
-		f.Set(frame.MessageId, messageId)
+		f.Header.Set(frame.MessageId, messageId)
 
 		// if there is any requirement by the client to acknowledge, set
 		// the ack header as per STOMP 1.2
 		if sub == nil || sub.ack == frame.AckAuto {
-			f.Del(frame.Ack)
+			f.Header.Del(frame.Ack)
 		} else {
-			f.Set(frame.Ack, messageId)
+			f.Header.Set(frame.Ack, messageId)
 		}
 	}
 }
@@ -457,7 +457,7 @@ func connected(c *Conn, f *stomp.Frame) error {
 func (c *Conn) handleConnect(f *stomp.Frame) error {
 	var err error
 
-	if _, ok := f.Contains(frame.Receipt); ok {
+	if _, ok := f.Header.Contains(frame.Receipt); ok {
 		// CONNNECT and STOMP frames are not allowed to have
 		// a receipt header.
 		return receiptInConnect
@@ -465,8 +465,8 @@ func (c *Conn) handleConnect(f *stomp.Frame) error {
 
 	// if either of these fields are absent, pass nil to the
 	// authenticator function.
-	login, _ := f.Contains(frame.Login)
-	passcode, _ := f.Contains(frame.Passcode)
+	login, _ := f.Header.Contains(frame.Login)
+	passcode, _ := f.Header.Contains(frame.Passcode)
 	if !c.config.Authenticate(login, passcode) {
 		// sleep to slow down a rogue client a little bit
 		log.Println("authentication failed")
@@ -529,13 +529,13 @@ func (c *Conn) handleConnect(f *stomp.Frame) error {
 // a receipt header. If the frame does contain a receipt header,
 // it will be removed from the frame.
 func (c *Conn) sendReceiptImmediately(f *stomp.Frame) error {
-	if receipt, ok := f.Contains(frame.Receipt); ok {
+	if receipt, ok := f.Header.Contains(frame.Receipt); ok {
 		// Remove the receipt header from the frame. This is handy
 		// for transactions, because the frame has its receipt
 		// header removed prior to entering the transaction store.
 		// When the frame is processed upon transaction commit, it
 		// will not have a receipt header anymore.
-		f.Del(frame.Receipt)
+		f.Header.Del(frame.Receipt)
 		return c.sendImmediately(stomp.NewFrame(frame.RECEIPT,
 			frame.ReceiptId, receipt))
 	}
@@ -555,7 +555,7 @@ func (c *Conn) handleDisconnect(f *stomp.Frame) error {
 func (c *Conn) handleBegin(f *stomp.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
-	if transaction, ok := f.Contains(frame.Transaction); ok {
+	if transaction, ok := f.Header.Contains(frame.Transaction); ok {
 		// Send a receipt and remove the header
 		err := c.sendReceiptImmediately(f)
 		if err != nil {
@@ -570,7 +570,7 @@ func (c *Conn) handleBegin(f *stomp.Frame) error {
 func (c *Conn) handleCommit(f *stomp.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
-	if transaction, ok := f.Contains(frame.Transaction); ok {
+	if transaction, ok := f.Header.Contains(frame.Transaction); ok {
 		// Send a receipt and remove the header
 		err := c.sendReceiptImmediately(f)
 		if err != nil {
@@ -589,7 +589,7 @@ func (c *Conn) handleCommit(f *stomp.Frame) error {
 func (c *Conn) handleAbort(f *stomp.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
-	if transaction, ok := f.Contains(frame.Transaction); ok {
+	if transaction, ok := f.Header.Contains(frame.Transaction); ok {
 		// Send a receipt and remove the header
 		err := c.sendReceiptImmediately(f)
 		if err != nil {
@@ -601,17 +601,17 @@ func (c *Conn) handleAbort(f *stomp.Frame) error {
 }
 
 func (c *Conn) handleSubscribe(f *stomp.Frame) error {
-	id, ok := f.Contains(frame.Id)
+	id, ok := f.Header.Contains(frame.Id)
 	if !ok {
 		return missingHeader(frame.Id)
 	}
 
-	dest, ok := f.Contains(frame.Destination)
+	dest, ok := f.Header.Contains(frame.Destination)
 	if !ok {
 		return missingHeader(frame.Destination)
 	}
 
-	ack, ok := f.Contains(frame.Ack)
+	ack, ok := f.Header.Contains(frame.Ack)
 	if !ok {
 		ack = frame.AckAuto
 	}
@@ -630,7 +630,7 @@ func (c *Conn) handleSubscribe(f *stomp.Frame) error {
 }
 
 func (c *Conn) handleUnsubscribe(f *stomp.Frame) error {
-	id, ok := f.Contains(frame.Id)
+	id, ok := f.Header.Contains(frame.Id)
 	if !ok {
 		return missingHeader(frame.Id)
 	}
@@ -652,9 +652,9 @@ func (c *Conn) handleAck(f *stomp.Frame) error {
 	var err error
 	var msgId string
 
-	if ack, ok := f.Contains(frame.Ack); ok {
+	if ack, ok := f.Header.Contains(frame.Ack); ok {
 		msgId = ack
-	} else if msgId, ok = f.Contains(frame.MessageId); !ok {
+	} else if msgId, ok = f.Header.Contains(frame.MessageId); !ok {
 		return missingHeader(frame.MessageId)
 	}
 
@@ -670,7 +670,7 @@ func (c *Conn) handleAck(f *stomp.Frame) error {
 		return err
 	}
 
-	if tx, ok := f.Contains(frame.Transaction); ok {
+	if tx, ok := f.Header.Contains(frame.Transaction); ok {
 		// the transaction header is removed from the frame
 		err = c.txStore.Add(tx, f)
 		if err != nil {
@@ -695,9 +695,9 @@ func (c *Conn) handleNack(f *stomp.Frame) error {
 	var err error
 	var msgId string
 
-	if ack, ok := f.Contains(frame.Ack); ok {
+	if ack, ok := f.Header.Contains(frame.Ack); ok {
 		msgId = ack
-	} else if msgId, ok = f.Contains(frame.MessageId); !ok {
+	} else if msgId, ok = f.Header.Contains(frame.MessageId); !ok {
 		return missingHeader(frame.MessageId)
 	}
 
@@ -713,7 +713,7 @@ func (c *Conn) handleNack(f *stomp.Frame) error {
 		return err
 	}
 
-	if tx, ok := f.Contains(frame.Transaction); ok {
+	if tx, ok := f.Header.Contains(frame.Transaction); ok {
 		// the transaction header is removed from the frame
 		err = c.txStore.Add(tx, f)
 		if err != nil {
@@ -746,7 +746,7 @@ func (c *Conn) handleSend(f *stomp.Frame) error {
 		return err
 	}
 
-	if tx, ok := f.Contains(frame.Transaction); ok {
+	if tx, ok := f.Header.Contains(frame.Transaction); ok {
 		// the transaction header is removed from the frame
 		err = c.txStore.Add(tx, f)
 		if err != nil {

@@ -81,5 +81,5 @@ func (s *Subscription) setSubscriptionHeader(f *stomp.Frame) {
 	if s.frame != nil {
 		panic("subscription already has a frame pending")
 	}
-	f.Set(frame.Subscription, s.id)
+	f.Header.Set(frame.Subscription, s.id)
 }

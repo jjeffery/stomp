@@ -62,7 +62,7 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 			}
 
 		case client.EnqueueOp:
-			destination, ok := r.Frame.Contains(frame.Destination)
+			destination, ok := r.Frame.Header.Contains(frame.Destination)
 			if !ok {
 				// should not happen, already checked in lower layer
 				panic("missing destination")
@@ -77,7 +77,7 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 			}
 
 		case client.RequeueOp:
-			destination, ok := r.Frame.Contains(frame.Destination)
+			destination, ok := r.Frame.Header.Contains(frame.Destination)
 			if !ok {
 				// should not happen, already checked in lower layer
 				panic("missing destination")

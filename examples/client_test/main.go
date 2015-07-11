@@ -16,10 +16,9 @@ var helpFlag = flag.Bool("help", false, "Print help text")
 var stop = make(chan bool)
 
 // these are the default options that work with RabbitMQ
-var options = stomp.Options{
-	Login:    "guest",
-	Passcode: "guest",
-	Host:     "/",
+var options []func(*stomp.Conn) error = []func(*stomp.Conn) error{
+	stomp.ConnOpt.Login("guest", "guest"),
+	stomp.ConnOpt.Host("/"),
 }
 
 func main() {
@@ -47,7 +46,7 @@ func sendMessages() {
 		stop <- true
 	}()
 
-	conn, err := stomp.Dial("tcp", *serverAddr, options)
+	conn, err := stomp.Dial("tcp", *serverAddr, options...)
 	if err != nil {
 		println("cannot connect to server", err.Error())
 		return
@@ -70,7 +69,8 @@ func recvMessages(subscribed chan bool) {
 		stop <- true
 	}()
 
-	conn, err := stomp.Dial("tcp", *serverAddr, options)
+	conn, err := stomp.Dial("tcp", *serverAddr, options...)
+
 	if err != nil {
 		println("cannot connect to server", err.Error())
 		return
