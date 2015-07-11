@@ -59,8 +59,8 @@ func TestCheckSupported(t *testing.T) {
 			Err:     nil,
 		},
 		{
-			Version: stomp.Version("xxx"),
-			Err:     stomp.ErrInvalidVersion,
+			Version: stomp.Version("2.2"),
+			Err:     stomp.ErrUnsupportedVersion,
 		},
 	}
 
