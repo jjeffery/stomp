@@ -13,8 +13,8 @@ import (
 // STOMP protocol handlers.
 type Frame struct {
 	Command string
-	*Header
-	Body []byte
+	Header  *Header
+	Body    []byte
 }
 
 // NewFrame creates a new STOMP frame with the specified command and headers.
@@ -23,7 +23,7 @@ type Frame struct {
 func NewFrame(command string, headers ...string) *Frame {
 	f := &Frame{Command: command, Header: &Header{}}
 	for index := 0; index < len(headers); index += 2 {
-		f.Add(headers[index], headers[index+1])
+		f.Header.Add(headers[index], headers[index+1])
 	}
 	return f
 }

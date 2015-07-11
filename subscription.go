@@ -83,8 +83,8 @@ func (s *Subscription) readLoop(ch chan *Frame) {
 		}
 
 		if f.Command == frame.MESSAGE {
-			destination := f.Get(frame.Destination)
-			contentType := f.Get(frame.ContentType)
+			destination := f.Header.Get(frame.Destination)
+			contentType := f.Header.Get(frame.ContentType)
 			msg := &Message{
 				Destination:  destination,
 				ContentType:  contentType,
@@ -95,16 +95,16 @@ func (s *Subscription) readLoop(ch chan *Frame) {
 			}
 			s.C <- msg
 		} else if f.Command == frame.ERROR {
-			message, _ := f.Contains(frame.Message)
+			message, _ := f.Header.Contains(frame.Message)
 			text := fmt.Sprintf("Subscription %s: %s: ERROR message:%s",
 				s.id,
 				s.destination,
 				message)
 			log.Println(text)
-			contentType := f.Get(frame.ContentType)
+			contentType := f.Header.Get(frame.ContentType)
 			msg := &Message{
 				Err: &Error{
-					Message: f.Get(frame.Message),
+					Message: f.Header.Get(frame.Message),
 					Frame:   f,
 				},
 				ContentType:  contentType,

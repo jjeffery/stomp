@@ -95,7 +95,7 @@ func (r *Reader) Read() (*Frame, error) {
 	}
 
 	// get content length from the headers
-	if contentLength, ok, err := f.ContentLength(); err != nil {
+	if contentLength, ok, err := f.Header.ContentLength(); err != nil {
 		// happens if the content is malformed
 		return nil, err
 	} else if ok {

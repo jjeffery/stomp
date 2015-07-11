@@ -40,7 +40,7 @@ func newError(f *Frame) Error {
 	e := Error{Frame: f}
 
 	if f.Command == frame.ERROR {
-		if message := f.Get(frame.Message); message != "" {
+		if message := f.Header.Get(frame.Message); message != "" {
 			e.Message = message
 		} else {
 			e.Message = "ERROR frame, missing message header"

@@ -17,7 +17,7 @@ func init() {
 			if f.Command != frame.SUBSCRIBE {
 				return ErrInvalidCommand
 			}
-			f.AddHeader(header)
+			f.Header.AddHeader(header)
 			return nil
 		}
 	}

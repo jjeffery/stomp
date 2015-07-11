@@ -108,10 +108,10 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 		return nil, newError(response)
 	}
 
-	c.server = response.Get(frame.Server)
-	c.session = response.Get(frame.Session)
+	c.server = response.Header.Get(frame.Server)
+	c.session = response.Header.Get(frame.Session)
 
-	if versionString := response.Get(frame.Version); versionString != "" {
+	if versionString := response.Header.Get(frame.Version); versionString != "" {
 		version := Version(versionString)
 		if err = version.CheckSupported(); err != nil {
 			return nil, Error{
@@ -125,7 +125,7 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 		c.version = V10
 	}
 
-	if heartBeat, ok := response.Contains(frame.HeartBeat); ok {
+	if heartBeat, ok := response.Header.Contains(frame.HeartBeat); ok {
 		readTimeout, writeTimeout, err := frame.ParseHeartBeat(heartBeat)
 		if err != nil {
 			return nil, Error{
@@ -257,7 +257,7 @@ func processLoop(c *Conn, writer *Writer) {
 
 			switch f.Command {
 			case frame.RECEIPT:
-				if id, ok := f.Contains(frame.ReceiptId); ok {
+				if id, ok := f.Header.Contains(frame.ReceiptId); ok {
 					if ch, ok := channels[id]; ok {
 						ch <- f
 						delete(channels, id)
@@ -279,7 +279,7 @@ func processLoop(c *Conn, writer *Writer) {
 				return
 
 			case frame.MESSAGE:
-				if id, ok := f.Contains(frame.Subscription); ok {
+				if id, ok := f.Header.Contains(frame.Subscription); ok {
 					if ch, ok := channels[id]; ok {
 						ch <- f
 					} else {
@@ -300,7 +300,7 @@ func processLoop(c *Conn, writer *Writer) {
 				return
 			}
 			if req.C != nil {
-				if receipt, ok := req.Frame.Contains(frame.Receipt); ok {
+				if receipt, ok := req.Frame.Header.Contains(frame.Receipt); ok {
 					// remember the channel for this receipt
 					channels[receipt] = req.C
 				}
@@ -308,14 +308,14 @@ func processLoop(c *Conn, writer *Writer) {
 
 			switch req.Frame.Command {
 			case frame.SUBSCRIBE:
-				id, _ := req.Frame.Contains(frame.Id)
+				id, _ := req.Frame.Header.Contains(frame.Id)
 				channels[id] = req.C
 			case frame.UNSUBSCRIBE:
-				id, _ := req.Frame.Contains(frame.Id)
+				id, _ := req.Frame.Header.Contains(frame.Id)
 				// is this trying to be too clever -- add a receipt
 				// header so that when the server responds with a
 				// RECEIPT frame, the corresponding channel will be closed
-				req.Frame.Set(frame.Receipt, id)
+				req.Frame.Header.Set(frame.Receipt, id)
 			}
 
 			// frame to send
@@ -373,7 +373,7 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 		return err
 	}
 
-	if _, ok := f.Contains(frame.Receipt); ok {
+	if _, ok := f.Header.Contains(frame.Receipt); ok {
 		// receipt required
 		request := writeRequest{
 			Frame: f,
@@ -419,7 +419,7 @@ func createSendFrame(destination, contentType string, body []byte, opts []func(*
 }
 
 func (c *Conn) sendFrame(f *Frame) error {
-	if _, ok := f.Contains(frame.Receipt); ok {
+	if _, ok := f.Header.Contains(frame.Receipt); ok {
 		// receipt required
 		request := writeRequest{
 			Frame: f,
@@ -440,23 +440,6 @@ func (c *Conn) sendFrame(f *Frame) error {
 		request := writeRequest{Frame: f}
 		c.writeCh <- request
 	}
-
-	return nil
-}
-
-func (c *Conn) sendFrameWithReceipt(f *Frame) error {
-	receipt := allocateId()
-	f.Set(frame.Receipt, receipt)
-
-	request := writeRequest{Frame: f}
-
-	request.C = make(chan *Frame)
-	c.writeCh <- request
-	response := <-request.C
-	if response.Command != frame.RECEIPT {
-		return newError(response)
-	}
-	// TODO(jpj) Check receipt id
 
 	return nil
 }

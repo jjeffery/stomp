@@ -55,29 +55,29 @@ func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) 
 func (co *connOptions) NewFrame() (*Frame, error) {
 	f := NewFrame(co.FrameCommand)
 	if co.Host != "" {
-		f.Set(frame.Host, co.Host)
+		f.Header.Set(frame.Host, co.Host)
 	}
 
 	// heart-beat
 	{
 		send := co.WriteTimeout / time.Millisecond
 		recv := co.ReadTimeout / time.Millisecond
-		f.Set(frame.HeartBeat, fmt.Sprintf("%d,%d", send, recv))
+		f.Header.Set(frame.HeartBeat, fmt.Sprintf("%d,%d", send, recv))
 	}
 
 	// login, passcode
 	if co.Login != "" || co.Passcode != "" {
-		f.Set(frame.Login, co.Login)
-		f.Set(frame.Passcode, co.Passcode)
+		f.Header.Set(frame.Login, co.Login)
+		f.Header.Set(frame.Passcode, co.Passcode)
 	}
 
 	// accept-version
-	f.Set(frame.AcceptVersion, strings.Join(co.AcceptVersions, ","))
+	f.Header.Set(frame.AcceptVersion, strings.Join(co.AcceptVersions, ","))
 
 	// custom header entries -- note that these do not override
 	// header values already set as they are added to the end of
 	// the header array
-	f.AddHeader(co.Header)
+	f.Header.AddHeader(co.Header)
 
 	return f, nil
 }

@@ -12,12 +12,12 @@ func (s *FrameSuite) TestClone(c *C) {
 	f1 := NewFrame("CONNECT", "login", "scott", "passcode", "leopard")
 	f1.Body = []byte{1, 2, 3, 4}
 	f2 := f1.Clone()
-	f1.Set("login", "shaun")
+	f1.Header.Set("login", "shaun")
 
-	c.Check(f1.Get("login"), Equals, "shaun")
-	c.Check(f2.Get("login"), Equals, "scott")
+	c.Check(f1.Header.Get("login"), Equals, "shaun")
+	c.Check(f2.Header.Get("login"), Equals, "scott")
 	c.Check(f2.Command, Equals, f1.Command)
-	c.Check(f2.Get("passcode"), Equals, f1.Get("passcode"))
+	c.Check(f2.Header.Get("passcode"), Equals, f1.Header.Get("passcode"))
 	c.Check(f2.Body, DeepEquals, f1.Body)
 
 	// changing the body on one changes it for both

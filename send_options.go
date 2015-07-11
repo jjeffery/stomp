@@ -29,7 +29,7 @@ func init() {
 			return ErrInvalidCommand
 		}
 		id := allocateId()
-		f.Set(frame.Receipt, id)
+		f.Header.Set(frame.Receipt, id)
 		return nil
 	}
 
@@ -38,7 +38,7 @@ func init() {
 			if f.Command != frame.SEND {
 				return ErrInvalidCommand
 			}
-			f.AddHeader(header)
+			f.Header.AddHeader(header)
 			return nil
 		}
 	}

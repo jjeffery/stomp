@@ -98,7 +98,7 @@ func (tx *Transaction) Ack(msg *Message) error {
 	}
 
 	if f != nil {
-		f.Set(frame.Transaction, tx.id)
+		f.Header.Set(frame.Transaction, tx.id)
 		tx.conn.sendFrame(f)
 	}
 
@@ -123,7 +123,7 @@ func (tx *Transaction) Nack(msg *Message) error {
 	}
 
 	if f != nil {
-		f.Set(frame.Transaction, tx.id)
+		f.Header.Set(frame.Transaction, tx.id)
 		tx.conn.sendFrame(f)
 	}
 

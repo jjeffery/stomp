@@ -99,24 +99,24 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 			f1, err := reader.Read()
 			c.Assert(err, IsNil)
 			c.Assert(f1.Command, Equals, "CONNECT")
-			host, _ := f1.Contains("host")
+			host, _ := f1.Header.Contains("host")
 			c.Check(host, Equals, tc.ExpectedHost)
 			connectedFrame := NewFrame("CONNECTED")
 			if tc.NegotiatedVersion != "" {
-				connectedFrame.Add("version", tc.NegotiatedVersion)
+				connectedFrame.Header.Add("version", tc.NegotiatedVersion)
 			}
 			if tc.ExpectedSession != "" {
-				connectedFrame.Add("session", tc.ExpectedSession)
+				connectedFrame.Header.Add("session", tc.ExpectedSession)
 			}
 			if tc.ExpectedServer != "" {
-				connectedFrame.Add("server", tc.ExpectedServer)
+				connectedFrame.Header.Add("server", tc.ExpectedServer)
 			}
 			writer.Write(connectedFrame)
 
 			f2, err := reader.Read()
 			c.Assert(err, IsNil)
 			c.Assert(f2.Command, Equals, "DISCONNECT")
-			receipt, _ := f2.Contains("receipt")
+			receipt, _ := f2.Header.Contains("receipt")
 			c.Check(receipt, Equals, "1")
 
 			writer.Write(NewFrame("RECEIPT", frame.ReceiptId, "1"))
@@ -152,21 +152,21 @@ func (s *StompSuite) Test_successful_connect_with_nonstandard_header(c *C) {
 		f1, err := reader.Read()
 		c.Assert(err, IsNil)
 		c.Assert(f1.Command, Equals, "CONNECT")
-		c.Assert(f1.Get("login"), Equals, "guest")
-		c.Assert(f1.Get("passcode"), Equals, "guest")
-		c.Assert(f1.Get("host"), Equals, "/")
-		c.Assert(f1.Get("x-max-length"), Equals, "50")
+		c.Assert(f1.Header.Get("login"), Equals, "guest")
+		c.Assert(f1.Header.Get("passcode"), Equals, "guest")
+		c.Assert(f1.Header.Get("host"), Equals, "/")
+		c.Assert(f1.Header.Get("x-max-length"), Equals, "50")
 		connectedFrame := NewFrame("CONNECTED")
-		connectedFrame.Add("session", "session-0voRHrG-VbBedx1Gwwb62Q")
-		connectedFrame.Add("heart-beat", "0,0")
-		connectedFrame.Add("server", "RabbitMQ/3.2.1")
-		connectedFrame.Add("version", "1.0")
+		connectedFrame.Header.Add("session", "session-0voRHrG-VbBedx1Gwwb62Q")
+		connectedFrame.Header.Add("heart-beat", "0,0")
+		connectedFrame.Header.Add("server", "RabbitMQ/3.2.1")
+		connectedFrame.Header.Add("version", "1.0")
 		writer.Write(connectedFrame)
 
 		f2, err := reader.Read()
 		c.Assert(err, IsNil)
 		c.Assert(f2.Command, Equals, "DISCONNECT")
-		receipt, _ := f2.Contains("receipt")
+		receipt, _ := f2.Header.Contains("receipt")
 		c.Check(receipt, Equals, "1")
 
 		writer.Write(NewFrame("RECEIPT", frame.ReceiptId, "1"))
@@ -240,11 +240,11 @@ func subscribeHelper(c *C, ackMode AckMode, version Version) {
 		f3, err := rw.Read()
 		c.Assert(err, IsNil)
 		c.Assert(f3.Command, Equals, "SUBSCRIBE")
-		id, ok := f3.Contains("id")
+		id, ok := f3.Header.Contains("id")
 		c.Assert(ok, Equals, true)
-		destination := f3.Get("destination")
+		destination := f3.Header.Get("destination")
 		c.Assert(destination, Equals, "/queue/test-1")
-		ack := f3.Get("ack")
+		ack := f3.Header.Get("ack")
 		c.Assert(ack, Equals, ackMode.String())
 
 		for i := 1; i <= 5; i++ {
@@ -255,7 +255,7 @@ func subscribeHelper(c *C, ackMode AckMode, version Version) {
 				frame.MessageId, messageId,
 				frame.Destination, destination)
 			if version == V12 {
-				f4.Add(frame.Ack, messageId)
+				f4.Header.Add(frame.Ack, messageId)
 			}
 			f4.Body = []byte(bodyText)
 			rw.Write(f4)
@@ -264,25 +264,25 @@ func subscribeHelper(c *C, ackMode AckMode, version Version) {
 				f5, _ := rw.Read()
 				c.Assert(f5.Command, Equals, "ACK")
 				if version == V12 {
-					c.Assert(f5.Get("id"), Equals, messageId)
+					c.Assert(f5.Header.Get("id"), Equals, messageId)
 				} else {
-					c.Assert(f5.Get("subscription"), Equals, id)
-					c.Assert(f5.Get("message-id"), Equals, messageId)
+					c.Assert(f5.Header.Get("subscription"), Equals, id)
+					c.Assert(f5.Header.Get("message-id"), Equals, messageId)
 				}
 			}
 		}
 
 		f6, _ := rw.Read()
 		c.Assert(f6.Command, Equals, "UNSUBSCRIBE")
-		c.Assert(f6.Get(frame.Receipt), Not(Equals), "")
-		c.Assert(f6.Get(frame.Id), Equals, id)
+		c.Assert(f6.Header.Get(frame.Receipt), Not(Equals), "")
+		c.Assert(f6.Header.Get(frame.Id), Equals, id)
 		rw.Write(NewFrame(frame.RECEIPT,
-			frame.ReceiptId, f6.Get(frame.Receipt)))
+			frame.ReceiptId, f6.Header.Get(frame.Receipt)))
 
 		f7, _ := rw.Read()
 		c.Assert(f7.Command, Equals, "DISCONNECT")
 		rw.Write(NewFrame(frame.RECEIPT,
-			frame.ReceiptId, f7.Get(frame.Receipt)))
+			frame.ReceiptId, f7.Header.Get(frame.Receipt)))
 	}()
 
 	sub, err := conn.Subscribe("/queue/test-1", ackMode)
@@ -341,11 +341,11 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 		f3, err := rw.Read()
 		c.Assert(err, IsNil)
 		c.Assert(f3.Command, Equals, "SUBSCRIBE")
-		id, ok := f3.Contains("id")
+		id, ok := f3.Header.Contains("id")
 		c.Assert(ok, Equals, true)
-		destination := f3.Get("destination")
+		destination := f3.Header.Get("destination")
 		c.Assert(destination, Equals, "/queue/test-1")
-		ack := f3.Get("ack")
+		ack := f3.Header.Get("ack")
 		c.Assert(ack, Equals, ackMode.String())
 
 		for i := 1; i <= 5; i++ {
@@ -356,7 +356,7 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 				frame.MessageId, messageId,
 				frame.Destination, destination)
 			if version == V12 {
-				f4.Add(frame.Ack, messageId)
+				f4.Header.Add(frame.Ack, messageId)
 			}
 			f4.Body = []byte(bodyText)
 			rw.Write(f4)
@@ -365,7 +365,7 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 			c.Assert(err, IsNil)
 			c.Assert(beginFrame, NotNil)
 			c.Check(beginFrame.Command, Equals, "BEGIN")
-			tx, ok := beginFrame.Contains(frame.Transaction)
+			tx, ok := beginFrame.Header.Contains(frame.Transaction)
 
 			c.Assert(ok, Equals, true)
 
@@ -377,18 +377,18 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 					c.Assert(f5.Command, Equals, "ACK")
 				}
 				if version == V12 {
-					c.Assert(f5.Get("id"), Equals, messageId)
+					c.Assert(f5.Header.Get("id"), Equals, messageId)
 				} else {
-					c.Assert(f5.Get("subscription"), Equals, id)
-					c.Assert(f5.Get("message-id"), Equals, messageId)
+					c.Assert(f5.Header.Get("subscription"), Equals, id)
+					c.Assert(f5.Header.Get("message-id"), Equals, messageId)
 				}
-				c.Assert(f5.Get("transaction"), Equals, tx)
+				c.Assert(f5.Header.Get("transaction"), Equals, tx)
 			}
 
 			sendFrame, _ := rw.Read()
 			c.Assert(sendFrame, NotNil)
 			c.Assert(sendFrame.Command, Equals, "SEND")
-			c.Assert(sendFrame.Get("transaction"), Equals, tx)
+			c.Assert(sendFrame.Header.Get("transaction"), Equals, tx)
 
 			commitFrame, _ := rw.Read()
 			c.Assert(commitFrame, NotNil)
@@ -397,20 +397,20 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 			} else {
 				c.Assert(commitFrame.Command, Equals, "COMMIT")
 			}
-			c.Assert(commitFrame.Get("transaction"), Equals, tx)
+			c.Assert(commitFrame.Header.Get("transaction"), Equals, tx)
 		}
 
 		f6, _ := rw.Read()
 		c.Assert(f6.Command, Equals, "UNSUBSCRIBE")
-		c.Assert(f6.Get(frame.Receipt), Not(Equals), "")
-		c.Assert(f6.Get(frame.Id), Equals, id)
+		c.Assert(f6.Header.Get(frame.Receipt), Not(Equals), "")
+		c.Assert(f6.Header.Get(frame.Id), Equals, id)
 		rw.Write(NewFrame(frame.RECEIPT,
-			frame.ReceiptId, f6.Get(frame.Receipt)))
+			frame.ReceiptId, f6.Header.Get(frame.Receipt)))
 
 		f7, _ := rw.Read()
 		c.Assert(f7.Command, Equals, "DISCONNECT")
 		rw.Write(NewFrame(frame.RECEIPT,
-			frame.ReceiptId, f7.Get(frame.Receipt)))
+			frame.ReceiptId, f7.Header.Get(frame.Receipt)))
 	}()
 
 	sub, err := conn.Subscribe("/queue/test-1", ackMode)
@@ -459,9 +459,9 @@ func (s *StompSuite) TestHeartBeatReadTimeout(c *C) {
 		c.Assert(err, IsNil)
 		c.Assert(f1.Command, Equals, "SUBSCRIBE")
 		messageFrame := NewFrame("MESSAGE",
-			"destination", f1.Get("destination"),
+			"destination", f1.Header.Get("destination"),
 			"message-id", "1",
-			"subscription", f1.Get("id"))
+			"subscription", f1.Header.Get("id"))
 		messageFrame.Body = []byte("Message body")
 		rw.Write(messageFrame)
 	}()
@@ -514,9 +514,9 @@ func createHeartBeatConnection(
 		f1, err := reader.Read()
 		c.Assert(err, IsNil)
 		c.Assert(f1.Command, Equals, "CONNECT")
-		c.Assert(f1.Get("heart-beat"), Equals, "1,1")
+		c.Assert(f1.Header.Get("heart-beat"), Equals, "1,1")
 		f2 := NewFrame("CONNECTED", "version", "1.2")
-		f2.Add("heart-beat", fmt.Sprintf("%d,%d", readTimeout, writeTimeout))
+		f2.Header.Add("heart-beat", fmt.Sprintf("%d,%d", readTimeout, writeTimeout))
 		writer.Write(f2)
 		close(stop)
 	}()

@@ -62,7 +62,7 @@ func (s *ReaderSuite) TestMultipleReads(c *C) {
 		c.Assert(frame.Header.Len(), Equals, 2)
 		v = frame.Header.Get("destination")
 		c.Assert(v, Equals, "yyy")
-		n, ok, err := frame.ContentLength()
+		n, ok, err := frame.Header.ContentLength()
 		c.Assert(n, Equals, 12)
 		c.Assert(ok, Equals, true)
 		c.Assert(err, IsNil)

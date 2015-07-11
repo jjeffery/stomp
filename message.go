@@ -1,11 +1,5 @@
 package stomp
 
-import (
-	"errors"
-	"github.com/jjeffery/stomp/frame"
-	"strconv"
-)
-
 // A Message represents a message received from the STOMP server.
 // In most cases a message corresponds to a single STOMP MESSAGE frame
 // received from the STOMP server. If, however, the Err field is non-nil,
@@ -52,25 +46,4 @@ func (msg *Message) ShouldAck() bool {
 	}
 
 	return msg.Subscription.AckMode() != AckAuto
-}
-
-func (msg *Message) createSendFrame() (*Frame, error) {
-	if msg.Destination == "" {
-		return nil, errors.New("no destination specififed")
-	}
-	f := NewFrame(frame.SEND, frame.Destination, msg.Destination)
-	if msg.ContentType != "" {
-		f.Set(frame.ContentType, msg.ContentType)
-	}
-	f.Set(frame.ContentLength, strconv.Itoa(len(msg.Body)))
-	f.Body = msg.Body
-
-	if msg.Header != nil {
-		for i := 0; i < msg.Header.Len(); i++ {
-			key, value := msg.Header.GetAt(i)
-			f.Add(key, value)
-		}
-	}
-
-	return f, nil
 }
