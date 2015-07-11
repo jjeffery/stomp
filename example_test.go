@@ -76,7 +76,7 @@ func doAnotherThingWith(f interface{}, g interface{}) {
 }
 
 func ExampleSubscription() error {
-	conn, err := stomp.Dial("tcp", "localhost:61613", stomp.Options{})
+	conn, err := stomp.Dial("tcp", "localhost:61613")
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func ExampleSubscription() error {
 }
 
 func ExampleTransaction() error {
-	conn, err := stomp.Dial("tcp", "localhost:61613", stomp.Options{})
+	conn, err := stomp.Dial("tcp", "localhost:61613")
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func ExampleConnect() error {
 		return err
 	}
 
-	stompConn, err := stomp.Connect(netConn, stomp.Options{})
+	stompConn, err := stomp.Connect(netConn)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func ExampleConnect() error {
 
 // Connect to a STOMP server using default options.
 func ExampleDial_1() error {
-	conn, err := stomp.Dial("tcp", "192.168.1.1:61613", stomp.Options{})
+	conn, err := stomp.Dial("tcp", "192.168.1.1:61613")
 	if err != nil {
 		return err
 	}
@@ -198,13 +198,12 @@ func ExampleDial_1() error {
 // the virtual host is named "dragon". In this example the STOMP
 // server also accepts a non-standard header called 'nonce'.
 func ExampleDial_2() error {
-	conn, err := stomp.Dial("tcp", "192.168.1.1:61613", stomp.Options{
-		Login:         "scott",
-		Passcode:      "leopard",
-		AcceptVersion: "1.1,1.2",
-		Host:          "dragon",
-		NonStandard:   stomp.NewHeader("nonce", "B256B26D320A"),
-	})
+	conn, err := stomp.Dial("tcp", "192.168.1.1:61613",
+		stomp.ConnOpt.Login("scott", "leopard"),
+		stomp.ConnOpt.AcceptVersion(stomp.V11),
+		stomp.ConnOpt.AcceptVersion(stomp.V12),
+		stomp.ConnOpt.Host("dragon"),
+		stomp.ConnOpt.Header(stomp.NewHeader("nonce", "B256B26D320A")))
 	if err != nil {
 		return err
 	}

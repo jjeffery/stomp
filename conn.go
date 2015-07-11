@@ -12,41 +12,7 @@ import (
 
 // Default time span to add to read/write heart-beat timeouts
 // to avoid premature disconnections due to network latency.
-const DefaultReadHeartBeatError = 5 * time.Second
-
-// Options for connecting to the STOMP server. Used with the
-// stomp.Dial and stomp.Connect functions, both of which have examples.
-type Options struct {
-	// Login and passcode for authentication with the STOMP server.
-	// If no authentication is required, leave blank.
-	Login, Passcode string
-
-	// Value for the "host" header entry when connecting to the
-	// STOMP server. Leave blank for default value.
-	Host string
-
-	// Comma-separated list of acceptable STOMP versions.
-	// Leave blank for default protocol negotiation, which is
-	// the recommended setting.
-	AcceptVersion string
-
-	// Value to pass in the "heart-beat" header entry when connecting
-	// to the STOMP server. Format is two non-negative integer values
-	// separated by a comma. Leave blank for default heart-beat negotiation,
-	// which is the recommended setting.
-	HeartBeat string
-
-	// As per the STOMP specification, we should expect some discrepancy
-	// in incoming heartbeats. Add this time duration to the read timeout.
-	// If this value is zero, it will be set to DefaultReadHeartBeatError.
-	// If you really want to have zero error (eg for testing), set to a
-	// negative value.
-	ReadHeartBeatError time.Duration
-
-	// Other header entries for STOMP servers that accept non-standard
-	// header entries in the CONNECT frame.
-	NonStandard *Header
-}
+const DefaultHeartBeatError = 5 * time.Second
 
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
@@ -59,6 +25,7 @@ type Conn struct {
 	server       string
 	readTimeout  time.Duration
 	writeTimeout time.Duration
+	options      *connOptions
 }
 
 type writeRequest struct {
@@ -70,70 +37,68 @@ type writeRequest struct {
 // the STOMP connect protocol sequence. The network endpoint of the
 // STOMP server is specified by network and addr. STOMP protocol
 // options can be specified in opts.
-func Dial(network, addr string, opts Options) (*Conn, error) {
+func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	if opts.Host == "" {
-		host, _, err := net.SplitHostPort(c.RemoteAddr().String())
-		if err != nil {
-			c.Close()
-			return nil, err
-		}
-		opts.Host = host
+	host, _, err := net.SplitHostPort(c.RemoteAddr().String())
+	if err != nil {
+		c.Close()
+		return nil, err
 	}
 
-	return Connect(c, opts)
+	// Add option to set host and make it the first option in list,
+	// so that if host has been explicitly specified it will override.
+	opts = append([](func(*Conn) error){ConnOpt.Host(host)}, opts...)
+
+	return Connect(c, opts...)
 }
 
 // Connect creates a STOMP connection and performs the STOMP connect
 // protocol sequence. The connection to the STOMP server has already
 // been created by the program. The opts parameter provides the
 // opportunity to specify STOMP protocol options.
-func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
+func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) {
 	reader := NewReader(conn)
 	writer := NewWriter(conn)
 
-	// set default values
-	if opts.AcceptVersion == "" {
-		opts.AcceptVersion = "1.0,1.1,1.2"
+	c := &Conn{
+		conn:    conn,
+		readCh:  make(chan *Frame, 8),
+		writeCh: make(chan writeRequest, 8),
 	}
-	if opts.HeartBeat == "" {
-		opts.HeartBeat = "60000,60000"
+
+	options, err := newConnOptions(c, opts)
+	if err != nil {
+		return nil, err
 	}
-	if opts.Host == "" {
-		// Attempt to get host from net.Conn object if possible
+
+	if options.Host == "" {
+		// host not specified yet, attempt to get from net.Conn if possible
 		if connection, ok := conn.(net.Conn); ok {
 			host, _, err := net.SplitHostPort(connection.RemoteAddr().String())
 			if err == nil {
-				opts.Host = host
+				options.Host = host
 			}
 		}
-
-		// If host is still blank, use default
-		if opts.Host == "" {
-			opts.Host = "default"
+		// if host is still blank, use default
+		if options.Host == "" {
+			options.Host = "default"
 		}
 	}
 
-	connectFrame := NewFrame(frame.CONNECT,
-		frame.Host, opts.Host,
-		frame.AcceptVersion, opts.AcceptVersion,
-		frame.HeartBeat, opts.HeartBeat)
-	if opts.Login != "" || opts.Passcode != "" {
-		connectFrame.Set(frame.Login, opts.Login)
-		connectFrame.Set(frame.Passcode, opts.Passcode)
-	}
-	if opts.NonStandard != nil {
-		for i := 0; i < opts.NonStandard.Len(); i++ {
-			key, value := opts.NonStandard.GetAt(i)
-			connectFrame.Add(key, value)
-		}
+	connectFrame, err := options.NewFrame()
+	if err != nil {
+		return nil, err
 	}
 
-	writer.Write(connectFrame)
+	err = writer.Write(connectFrame)
+	if err != nil {
+		return nil, err
+	}
+
 	response, err := reader.Read()
 	if err != nil {
 		return nil, err
@@ -143,22 +108,20 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 		return nil, newError(response)
 	}
 
-	c := &Conn{
-		conn:    conn,
-		readCh:  make(chan *Frame, 8),
-		writeCh: make(chan writeRequest, 8),
-		server:  response.Get(frame.Server),
-		session: response.Get(frame.Session),
-	}
+	c.server = response.Get(frame.Server)
+	c.session = response.Get(frame.Session)
 
-	if version := response.Get(frame.Version); version != "" {
-		switch Version(version) {
-		case V10, V11, V12:
-			c.version = Version(version)
-		default:
-			return nil, Error{Message: "unsupported version", Frame: response}
+	if versionString := response.Get(frame.Version); versionString != "" {
+		version := Version(versionString)
+		if err = version.CheckSupported(); err != nil {
+			return nil, Error{
+				Message: err.Error(),
+				Frame:   response,
+			}
 		}
+		c.version = version
 	} else {
+		// no version in the response, so assume version 1.0
 		c.version = V10
 	}
 
@@ -170,19 +133,28 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 				Frame:   response,
 			}
 		}
-		rtError := opts.ReadHeartBeatError
-		if rtError < 0 {
-			rtError = 0
-		} else if rtError == 0 {
-			rtError = DefaultReadHeartBeatError
-		}
 
-		c.readTimeout = readTimeout + rtError
+		c.readTimeout = readTimeout
 		c.writeTimeout = writeTimeout
+
+		if c.readTimeout > 0 {
+			// Add time to the read timeout to account for time
+			// delay in other station transmitting timeout
+			c.readTimeout += options.HeartBeatError
+		}
+		if c.writeTimeout > options.HeartBeatError {
+			// Reduce time from the write timeout to account
+			// for time delay in transmitting to the other station
+			c.writeTimeout -= options.HeartBeatError
+		}
 	}
 
 	// TODO(jpj): make any non-standard headers in the CONNECTED
-	// frame available.
+	// frame available. This could be implemented as:
+	// (a) a callback function supplied as an option; or
+	// (b) a property of the Conn structure (eg CustomHeaders)
+	// Neither options are particularly elegant, so wait until
+	// there is a real need for this.
 
 	go readLoop(c, reader)
 	go processLoop(c, writer)
@@ -472,7 +444,7 @@ func (c *Conn) sendFrameWithReceipt(f *Frame) error {
 // will be received by this subscription. A subscription has a channel
 // on which the calling program can receive messages.
 func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error) {
-  return c.SubscribeWithHeaders(destination, ack, nil);
+	return c.SubscribeWithHeaders(destination, ack, nil)
 }
 
 // SubscribeWithHeaders is similar to Subscribe, but also sends optional headers with
@@ -481,12 +453,12 @@ func (c *Conn) SubscribeWithHeaders(destination string, ack AckMode, headers *He
 	ch := make(chan *Frame)
 	id := allocateId()
 
-        subscribeFrame := NewFrame(frame.SUBSCRIBE,
-        	frame.Id, id,
-        	frame.Destination, destination,
-        	frame.Ack, ack.String())
+	subscribeFrame := NewFrame(frame.SUBSCRIBE,
+		frame.Id, id,
+		frame.Destination, destination,
+		frame.Ack, ack.String())
 
-	if (headers != nil) {
+	if headers != nil {
 
 		for i := 0; i < headers.Len(); i++ {
 			key, value := headers.GetAt(i)
@@ -498,7 +470,7 @@ func (c *Conn) SubscribeWithHeaders(destination string, ack AckMode, headers *He
 
 	request := writeRequest{
 		Frame: subscribeFrame,
-		C: ch,
+		C:     ch,
 	}
 
 	sub := &Subscription{

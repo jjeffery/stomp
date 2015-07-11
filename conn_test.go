@@ -46,14 +46,14 @@ func (s *StompSuite) Test_unsuccessful_connect(c *C) {
 		writer.Write(f2)
 	}()
 
-	conn, err := Connect(fc1, Options{})
+	conn, err := Connect(fc1)
 	c.Assert(conn, IsNil)
 	c.Assert(err, ErrorMatches, "auth-failed")
 }
 
 func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 	testcases := []struct {
-		Options           Options
+		Options           []func(*Conn) error
 		NegotiatedVersion string
 		ExpectedVersion   Version
 		ExpectedSession   string
@@ -61,21 +61,21 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 		ExpectedServer    string
 	}{
 		{
-			Options:         Options{},
+			Options:         []func(*Conn) error{ConnOpt.Host("the-server")},
 			ExpectedVersion: "1.0",
 			ExpectedSession: "",
 			ExpectedHost:    "the-server",
 			ExpectedServer:  "some-server/1.1",
 		},
 		{
-			Options:           Options{},
+			Options:           []func(*Conn) error{},
 			NegotiatedVersion: "1.1",
 			ExpectedVersion:   "1.1",
 			ExpectedSession:   "the-session",
 			ExpectedHost:      "the-server",
 		},
 		{
-			Options:           Options{Host: "xxx"},
+			Options:           []func(*Conn) error{ConnOpt.Host("xxx")},
 			NegotiatedVersion: "1.2",
 			ExpectedVersion:   "1.2",
 			ExpectedSession:   "the-session",
@@ -122,7 +122,7 @@ func (s *StompSuite) Test_successful_connect_and_disconnect(c *C) {
 			writer.Write(NewFrame("RECEIPT", frame.ReceiptId, "1"))
 		}()
 
-		client, err := Connect(fc1, tc.Options)
+		client, err := Connect(fc1, tc.Options...)
 		c.Assert(err, IsNil)
 		c.Assert(client, NotNil)
 		c.Assert(client.Version(), Equals, tc.ExpectedVersion)
@@ -172,12 +172,10 @@ func (s *StompSuite) Test_successful_connect_with_nonstandard_header(c *C) {
 		writer.Write(NewFrame("RECEIPT", frame.ReceiptId, "1"))
 	}()
 
-	client, err := Connect(fc1, Options{
-		Login:       "guest",
-		Passcode:    "guest",
-		Host:        "/",
-		NonStandard: NewHeader("x-max-length", "50"),
-	})
+	client, err := Connect(fc1,
+		ConnOpt.Login("guest", "guest"),
+		ConnOpt.Host("/"),
+		ConnOpt.Header(NewHeader("x-max-length", "50")))
 	c.Assert(err, IsNil)
 	c.Assert(client, NotNil)
 	c.Assert(client.Version(), Equals, V10)
@@ -207,9 +205,9 @@ func connectHelper(c *C, version Version) (*Conn, *fakeReaderWriter) {
 		close(stop)
 	}()
 
-	conn, err := Connect(fc1, Options{})
-	c.Assert(conn, NotNil)
+	conn, err := Connect(fc1)
 	c.Assert(err, IsNil)
+	c.Assert(conn, NotNil)
 	<-stop
 	return conn, &fakeReaderWriter{
 		reader: reader,
@@ -455,7 +453,7 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 }
 
 func (s *StompSuite) TestHeartBeatReadTimeout(c *C) {
-	conn, rw := createHeartBeatConnection(c, 100, 10000, time.Millisecond*1)
+	conn, rw := createHeartBeatConnection(c, 100, 10000, time.Millisecond)
 
 	go func() {
 		f1, err := rw.Read()
@@ -472,7 +470,7 @@ func (s *StompSuite) TestHeartBeatReadTimeout(c *C) {
 	sub, err := conn.Subscribe("/queue/test1", AckAuto)
 	c.Assert(err, IsNil)
 	c.Check(conn.readTimeout, Equals, 101*time.Millisecond)
-	println("read timeout", conn.readTimeout.String())
+	//println("read timeout", conn.readTimeout.String())
 
 	msg, ok := <-sub.C
 	c.Assert(msg, NotNil)
@@ -504,8 +502,8 @@ func (s *StompSuite) TestHeartBeatWriteTimeout(c *C) {
 }
 
 func createHeartBeatConnection(
-	c *C, readTimeout,
-	writeTimeout int,
+	c *C,
+	readTimeout, writeTimeout int,
 	readTimeoutError time.Duration) (*Conn, *fakeReaderWriter) {
 	fc1, fc2 := testutil.NewFakeConn(c)
 	stop := make(chan struct{})
@@ -524,7 +522,9 @@ func createHeartBeatConnection(
 		close(stop)
 	}()
 
-	conn, err := Connect(fc1, Options{HeartBeat: "1,1", ReadHeartBeatError: readTimeoutError})
+	conn, err := Connect(fc1,
+		ConnOpt.HeartBeat(time.Millisecond, time.Millisecond),
+		ConnOpt.HeartBeatError(readTimeoutError))
 	c.Assert(conn, NotNil)
 	c.Assert(err, IsNil)
 	<-stop

@@ -14,6 +14,14 @@ func (v Version) String() string {
 	return string(v)
 }
 
+func (v Version) CheckSupported() error {
+	switch v {
+	case V10, V11, V12:
+		return nil
+	}
+	return ErrInvalidVersion
+}
+
 // SupportsNack indicates whether this version of the STOMP protocol
 // supports use of the NACK command.
 func (v Version) SupportsNack() bool {
@@ -23,5 +31,7 @@ func (v Version) SupportsNack() bool {
 	case V11, V12:
 		return true
 	}
-	panic("invalid version: " + v)
+
+	// unknown version
+	return false
 }

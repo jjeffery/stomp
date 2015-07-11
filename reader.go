@@ -17,8 +17,8 @@ const (
 
 // The Reader type reads STOMP frames from an underlying io.Reader.
 // The reader is buffered, and the size of the buffer is the maximum
-// size permitted for the STOMP frame command and header section. If
-// a STOMP frame is rejected if its command and header section exceed
+// size permitted for the STOMP frame command and header section.
+// A STOMP frame is rejected if its command and header section exceed
 // the buffer size.
 type Reader struct {
 	reader *bufio.Reader
@@ -26,7 +26,7 @@ type Reader struct {
 
 // NewReader creates a Reader with the default underlying buffer size.
 func NewReader(reader io.Reader) *Reader {
-	return NewReaderSize(reader, bufferSize) // TODO(jpj): fix magic number
+	return NewReaderSize(reader, bufferSize)
 }
 
 // NewReaderSize creates a Reader with an underlying bufferSize

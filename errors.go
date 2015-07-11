@@ -7,12 +7,13 @@ import (
 var (
 	invalidCommand        = newErrorMessage("invalid command")
 	invalidFrameFormat    = newErrorMessage("invalid frame format")
-	invalidVersion        = newErrorMessage("invalid version")
+	ErrInvalidVersion     = newErrorMessage("invalid version")
 	completedTransaction  = newErrorMessage("transaction is completed")
 	nackNotSupported      = newErrorMessage("NACK not supported in STOMP 1.0")
 	notReceivedMessage    = newErrorMessage("cannot ack/nack a message, not from server")
 	cannotNackAutoSub     = newErrorMessage("cannot send NACK for a subscription with ack:auto")
 	completedSubscription = newErrorMessage("subscription is unsubscribed")
+	expectedConnect       = newErrorMessage("expected CONNECT frame")
 )
 
 // StompError implements the Error interface, and provides
