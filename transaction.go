@@ -34,7 +34,7 @@ func (tx *Transaction) Conn() *Conn {
 // Ack and Nack on this transaction will be discarded.
 func (tx *Transaction) Abort() error {
 	if tx.completed {
-		return completedTransaction
+		return ErrCompletedTransaction
 	}
 
 	f := NewFrame(frame.ABORT, frame.Transaction, tx.id)
@@ -48,7 +48,7 @@ func (tx *Transaction) Abort() error {
 // sent to the STOMP server on this transaction will be processed atomically.
 func (tx *Transaction) Commit() error {
 	if tx.completed {
-		return completedTransaction
+		return ErrCompletedTransaction
 	}
 
 	f := NewFrame(frame.COMMIT, frame.Transaction, tx.id)
@@ -71,7 +71,7 @@ func (tx *Transaction) Commit() error {
 // entries, then set userDefined to nil.
 func (tx *Transaction) Send(destination, contentType string, body []byte, userDefined *Header) error {
 	if tx.completed {
-		return completedTransaction
+		return ErrCompletedTransaction
 	}
 
 	f := createSendFrame(destination, contentType, body, userDefined)
@@ -93,7 +93,7 @@ func (tx *Transaction) Send(destination, contentType string, body []byte, userDe
 // entries, then set userDefined to nil.
 func (tx *Transaction) SendWithReceipt(destination, contentType string, body []byte, userDefined *Header) error {
 	if tx.completed {
-		return completedTransaction
+		return ErrCompletedTransaction
 	}
 
 	f := createSendFrame(destination, contentType, body, userDefined)
@@ -108,7 +108,7 @@ func (tx *Transaction) SendWithReceipt(destination, contentType string, body []b
 // this function has no effect.
 func (tx *Transaction) Ack(msg *Message) error {
 	if tx.completed {
-		return completedTransaction
+		return ErrCompletedTransaction
 	}
 
 	f, err := tx.conn.createAckNackFrame(msg, true)
@@ -133,7 +133,7 @@ func (tx *Transaction) Ack(msg *Message) error {
 // of acknowledgement (positive or negative) for this message.
 func (tx *Transaction) Nack(msg *Message) error {
 	if tx.completed {
-		return completedTransaction
+		return ErrCompletedTransaction
 	}
 
 	f, err := tx.conn.createAckNackFrame(msg, false)

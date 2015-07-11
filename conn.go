@@ -520,11 +520,11 @@ func (c *Conn) Begin() *Transaction {
 // Create an ACK or NACK frame. Complicated by version incompatibilities.
 func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*Frame, error) {
 	if !ack && !c.version.SupportsNack() {
-		return nil, nackNotSupported
+		return nil, ErrNackNotSupported
 	}
 
 	if msg.Header == nil || msg.Subscription == nil || msg.Conn == nil {
-		return nil, notReceivedMessage
+		return nil, ErrNotReceivedMessage
 	}
 
 	if msg.Subscription.AckMode() == AckAuto {
@@ -534,7 +534,7 @@ func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*Frame, error) {
 		} else {
 			// sending a NACK for an ack:auto subscription makes no
 			// sense
-			return nil, cannotNackAutoSub
+			return nil, ErrCannotNackAutoSub
 		}
 	}
 

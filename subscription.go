@@ -49,7 +49,7 @@ func (s *Subscription) Active() bool {
 // Unsubscribes and closes the channel C.
 func (s *Subscription) Unsubscribe() error {
 	if s.completed {
-		return completedSubscription
+		return ErrCompletedSubscription
 	}
 	f := NewFrame(frame.UNSUBSCRIBE, frame.Id, s.id)
 	s.conn.sendFrame(f)
@@ -63,11 +63,11 @@ func (s *Subscription) Unsubscribe() error {
 // directly.
 func (s *Subscription) Read() (*Message, error) {
 	if s.completed {
-		return nil, completedSubscription
+		return nil, ErrCompletedSubscription
 	}
 	msg, ok := <-s.C
 	if !ok {
-		return nil, completedSubscription
+		return nil, ErrCompletedSubscription
 	}
 	if msg.Err != nil {
 		return nil, msg.Err

@@ -63,7 +63,7 @@ func (r *Reader) Read() (*Frame, error) {
 		frame.MESSAGE, frame.RECEIPT, frame.ERROR:
 		// valid command
 	default:
-		return nil, invalidCommand
+		return nil, ErrInvalidCommand
 	}
 
 	// read headers
@@ -81,7 +81,7 @@ func (r *Reader) Read() (*Frame, error) {
 		index := bytes.IndexByte(headerSlice, colon)
 		if index <= 0 {
 			// colon is missing or header name is zero length
-			return nil, invalidFrameFormat
+			return nil, ErrInvalidFrameFormat
 		}
 
 		name := string(headerSlice[0:index])
@@ -115,7 +115,7 @@ func (r *Reader) Read() (*Frame, error) {
 			return nil, err
 		}
 		if terminator != 0 {
-			return nil, invalidFrameFormat
+			return nil, ErrInvalidFrameFormat
 		}
 	} else {
 		f.Body, err = r.reader.ReadBytes(nullByte)
