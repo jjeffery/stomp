@@ -4,6 +4,7 @@ import (
 	"github.com/jjeffery/stomp/frame"
 )
 
+// Error values
 var (
 	ErrInvalidCommand        = newErrorMessage("invalid command")
 	ErrInvalidFrameFormat    = newErrorMessage("invalid frame format")

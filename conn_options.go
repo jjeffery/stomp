@@ -85,12 +85,47 @@ func (co *connOptions) NewFrame() (*Frame, error) {
 // Options for connecting to the STOMP server. Used with the
 // stomp.Dial and stomp.Connect functions, both of which have examples.
 var ConnOpt struct {
-	Login          func(login, passcode string) func(*Conn) error
-	Host           func(host string) func(*Conn) error
-	AcceptVersion  func(version Version) func(*Conn) error
-	HeartBeat      func(sendTimeout, recvTimeout time.Duration) func(*Conn) error
+	// Login is a connect option that allows the calling program to
+	// specify the "login" and "passcode" values to send to the STOMP
+	// server.
+	Login func(login, passcode string) func(*Conn) error
+
+	// Host is a connect option that allows the calling program to
+	// specify the value of the "host" header.
+	Host func(host string) func(*Conn) error
+
+	// UseStomp is a connect option that specifies that the client
+	// should use the "STOMP" command instead of the "CONNECT" command.
+	// Note that using "STOMP" is only valid for STOMP version 1.1 and later.
+	UseStomp func(*Conn) error
+
+	// AcceptVersoin is a connect option that allows the client to
+	// specify one or more versions of the STOMP protocol that the
+	// client program is prepared to accept. If this option is not
+	// specified, the client program will accept any of STOMP versions
+	// 1.0, 1.1 or 1.2.
+	AcceptVersion func(versions ...Version) func(*Conn) error
+
+	// HeartBeat is a connect option that allows the client to specify
+	// the send and receive timeouts for the STOMP heartbeat negotiation mechanism.
+	// The sendTimeout parameter specifies the maximum amount of time
+	// between the client sending heartbeat notifications from the server.
+	// The recvTimeout paramter specifies the minimum amount of time between
+	// the client expecting to receive heartbeat notifications from the server.
+	// If not specified, this option defaults to one minute for both send and receive
+	// timeouts.
+	HeartBeat func(sendTimeout, recvTimeout time.Duration) func(*Conn) error
+
+	// HeartBeatError is a connect option that will normally only be specified during
+	// testing. It specifies a short time duration that is larger than the amount of time
+	// that will take for a STOMP frame to be transmitted from one station to the other.
+	// When not specified, this value defaults to 5 seconds. This value is set to a much
+	// shorter time duration during unit testing.
 	HeartBeatError func(errorTimeout time.Duration) func(*Conn) error
-	Header         func(header *Header) func(*Conn) error
+
+	// Header is a connect option that allows the client to specify custom header
+	// elements in the CONNECT/STOMP frame.
+	Header func(header *Header) func(*Conn) error
 }
 
 func init() {
@@ -109,12 +144,19 @@ func init() {
 		}
 	}
 
-	ConnOpt.AcceptVersion = func(version Version) func(*Conn) error {
+	ConnOpt.UseStomp = func(c *Conn) error {
+		c.options.FrameCommand = frame.STOMP
+		return nil
+	}
+
+	ConnOpt.AcceptVersion = func(versions ...Version) func(*Conn) error {
 		return func(c *Conn) error {
-			if err := version.CheckSupported(); err != nil {
-				return err
+			for _, version := range versions {
+				if err := version.CheckSupported(); err != nil {
+					return err
+				}
+				c.options.AcceptVersions = append(c.options.AcceptVersions, string(version))
 			}
-			c.options.AcceptVersions = append(c.options.AcceptVersions, string(version))
 			return nil
 		}
 	}
