@@ -74,12 +74,7 @@ func (co *connOptions) NewFrame() (*Frame, error) {
 	// custom header entries -- note that these do not override
 	// header values already set as they are added to the end of
 	// the header array
-	if co.Header != nil {
-		for i := 0; i < co.Header.Len(); i++ {
-			key, value := co.Header.GetAt(i)
-			f.Add(key, value)
-		}
-	}
+	f.AddHeader(co.Header)
 
 	return f, nil
 }

@@ -443,13 +443,7 @@ func (c *Conn) sendFrameWithReceipt(f *Frame) error {
 // The subscription has a destination, and messages sent to that destination
 // will be received by this subscription. A subscription has a channel
 // on which the calling program can receive messages.
-func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error) {
-	return c.SubscribeWithHeaders(destination, ack, nil)
-}
-
-// SubscribeWithHeaders is similar to Subscribe, but also sends optional headers with
-// the subscription.
-func (c *Conn) SubscribeWithHeaders(destination string, ack AckMode, headers *Header) (*Subscription, error) {
+func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*Frame) error) (*Subscription, error) {
 	ch := make(chan *Frame)
 	id := allocateId()
 
@@ -458,14 +452,11 @@ func (c *Conn) SubscribeWithHeaders(destination string, ack AckMode, headers *He
 		frame.Destination, destination,
 		frame.Ack, ack.String())
 
-	if headers != nil {
-
-		for i := 0; i < headers.Len(); i++ {
-			key, value := headers.GetAt(i)
-
-			subscribeFrame.Add(key, value)
+	for _, opt := range opts {
+		err := opt(subscribeFrame)
+		if err != nil {
+			return nil, err
 		}
-
 	}
 
 	request := writeRequest{
@@ -501,6 +492,9 @@ func (c *Conn) Ack(m *Message) error {
 	return nil
 }
 
+// Nack indicates to the server that a message was not received
+// by the client. Returns an error if the STOMP version does not
+// support the NACK message.
 func (c *Conn) Nack(m *Message) error {
 	f, err := c.createAckNackFrame(m, false)
 	if err != nil {

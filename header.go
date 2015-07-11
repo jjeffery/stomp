@@ -42,9 +42,18 @@ func NewHeader(headerEntries ...string) *Header {
 }
 
 // Add adds the key, value pair to the header.
-// It appends to any existing values associated with the key.
 func (h *Header) Add(key, value string) {
 	h.slice = append(h.slice, key, value)
+}
+
+// AddHeader adds all of the key value pairs in header to h.
+func (h *Header) AddHeader(header *Header) {
+	if header != nil {
+		for i := 0; i < header.Len(); i++ {
+			key, value := header.GetAt(i)
+			h.Add(key, value)
+		}
+	}
 }
 
 // Set replaces the value existing header entry with the specified key.
