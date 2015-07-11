@@ -263,7 +263,6 @@ func processLoop(c *Conn, writer *Writer) {
 						delete(channels, id)
 						close(ch)
 					}
-
 				} else {
 					err := &Error{Message: "missing receipt-id", Frame: f}
 					sendError(channels, err)
@@ -359,67 +358,90 @@ func (c *Conn) Disconnect() error {
 }
 
 // Send sends a message to the STOMP server, which in turn sends the message to the specified destination.
-// This method returns without confirming that the STOMP server has received the message. If the STOMP server
-// does fail to receive the message for any reason, the connection will close.
+// If the STOMP server fails to receive the message for any reason, the connection will close.
 //
 // The content type should be specified, according to the STOMP specification, but if contentType is an empty
-// string, the message will be delivered without a content type header entry. The body array contains the
+// string, the message will be delivered without a content-type header entry. The body array contains the
 // message body, and its content should be consistent with the specified content type.
 //
-// The message can contain optional, user-defined header entries in userDefined. If there are no optional header
-// entries, then set userDefined to nil.
-func (c *Conn) Send(destination, contentType string, body []byte, userDefined *Header) error {
-	// TODO(jpj): Check that we are still connected before sending.
-	f := createSendFrame(destination, contentType, body, userDefined)
-	f.Del(frame.Transaction)
-	c.sendFrame(f)
+// Any number of options can be specified in opts. See the examples for usage. Options include whether
+// to receive a RECEIPT, should the content-length be suppressed, and sending custom header entries.
+func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*Frame) error) error {
+
+	f, err := createSendFrame(destination, contentType, body, opts)
+	if err != nil {
+		return err
+	}
+
+	if _, ok := f.Contains(frame.Receipt); ok {
+		// receipt required
+		request := writeRequest{
+			Frame: f,
+			C:     make(chan *Frame),
+		}
+
+		c.writeCh <- request
+		response := <-request.C
+		if response.Command != frame.RECEIPT {
+			return newError(response)
+		}
+	} else {
+		// no receipt required
+		request := writeRequest{Frame: f}
+		c.writeCh <- request
+	}
+
 	return nil
 }
 
-// Send sends a message to the STOMP server, which in turn sends the message to the specified destination.
-// This method does not return until the STOMP server has confirmed receipt of the message.
-//
-// The content type should be specified, according to the STOMP specification, but if contentType is an empty
-// string, the message will be delivered without a content type header entry. The body array contains the
-// message body, and its content should be consistent with the specified content type.
-//
-// The message can contain optional, user-defined header entries in userDefined. If there are no optional header
-// entries, then set userDefined to nil.
-func (c *Conn) SendWithReceipt(destination, contentType string, body []byte, userDefined *Header) error {
-	// TODO(jpj): Check that we are still connected before sending.
-	f := createSendFrame(destination, contentType, body, userDefined)
-	f.Del(frame.Transaction)
-	return c.sendFrameWithReceipt(f)
-}
+func createSendFrame(destination, contentType string, body []byte, opts []func(*Frame) error) (*Frame, error) {
+	// Set the content-length before the options, because this provides
+	// an opportunity to remove content-length.
+	f := NewFrame(frame.SEND, frame.ContentLength, strconv.Itoa(len(body)))
+	f.Body = body
 
-func createSendFrame(destination, contentType string, body []byte, userDefined *Header) *Frame {
-	f := &Frame{
-		Command: frame.SEND,
-		Body:    body,
-	}
-	if userDefined == nil {
-		f.Header = NewHeader()
-	} else {
-		f.Header = userDefined.Clone()
-		f.Header.Del(frame.Receipt)
+	for _, opt := range opts {
+		if opt == nil {
+			return nil, ErrNilOption
+		}
+		if err := opt(f); err != nil {
+			return nil, err
+		}
 	}
 
 	f.Header.Set(frame.Destination, destination)
 
-	if contentType == "" {
-		// no content type specified
-		f.Header.Del(frame.ContentType)
-	} else {
+	if contentType != "" {
 		f.Header.Set(frame.ContentType, contentType)
 	}
 
-	f.Header.Set(frame.ContentLength, strconv.Itoa(len(body)))
-	return f
+	return f, nil
 }
 
-func (c *Conn) sendFrame(f *Frame) {
-	request := writeRequest{Frame: f}
-	c.writeCh <- request
+func (c *Conn) sendFrame(f *Frame) error {
+	if _, ok := f.Contains(frame.Receipt); ok {
+		// receipt required
+		request := writeRequest{
+			Frame: f,
+			C:     make(chan *Frame),
+		}
+
+		c.writeCh <- request
+		response, ok := <-request.C
+		if ok {
+			if response.Command != frame.RECEIPT {
+				return newError(response)
+			}
+		} else {
+			return ErrClosed
+		}
+	} else {
+		// no receipt required
+		request := writeRequest{Frame: f}
+		c.writeCh <- request
+	}
+
+	return nil
 }
 
 func (c *Conn) sendFrameWithReceipt(f *Frame) error {
@@ -453,6 +475,9 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*Frame) e
 		frame.Ack, ack.String())
 
 	for _, opt := range opts {
+		if opt == nil {
+			return nil, ErrNilOption
+		}
 		err := opt(subscribeFrame)
 		if err != nil {
 			return nil, err

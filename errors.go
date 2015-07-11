@@ -13,6 +13,8 @@ var (
 	ErrNotReceivedMessage    = newErrorMessage("cannot ack/nack a message, not from server")
 	ErrCannotNackAutoSub     = newErrorMessage("cannot send NACK for a subscription with ack:auto")
 	ErrCompletedSubscription = newErrorMessage("subscription is unsubscribed")
+	ErrClosed                = newErrorMessage("connection closed unexpectedly")
+	ErrNilOption             = newErrorMessage("nil option")
 )
 
 // StompError implements the Error interface, and provides

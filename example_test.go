@@ -13,14 +13,15 @@ func ExampleConn_Send(c *stomp.Conn) error {
 		"/queue/test-1",            // destination
 		"text/plain",               // content-type
 		[]byte("Message number 1"), // body
-		stomp.NewHeader("expires", "2020-12-31 23:59:59"))
+		stomp.SendOpt.Receipt,
+		stomp.SendOpt.Header(stomp.NewHeader("expires", "2049-12-31 23:59:59")))
 	if err != nil {
 		return err
 	}
 
 	// send with no receipt and no optional headers
 	err = c.Send("/queue/test-2", "application/xml",
-		[]byte("<message>hello</message>"), nil)
+		[]byte("<message>hello</message>"))
 	if err != nil {
 		return err
 	}
@@ -67,7 +68,7 @@ func ExampleNewFrame() {
 	doSomethingWith(f)
 }
 
-func doSomethingWith(f interface{}) {
+func doSomethingWith(f ...interface{}) {
 
 }
 
@@ -75,7 +76,7 @@ func doAnotherThingWith(f interface{}, g interface{}) {
 
 }
 
-func ExampleSubscription() error {
+func ExampleConn_Subscribe_1() error {
 	conn, err := stomp.Dial("tcp", "localhost:61613")
 	if err != nil {
 		return err
@@ -108,6 +109,26 @@ func ExampleSubscription() error {
 	}
 
 	return conn.Disconnect()
+}
+
+// Example of creating subscriptions with various options.
+func ExampleConn_Subscribe_2(c *stomp.Conn) error {
+	// Subscribe to queue with automatic acknowledgement
+	sub1, err := c.Subscribe("/queue/test-1", stomp.AckAuto)
+	if err != nil {
+		return err
+	}
+
+	// Subscribe to queue with client acknowledgement and a custom header value
+	customHeader := stomp.NewHeader("x-custom-header", "some-value")
+	sub2, err := c.Subscribe("/queue/test-2", stomp.AckClient, stomp.SubscribeOpt.Header(customHeader))
+	if err != nil {
+		return err
+	}
+
+	doSomethingWith(sub1, sub2)
+
+	return nil
 }
 
 func ExampleTransaction() error {
@@ -184,8 +205,7 @@ func ExampleDial_1() error {
 	err = conn.Send(
 		"/queue/test-1",           // destination
 		"text/plain",              // content-type
-		[]byte("Test message #1"), // body
-		nil) // no headers
+		[]byte("Test message #1")) // body
 	if err != nil {
 		return err
 	}
@@ -211,8 +231,7 @@ func ExampleDial_2() error {
 	err = conn.Send(
 		"/queue/test-1",           // destination
 		"text/plain",              // content-type
-		[]byte("Test message #1"), // body
-		nil) // no optional headers
+		[]byte("Test message #1")) // body
 	if err != nil {
 		return err
 	}

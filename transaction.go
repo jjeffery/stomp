@@ -67,39 +67,20 @@ func (tx *Transaction) Commit() error {
 // string, the message will be delivered without a content type header entry. The body array contains the
 // message body, and its content should be consistent with the specified content type.
 //
-// The message can contain optional, user-defined header entries in userDefined. If there are no optional header
-// entries, then set userDefined to nil.
-func (tx *Transaction) Send(destination, contentType string, body []byte, userDefined *Header) error {
+// TODO: document opts
+func (tx *Transaction) Send(destination, contentType string, body []byte, opts ...func(*Frame) error) error {
 	if tx.completed {
 		return ErrCompletedTransaction
 	}
 
-	f := createSendFrame(destination, contentType, body, userDefined)
+	f, err := createSendFrame(destination, contentType, body, opts)
+	if err != nil {
+		return err
+	}
 
 	f.Header.Set(frame.Transaction, tx.id)
 	tx.conn.sendFrame(f)
 	return nil
-}
-
-// Send sends a message to the STOMP server as part of a transaction. The server will not process the
-// message until the transaction is committed.
-// This method does not return until the STOMP server has confirmed receipt of the message.
-//
-// The content type should be specified, according to the STOMP specification, but if contentType is an empty
-// string, the message will be delivered without a content type header entry. The body array contains the
-// message body, and its content should be consistent with the specified content type.
-//
-// The message can contain optional, user-defined header entries in userDefined. If there are no optional header
-// entries, then set userDefined to nil.
-func (tx *Transaction) SendWithReceipt(destination, contentType string, body []byte, userDefined *Header) error {
-	if tx.completed {
-		return ErrCompletedTransaction
-	}
-
-	f := createSendFrame(destination, contentType, body, userDefined)
-
-	f.Set(frame.Transaction, tx.id)
-	return tx.conn.sendFrameWithReceipt(f)
 }
 
 // Ack sends an acknowledgement for the message to the server. The STOMP

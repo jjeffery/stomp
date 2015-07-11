@@ -50,7 +50,7 @@ func (s *StompSuite) TestContentLength(c *C) {
 	h.Set("content-length", "twenty")
 	cl, ok, err = h.ContentLength()
 	c.Assert(cl, Equals, 0)
-	c.Assert(ok, Equals, false)
+	c.Assert(ok, Equals, true)
 	c.Assert(err, NotNil)
 
 	h.Del("content-length")

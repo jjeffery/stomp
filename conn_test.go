@@ -329,7 +329,6 @@ func (s *StompSuite) TestTransaction(c *C) {
 }
 
 func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bool, nack bool) {
-	//println("subscribeTransactionHelper(", ackMode.String(), version, abort, nack, ")")
 	conn, rw := connectHelper(c, version)
 	stop := make(chan struct{})
 
@@ -437,7 +436,7 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 				tx.Ack(msg)
 			}
 		}
-		err = tx.Send("/queue/another-queue", "text/plain", []byte(bodyText), nil)
+		err = tx.Send("/queue/another-queue", "text/plain", []byte(bodyText))
 		c.Assert(err, IsNil)
 		if abort {
 			tx.Abort()

@@ -56,7 +56,7 @@ func (h *Header) AddHeader(header *Header) {
 	}
 }
 
-// Set replaces the value existing header entry with the specified key.
+// Set replaces the value of any existing header entry with the specified key.
 // If there is no existing header entry with the specified key, a new
 // header entry is added.
 func (h *Header) Set(key, value string) {
@@ -133,19 +133,19 @@ func (h *Header) Clone() *Header {
 // "content-length" entry is present but is not a valid non-negative integer
 // then err is non-nil.
 func (h *Header) ContentLength() (value int, ok bool, err error) {
-	text := h.Get(frame.ContentLength)
-	if text == "" {
-		return
+	text, ok := h.Contains(frame.ContentLength)
+	if !ok {
+		return 0, false, nil
 	}
 
 	n, err := strconv.ParseUint(text, 10, 32)
 	if err != nil {
-		return
+		return 0, true, err
 	}
 
 	value = int(n)
 	ok = true
-	return
+	return value, ok, nil
 }
 
 // Returns the index of a header key in Headers, and a bool to indicate
