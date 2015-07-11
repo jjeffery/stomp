@@ -1,9 +1,13 @@
 package stomp
 
+import (
+	"github.com/jjeffery/stomp/frame"
+)
+
 // Validator is an interface for validating STOMP frames.
 type Validator interface {
 	// Validate returns nil if the frame is valid, or an error if not valid.
-	Validate(f *Frame) error
+	Validate(f *frame.Frame) error
 }
 
 func NewValidator(version Version) Validator {
@@ -12,6 +16,6 @@ func NewValidator(version Version) Validator {
 
 type validatorNull struct{}
 
-func (v validatorNull) Validate(f *Frame) error {
+func (v validatorNull) Validate(f *frame.Frame) error {
 	return nil
 }

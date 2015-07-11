@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/jjeffery/stomp"
+	"github.com/jjeffery/stomp/frame"
 	"strconv"
 )
 
@@ -26,6 +26,6 @@ const (
 type Request struct {
 	Op    RequestOp     // opcode for request
 	Sub   *Subscription // SubscribeOp, UnsubscribeOp
-	Frame *stomp.Frame  // EnqueueOp, RequeueOp
+	Frame *frame.Frame  // EnqueueOp, RequeueOp
 	Conn  *Conn         // ConnectedOp, DisconnectedOp
 }

@@ -17,7 +17,7 @@ type connOptions struct {
 	HeartBeatError  time.Duration
 	Login, Passcode string
 	AcceptVersions  []string
-	Header          *Header
+	Header          *frame.Header
 }
 
 func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) {
@@ -52,8 +52,8 @@ func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) 
 	return co, nil
 }
 
-func (co *connOptions) NewFrame() (*Frame, error) {
-	f := NewFrame(co.FrameCommand)
+func (co *connOptions) NewFrame() (*frame.Frame, error) {
+	f := frame.New(co.FrameCommand)
 	if co.Host != "" {
 		f.Header.Set(frame.Host, co.Host)
 	}
@@ -125,7 +125,7 @@ var ConnOpt struct {
 
 	// Header is a connect option that allows the client to specify custom header
 	// elements in the CONNECT/STOMP frame.
-	Header func(header *Header) func(*Conn) error
+	Header func(header *frame.Header) func(*Conn) error
 }
 
 func init() {
@@ -176,7 +176,7 @@ func init() {
 		}
 	}
 
-	ConnOpt.Header = func(header *Header) func(*Conn) error {
+	ConnOpt.Header = func(header *frame.Header) func(*Conn) error {
 		return func(c *Conn) error {
 			c.options.Header = header
 			return nil

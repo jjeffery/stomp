@@ -51,7 +51,7 @@ func (s *Subscription) Unsubscribe() error {
 	if s.completed {
 		return ErrCompletedSubscription
 	}
-	f := NewFrame(frame.UNSUBSCRIBE, frame.Id, s.id)
+	f := frame.New(frame.UNSUBSCRIBE, frame.Id, s.id)
 	s.conn.sendFrame(f)
 	s.completed = true
 	close(s.C)
@@ -75,7 +75,7 @@ func (s *Subscription) Read() (*Message, error) {
 	return msg, nil
 }
 
-func (s *Subscription) readLoop(ch chan *Frame) {
+func (s *Subscription) readLoop(ch chan *frame.Frame) {
 	for {
 		f, ok := <-ch
 		if !ok {

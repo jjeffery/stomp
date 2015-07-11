@@ -1,5 +1,9 @@
 package stomp
 
+import (
+	"github.com/jjeffery/stomp/frame"
+)
+
 // A Message represents a message received from the STOMP server.
 // In most cases a message corresponds to a single STOMP MESSAGE frame
 // received from the STOMP server. If, however, the Err field is non-nil,
@@ -30,7 +34,7 @@ type Message struct {
 	// these are the header entries received with the message.
 	// When sending to the server, these are optional header entries
 	// that accompany the message to its destination.
-	*Header
+	*frame.Header
 
 	// The message body, which is an arbitrary sequence of bytes.
 	// The ContentType indicates the format of this body.

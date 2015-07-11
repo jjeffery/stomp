@@ -22,7 +22,7 @@ var (
 // additional information about a STOMP error.
 type Error struct {
 	Message string
-	Frame   *Frame
+	Frame   *frame.Frame
 }
 
 func (e Error) Error() string {
@@ -37,7 +37,7 @@ func newErrorMessage(msg string) Error {
 	return Error{Message: msg}
 }
 
-func newError(f *Frame) Error {
+func newError(f *frame.Frame) Error {
 	e := Error{Frame: f}
 
 	if f.Command == frame.ERROR {

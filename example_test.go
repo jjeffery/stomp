@@ -3,6 +3,7 @@ package stomp_test
 import (
 	"fmt"
 	"github.com/jjeffery/stomp"
+	"github.com/jjeffery/stomp/frame"
 	"net"
 	"time"
 )
@@ -14,7 +15,7 @@ func ExampleConn_Send(c *stomp.Conn) error {
 		"text/plain",               // content-type
 		[]byte("Message number 1"), // body
 		stomp.SendOpt.Receipt,
-		stomp.SendOpt.Header(stomp.NewHeader("expires", "2049-12-31 23:59:59")))
+		stomp.SendOpt.Header(frame.NewHeader("expires", "2049-12-31 23:59:59")))
 	if err != nil {
 		return err
 	}
@@ -39,7 +40,7 @@ func ExampleNewHeader() {
 			host:stompserver
 			accept-version:1.1,1.2
 	*/
-	h := stomp.NewHeader(
+	h := frame.NewHeader(
 		"login", "scott",
 		"passcode", "tiger",
 		"host", "stompserver",
@@ -60,7 +61,7 @@ func ExampleNewFrame() {
 
 			^@
 	*/
-	f := stomp.NewFrame("CONNECT",
+	f := frame.New("CONNECT",
 		"login", "scott",
 		"passcode", "tiger",
 		"host", "stompserver",
@@ -120,7 +121,7 @@ func ExampleConn_Subscribe_2(c *stomp.Conn) error {
 	}
 
 	// Subscribe to queue with client acknowledgement and a custom header value
-	customHeader := stomp.NewHeader("x-custom-header", "some-value")
+	customHeader := frame.NewHeader("x-custom-header", "some-value")
 	sub2, err := c.Subscribe("/queue/test-2", stomp.AckClient, stomp.SubscribeOpt.Header(customHeader))
 	if err != nil {
 		return err
@@ -223,7 +224,7 @@ func ExampleDial_2() error {
 		stomp.ConnOpt.AcceptVersion(stomp.V11),
 		stomp.ConnOpt.AcceptVersion(stomp.V12),
 		stomp.ConnOpt.Host("dragon"),
-		stomp.ConnOpt.Header(stomp.NewHeader("nonce", "B256B26D320A")))
+		stomp.ConnOpt.Header(frame.NewHeader("nonce", "B256B26D320A")))
 	if err != nil {
 		return err
 	}

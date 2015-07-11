@@ -8,7 +8,7 @@ import (
 var SendOpt struct {
 	// Receipt specifies that the client should request acknowledgement
 	// from the server before the send operation successfully completes.
-	Receipt func(*Frame) error
+	Receipt func(*frame.Frame) error
 
 	// NoContentType specifies that the SEND frame should not include
 	// a content-length header entry. By default the content-length header
@@ -16,15 +16,15 @@ var SendOpt struct {
 	// meaning to STOMP frames that do not contain a content-length
 	// header entry. (In particular ActiveMQ interprets STOMP frames
 	// with no content-length as being a text message)
-	NoContentType func(*Frame) error
+	NoContentType func(*frame.Frame) error
 
 	// Header provides the opportunity to include custom header entries
 	// in the SEND frame that the client sends to the server.
-	Header func(header *Header) func(*Frame) error
+	Header func(header *frame.Header) func(*frame.Frame) error
 }
 
 func init() {
-	SendOpt.Receipt = func(f *Frame) error {
+	SendOpt.Receipt = func(f *frame.Frame) error {
 		if f.Command != frame.SEND {
 			return ErrInvalidCommand
 		}
@@ -33,8 +33,8 @@ func init() {
 		return nil
 	}
 
-	SendOpt.Header = func(header *Header) func(*Frame) error {
-		return func(f *Frame) error {
+	SendOpt.Header = func(header *frame.Header) func(*frame.Frame) error {
+		return func(f *frame.Frame) error {
 			if f.Command != frame.SEND {
 				return ErrInvalidCommand
 			}

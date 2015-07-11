@@ -18,7 +18,7 @@ const DefaultHeartBeatError = 5 * time.Second
 // the Dial or Connect function.
 type Conn struct {
 	conn         io.ReadWriteCloser
-	readCh       chan *Frame
+	readCh       chan *frame.Frame
 	writeCh      chan writeRequest
 	version      Version
 	session      string
@@ -29,8 +29,8 @@ type Conn struct {
 }
 
 type writeRequest struct {
-	Frame *Frame      // frame to send
-	C     chan *Frame // response channel
+	Frame *frame.Frame      // frame to send
+	C     chan *frame.Frame // response channel
 }
 
 // Dial creates a network connection to a STOMP server and performs
@@ -61,12 +61,12 @@ func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 // been created by the program. The opts parameter provides the
 // opportunity to specify STOMP protocol options.
 func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) {
-	reader := NewReader(conn)
-	writer := NewWriter(conn)
+	reader := frame.NewReader(conn)
+	writer := frame.NewWriter(conn)
 
 	c := &Conn{
 		conn:    conn,
-		readCh:  make(chan *Frame, 8),
+		readCh:  make(chan *frame.Frame, 8),
 		writeCh: make(chan writeRequest, 8),
 	}
 
@@ -188,7 +188,7 @@ func (c *Conn) Server() string {
 // readLoop is a goroutine that reads frames from the
 // reader and places them onto a channel for processing
 // by the processLoop goroutine
-func readLoop(c *Conn, reader *Reader) {
+func readLoop(c *Conn, reader *frame.Reader) {
 	for {
 		f, err := reader.Read()
 		if err != nil {
@@ -201,8 +201,8 @@ func readLoop(c *Conn, reader *Reader) {
 
 // processLoop is a goroutine that handles io with
 // the server.
-func processLoop(c *Conn, writer *Writer) {
-	channels := make(map[string]chan *Frame)
+func processLoop(c *Conn, writer *frame.Writer) {
+	channels := make(map[string]chan *frame.Frame)
 
 	var readTimeoutChannel <-chan time.Time
 	var readTimer *time.Timer
@@ -329,8 +329,8 @@ func processLoop(c *Conn, writer *Writer) {
 }
 
 // Send an error to all receipt channels.
-func sendError(m map[string]chan *Frame, err error) {
-	frame := NewFrame(frame.ERROR, frame.Message, err.Error())
+func sendError(m map[string]chan *frame.Frame, err error) {
+	frame := frame.New(frame.ERROR, frame.Message, err.Error())
 	for _, ch := range m {
 		ch <- frame
 	}
@@ -343,9 +343,9 @@ func sendError(m map[string]chan *Frame, err error) {
 // with the STOMP server is closed and any further attempt to write
 // to the server will fail.
 func (c *Conn) Disconnect() error {
-	ch := make(chan *Frame)
+	ch := make(chan *frame.Frame)
 	c.writeCh <- writeRequest{
-		Frame: NewFrame(frame.DISCONNECT, frame.Receipt, allocateId()),
+		Frame: frame.New(frame.DISCONNECT, frame.Receipt, allocateId()),
 		C:     ch,
 	}
 
@@ -366,7 +366,7 @@ func (c *Conn) Disconnect() error {
 //
 // Any number of options can be specified in opts. See the examples for usage. Options include whether
 // to receive a RECEIPT, should the content-length be suppressed, and sending custom header entries.
-func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*Frame) error) error {
+func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*frame.Frame) error) error {
 
 	f, err := createSendFrame(destination, contentType, body, opts)
 	if err != nil {
@@ -377,7 +377,7 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 		// receipt required
 		request := writeRequest{
 			Frame: f,
-			C:     make(chan *Frame),
+			C:     make(chan *frame.Frame),
 		}
 
 		c.writeCh <- request
@@ -394,10 +394,10 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 	return nil
 }
 
-func createSendFrame(destination, contentType string, body []byte, opts []func(*Frame) error) (*Frame, error) {
+func createSendFrame(destination, contentType string, body []byte, opts []func(*frame.Frame) error) (*frame.Frame, error) {
 	// Set the content-length before the options, because this provides
 	// an opportunity to remove content-length.
-	f := NewFrame(frame.SEND, frame.ContentLength, strconv.Itoa(len(body)))
+	f := frame.New(frame.SEND, frame.ContentLength, strconv.Itoa(len(body)))
 	f.Body = body
 
 	for _, opt := range opts {
@@ -418,12 +418,12 @@ func createSendFrame(destination, contentType string, body []byte, opts []func(*
 	return f, nil
 }
 
-func (c *Conn) sendFrame(f *Frame) error {
+func (c *Conn) sendFrame(f *frame.Frame) error {
 	if _, ok := f.Header.Contains(frame.Receipt); ok {
 		// receipt required
 		request := writeRequest{
 			Frame: f,
-			C:     make(chan *Frame),
+			C:     make(chan *frame.Frame),
 		}
 
 		c.writeCh <- request
@@ -448,11 +448,11 @@ func (c *Conn) sendFrame(f *Frame) error {
 // The subscription has a destination, and messages sent to that destination
 // will be received by this subscription. A subscription has a channel
 // on which the calling program can receive messages.
-func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*Frame) error) (*Subscription, error) {
-	ch := make(chan *Frame)
+func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Frame) error) (*Subscription, error) {
+	ch := make(chan *frame.Frame)
 	id := allocateId()
 
-	subscribeFrame := NewFrame(frame.SUBSCRIBE,
+	subscribeFrame := frame.New(frame.SUBSCRIBE,
 		frame.Id, id,
 		frame.Destination, destination,
 		frame.Ack, ack.String())
@@ -520,13 +520,13 @@ func (c *Conn) Nack(m *Message) error {
 // will be processed atomically by the STOMP server based on the transaction.
 func (c *Conn) Begin() *Transaction {
 	id := allocateId()
-	f := NewFrame(frame.BEGIN, frame.Transaction, id)
+	f := frame.New(frame.BEGIN, frame.Transaction, id)
 	c.sendFrame(f)
 	return &Transaction{id: id, conn: c}
 }
 
 // Create an ACK or NACK frame. Complicated by version incompatibilities.
-func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*Frame, error) {
+func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*frame.Frame, error) {
 	if !ack && !c.version.SupportsNack() {
 		return nil, ErrNackNotSupported
 	}
@@ -546,11 +546,11 @@ func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*Frame, error) {
 		}
 	}
 
-	var f *Frame
+	var f *frame.Frame
 	if ack {
-		f = NewFrame(frame.ACK)
+		f = frame.New(frame.ACK)
 	} else {
-		f = NewFrame(frame.NACK)
+		f = frame.New(frame.NACK)
 	}
 
 	switch c.version {

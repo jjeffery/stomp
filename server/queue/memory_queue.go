@@ -2,7 +2,7 @@ package queue
 
 import (
 	"container/list"
-	"github.com/jjeffery/stomp"
+	"github.com/jjeffery/stomp/frame"
 )
 
 // In-memory implementation of the QueueStorage interface.
@@ -15,7 +15,7 @@ func NewMemoryQueueStorage() Storage {
 	return m
 }
 
-func (m *MemoryQueueStorage) Enqueue(queue string, frame *stomp.Frame) error {
+func (m *MemoryQueueStorage) Enqueue(queue string, frame *frame.Frame) error {
 	l, ok := m.lists[queue]
 	if !ok {
 		l = list.New()
@@ -29,7 +29,7 @@ func (m *MemoryQueueStorage) Enqueue(queue string, frame *stomp.Frame) error {
 // Pushes a frame to the head of the queue. Sets
 // the "message-id" header of the frame if it is not
 // already set.
-func (m *MemoryQueueStorage) Requeue(queue string, frame *stomp.Frame) error {
+func (m *MemoryQueueStorage) Requeue(queue string, frame *frame.Frame) error {
 	l, ok := m.lists[queue]
 	if !ok {
 		l = list.New()
@@ -42,7 +42,7 @@ func (m *MemoryQueueStorage) Requeue(queue string, frame *stomp.Frame) error {
 
 // Removes a frame from the head of the queue.
 // Returns nil if no frame is available.
-func (m *MemoryQueueStorage) Dequeue(queue string) (*stomp.Frame, error) {
+func (m *MemoryQueueStorage) Dequeue(queue string) (*frame.Frame, error) {
 	l, ok := m.lists[queue]
 	if !ok {
 		return nil, nil
@@ -53,7 +53,7 @@ func (m *MemoryQueueStorage) Dequeue(queue string) (*stomp.Frame, error) {
 		return nil, nil
 	}
 
-	return l.Remove(element).(*stomp.Frame), nil
+	return l.Remove(element).(*frame.Frame), nil
 }
 
 // Called at server startup. Allows the queue storage

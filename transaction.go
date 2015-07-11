@@ -37,7 +37,7 @@ func (tx *Transaction) Abort() error {
 		return ErrCompletedTransaction
 	}
 
-	f := NewFrame(frame.ABORT, frame.Transaction, tx.id)
+	f := frame.New(frame.ABORT, frame.Transaction, tx.id)
 	tx.conn.sendFrame(f)
 	tx.completed = true
 
@@ -51,7 +51,7 @@ func (tx *Transaction) Commit() error {
 		return ErrCompletedTransaction
 	}
 
-	f := NewFrame(frame.COMMIT, frame.Transaction, tx.id)
+	f := frame.New(frame.COMMIT, frame.Transaction, tx.id)
 	tx.conn.sendFrame(f)
 	tx.completed = true
 
@@ -68,7 +68,7 @@ func (tx *Transaction) Commit() error {
 // message body, and its content should be consistent with the specified content type.
 //
 // TODO: document opts
-func (tx *Transaction) Send(destination, contentType string, body []byte, opts ...func(*Frame) error) error {
+func (tx *Transaction) Send(destination, contentType string, body []byte, opts ...func(*frame.Frame) error) error {
 	if tx.completed {
 		return ErrCompletedTransaction
 	}

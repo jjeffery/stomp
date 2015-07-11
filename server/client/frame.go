@@ -33,7 +33,7 @@ var (
 //
 // Otherwise, returns the highest compatible version specified in the
 // accept-version header. Compatible versions are V1_0, V1_1 and V1_2.
-func determineVersion(f *stomp.Frame) (version stomp.Version, err error) {
+func determineVersion(f *frame.Frame) (version stomp.Version, err error) {
 	// frame can be CONNECT or STOMP with slightly different
 	// handling of accept-verion for each
 	isConnect := f.Command == frame.CONNECT
@@ -87,7 +87,7 @@ func determineVersion(f *stomp.Frame) (version stomp.Version, err error) {
 // the frame is not a CONNECT or STOMP frame. In this implementation,
 // a heart-beat header is considered malformed if either cx or cy
 // is greater than MaxHeartBeat.
-func getHeartBeat(f *stomp.Frame) (cx, cy int, err error) {
+func getHeartBeat(f *frame.Frame) (cx, cy int, err error) {
 	if f.Command != frame.CONNECT &&
 		f.Command != frame.STOMP &&
 		f.Command != frame.CONNECTED {
