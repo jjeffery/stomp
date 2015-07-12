@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/stomp.v2/frame"
+	"github.com/go-stomp/stomp/frame"
 )
 
 // ConnOptions is an opaque structure used to collection options

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"gopkg.in/stomp.v2"
+	"github.com/go-stomp/stomp"
 )
 
 const defaultPort = ":61613"

@@ -3,7 +3,7 @@ package client
 import (
 	"container/list"
 
-	"gopkg.in/stomp.v2/frame"
+	"github.com/go-stomp/stomp/frame"
 )
 
 type txStore struct {

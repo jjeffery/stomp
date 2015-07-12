@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"gopkg.in/stomp.v2/frame"
+	"github.com/go-stomp/stomp/frame"
 )
 
 // Default time span to add to read/write heart-beat timeouts

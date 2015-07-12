@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"gopkg.in/stomp.v2"
-	"gopkg.in/stomp.v2/frame"
+	"github.com/go-stomp/stomp"
+	"github.com/go-stomp/stomp/frame"
 )
 
 const (

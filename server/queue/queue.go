@@ -4,8 +4,8 @@ Package queue provides implementations of server-side queues.
 package queue
 
 import (
-	"gopkg.in/stomp.v2/frame"
-	"gopkg.in/stomp.v2/server/client"
+	"github.com/go-stomp/stomp/frame"
+	"github.com/go-stomp/stomp/server/client"
 )
 
 // Queue for storing message frames.

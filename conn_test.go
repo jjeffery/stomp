@@ -5,9 +5,9 @@ import (
 	"io"
 	"time"
 
+	"github.com/go-stomp/stomp/frame"
+	"github.com/go-stomp/stomp/testutil"
 	. "gopkg.in/check.v1"
-	"gopkg.in/stomp.v2/frame"
-	"gopkg.in/stomp.v2/testutil"
 )
 
 type fakeReaderWriter struct {

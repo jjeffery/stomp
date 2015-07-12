@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/go-stomp/stomp"
 	. "gopkg.in/check.v1"
-	"gopkg.in/stomp.v2"
 )
 
 func TestServer(t *testing.T) {

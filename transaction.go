@@ -1,7 +1,7 @@
 package stomp
 
 import (
-	"gopkg.in/stomp.v2/frame"
+	"github.com/go-stomp/stomp/frame"
 )
 
 // A Transaction applies to the sending of messages to the STOMP server,

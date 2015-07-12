@@ -1,8 +1,8 @@
 package topic
 
 import (
+	"github.com/go-stomp/stomp/frame"
 	. "gopkg.in/check.v1"
-	"gopkg.in/stomp.v2/frame"
 )
 
 type TopicSuite struct{}
