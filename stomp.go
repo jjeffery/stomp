@@ -18,11 +18,6 @@ examples section has examples of using subscriptions and transactions.
 The client program can instruct the stomp.Conn to gracefully disconnect from the STOMP server using the
 Disconnect method. This will perform a graceful shutdown sequence as specified in the STOMP specification.
 
-This package also exports types that represent a STOMP frame, and operate on STOMP frames. These types
-include stomp.Frame, stomp.Reader, stomp.Writer and stomp.Validator. While a program can
-use this package to communicate with a STOMP server without using these types directly, they are useful
-for implementing a STOMP server in go.
-
 The server subpackage provides a simple implementation of a STOMP server
 that is useful for testing and could be useful for applications that require a simple,
 STOMP-compliant message broker.

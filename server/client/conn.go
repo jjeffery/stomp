@@ -2,13 +2,14 @@ package client
 
 import (
 	"fmt"
-	"gopkg.in/stomp.v1"
-	"gopkg.in/stomp.v1/frame"
 	"io"
 	"log"
 	"net"
 	"strconv"
 	"time"
+
+	"gopkg.in/stomp.v2"
+	"gopkg.in/stomp.v2/frame"
 )
 
 // Maximum number of pending frames allowed to a client.
@@ -25,12 +26,12 @@ const maxPendingReads = 16
 type Conn struct {
 	config         Config
 	rw             net.Conn                            // Network connection to client
-	writer         *stomp.Writer                       // Writes STOMP frames directly to the network connection
+	writer         *frame.Writer                       // Writes STOMP frames directly to the network connection
 	requestChannel chan Request                        // For sending requests to upper layer
 	subChannel     chan *Subscription                  // Receives subscription messages for client
-	writeChannel   chan *stomp.Frame                   // Receives unacknowledged (topic) messages for client
-	readChannel    chan *stomp.Frame                   // Receives frames from the client
-	stateFunc      func(c *Conn, f *stomp.Frame) error // State processing function
+	writeChannel   chan *frame.Frame                   // Receives unacknowledged (topic) messages for client
+	readChannel    chan *frame.Frame                   // Receives frames from the client
+	stateFunc      func(c *Conn, f *frame.Frame) error // State processing function
 	writeTimeout   time.Duration                       // Heart beat write timeout
 	version        stomp.Version                       // Negotiated STOMP protocol version
 	closed         bool                                // Is the connection closed
@@ -52,8 +53,8 @@ func NewConn(config Config, rw net.Conn, ch chan Request) *Conn {
 		rw:             rw,
 		requestChannel: ch,
 		subChannel:     make(chan *Subscription, maxPendingWrites),
-		writeChannel:   make(chan *stomp.Frame, maxPendingWrites),
-		readChannel:    make(chan *stomp.Frame, maxPendingReads),
+		writeChannel:   make(chan *frame.Frame, maxPendingWrites),
+		readChannel:    make(chan *frame.Frame, maxPendingReads),
 		txStore:        &txStore{},
 		subList:        NewSubscriptionList(),
 		subs:           make(map[string]*Subscription),
@@ -65,7 +66,7 @@ func NewConn(config Config, rw net.Conn, ch chan Request) *Conn {
 
 // Write a frame to the connection without requiring
 // any acknowledgement.
-func (c *Conn) Send(f *stomp.Frame) {
+func (c *Conn) Send(f *frame.Frame) {
 	// Place the frame on the write channel. If the
 	// write channel is full, the caller will block.
 	c.writeChannel <- f
@@ -76,7 +77,7 @@ func (c *Conn) Send(f *stomp.Frame) {
 // message has been transmitted. The message header
 // will be based on the contents of the err parameter.
 func (c *Conn) SendError(err error) {
-	f := stomp.NewFrame(frame.ERROR, frame.Message, err.Error())
+	f := frame.New(frame.ERROR, frame.Message, err.Error())
 	c.Send(f) // will close after successful send
 }
 
@@ -84,15 +85,15 @@ func (c *Conn) SendError(err error) {
 // message is derived from err. If f is non-nil, it is the frame
 // whose contents have caused the error. Include the receipt-id
 // header if the frame contains a receipt header.
-func (c *Conn) sendErrorImmediately(err error, f *stomp.Frame) {
-	errorFrame := stomp.NewFrame(frame.ERROR,
+func (c *Conn) sendErrorImmediately(err error, f *frame.Frame) {
+	errorFrame := frame.New(frame.ERROR,
 		frame.Message, err.Error())
 
 	// Include a receipt-id header if the frame that prompted the error had
 	// a receipt header (as suggested by the STOMP protocol spec).
 	if f != nil {
-		if receipt, ok := f.Contains(frame.Receipt); ok {
-			errorFrame.Add(frame.ReceiptId, receipt)
+		if receipt, ok := f.Header.Contains(frame.Receipt); ok {
+			errorFrame.Header.Add(frame.ReceiptId, receipt)
 		}
 	}
 
@@ -103,7 +104,7 @@ func (c *Conn) sendErrorImmediately(err error, f *stomp.Frame) {
 
 // Sends a STOMP frame to the client immediately, does not push onto the
 // write channel to be processed in turn.
-func (c *Conn) sendImmediately(f *stomp.Frame) error {
+func (c *Conn) sendImmediately(f *frame.Frame) error {
 	return c.writer.Write(f)
 }
 
@@ -113,7 +114,7 @@ func (c *Conn) sendImmediately(f *stomp.Frame) error {
 // processLoop go-routine. This keeps all processing of frames for
 // this connection on the one go-routine and avoids race conditions.
 func (c *Conn) readLoop() {
-	reader := stomp.NewReader(c.rw)
+	reader := frame.NewReader(c.rw)
 	expectingConnect := true
 	readTimeout := time.Duration(0)
 	for {
@@ -185,7 +186,7 @@ func (c *Conn) readLoop() {
 func (c *Conn) processLoop() {
 	defer c.cleanupConn()
 
-	c.writer = stomp.NewWriter(c.rw)
+	c.writer = frame.NewWriter(c.rw)
 	c.stateFunc = connecting
 	for {
 		var timerChannel <-chan time.Time
@@ -398,25 +399,25 @@ func (c *Conn) cleanupSubChannel() {
 }
 
 // Send a frame to the client, allocating necessary headers prior.
-func (c *Conn) allocateMessageId(f *stomp.Frame, sub *Subscription) {
+func (c *Conn) allocateMessageId(f *frame.Frame, sub *Subscription) {
 	if f.Command == frame.MESSAGE {
 		// allocate the value of message-id for this frame
 		c.lastMsgId++
 		messageId := strconv.FormatUint(c.lastMsgId, 10)
-		f.Set(frame.MessageId, messageId)
+		f.Header.Set(frame.MessageId, messageId)
 
 		// if there is any requirement by the client to acknowledge, set
 		// the ack header as per STOMP 1.2
 		if sub == nil || sub.ack == frame.AckAuto {
-			f.Del(frame.Ack)
+			f.Header.Del(frame.Ack)
 		} else {
-			f.Set(frame.Ack, messageId)
+			f.Header.Set(frame.Ack, messageId)
 		}
 	}
 }
 
 // State function for expecting connect frame.
-func connecting(c *Conn, f *stomp.Frame) error {
+func connecting(c *Conn, f *frame.Frame) error {
 	switch f.Command {
 	case frame.CONNECT, frame.STOMP:
 		return c.handleConnect(f)
@@ -425,7 +426,7 @@ func connecting(c *Conn, f *stomp.Frame) error {
 }
 
 // State function for after connect frame received.
-func connected(c *Conn, f *stomp.Frame) error {
+func connected(c *Conn, f *frame.Frame) error {
 	switch f.Command {
 	case frame.CONNECT, frame.STOMP:
 		return unexpectedCommand
@@ -454,10 +455,10 @@ func connected(c *Conn, f *stomp.Frame) error {
 	return unknownCommand
 }
 
-func (c *Conn) handleConnect(f *stomp.Frame) error {
+func (c *Conn) handleConnect(f *frame.Frame) error {
 	var err error
 
-	if _, ok := f.Contains(frame.Receipt); ok {
+	if _, ok := f.Header.Contains(frame.Receipt); ok {
 		// CONNNECT and STOMP frames are not allowed to have
 		// a receipt header.
 		return receiptInConnect
@@ -465,8 +466,8 @@ func (c *Conn) handleConnect(f *stomp.Frame) error {
 
 	// if either of these fields are absent, pass nil to the
 	// authenticator function.
-	login, _ := f.Contains(frame.Login)
-	passcode, _ := f.Contains(frame.Passcode)
+	login, _ := f.Header.Contains(frame.Login)
+	passcode, _ := f.Header.Contains(frame.Passcode)
 	if !c.config.Authenticate(login, passcode) {
 		// sleep to slow down a rogue client a little bit
 		log.Println("authentication failed")
@@ -511,7 +512,7 @@ func (c *Conn) handleConnect(f *stomp.Frame) error {
 	// go-routine
 	c.writeTimeout = time.Duration(cy) * time.Millisecond
 
-	response := stomp.NewFrame(frame.CONNECTED,
+	response := frame.New(frame.CONNECTED,
 		frame.Version, string(c.version),
 		frame.Server, "stompd/x.y.z", // TODO: get version
 		frame.HeartBeat, fmt.Sprintf("%d,%d", cy, cx))
@@ -528,21 +529,21 @@ func (c *Conn) handleConnect(f *stomp.Frame) error {
 // Sends a RECEIPT frame to the client if the frame f contains
 // a receipt header. If the frame does contain a receipt header,
 // it will be removed from the frame.
-func (c *Conn) sendReceiptImmediately(f *stomp.Frame) error {
-	if receipt, ok := f.Contains(frame.Receipt); ok {
+func (c *Conn) sendReceiptImmediately(f *frame.Frame) error {
+	if receipt, ok := f.Header.Contains(frame.Receipt); ok {
 		// Remove the receipt header from the frame. This is handy
 		// for transactions, because the frame has its receipt
 		// header removed prior to entering the transaction store.
 		// When the frame is processed upon transaction commit, it
 		// will not have a receipt header anymore.
-		f.Del(frame.Receipt)
-		return c.sendImmediately(stomp.NewFrame(frame.RECEIPT,
+		f.Header.Del(frame.Receipt)
+		return c.sendImmediately(frame.New(frame.RECEIPT,
 			frame.ReceiptId, receipt))
 	}
 	return nil
 }
 
-func (c *Conn) handleDisconnect(f *stomp.Frame) error {
+func (c *Conn) handleDisconnect(f *frame.Frame) error {
 	// As soon as we receive a DISCONNECT frame from a client, we do
 	// not want to send any more frames to that client, with the exception
 	// of a RECEIPT frame if the client has requested one.
@@ -552,10 +553,10 @@ func (c *Conn) handleDisconnect(f *stomp.Frame) error {
 	return nil
 }
 
-func (c *Conn) handleBegin(f *stomp.Frame) error {
+func (c *Conn) handleBegin(f *frame.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
-	if transaction, ok := f.Contains(frame.Transaction); ok {
+	if transaction, ok := f.Header.Contains(frame.Transaction); ok {
 		// Send a receipt and remove the header
 		err := c.sendReceiptImmediately(f)
 		if err != nil {
@@ -567,16 +568,16 @@ func (c *Conn) handleBegin(f *stomp.Frame) error {
 	return missingHeader(frame.Transaction)
 }
 
-func (c *Conn) handleCommit(f *stomp.Frame) error {
+func (c *Conn) handleCommit(f *frame.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
-	if transaction, ok := f.Contains(frame.Transaction); ok {
+	if transaction, ok := f.Header.Contains(frame.Transaction); ok {
 		// Send a receipt and remove the header
 		err := c.sendReceiptImmediately(f)
 		if err != nil {
 			return err
 		}
-		return c.txStore.Commit(transaction, func(f *stomp.Frame) error {
+		return c.txStore.Commit(transaction, func(f *frame.Frame) error {
 			// Call the state function (again) for each frame in the
 			// transaction. This time each frame is stripped of its transaction
 			// header (and its receipt header as well, if it had one).
@@ -586,10 +587,10 @@ func (c *Conn) handleCommit(f *stomp.Frame) error {
 	return missingHeader(frame.Transaction)
 }
 
-func (c *Conn) handleAbort(f *stomp.Frame) error {
+func (c *Conn) handleAbort(f *frame.Frame) error {
 	// the frame should already have been validated for the
 	// transaction header, but we check again here.
-	if transaction, ok := f.Contains(frame.Transaction); ok {
+	if transaction, ok := f.Header.Contains(frame.Transaction); ok {
 		// Send a receipt and remove the header
 		err := c.sendReceiptImmediately(f)
 		if err != nil {
@@ -600,18 +601,18 @@ func (c *Conn) handleAbort(f *stomp.Frame) error {
 	return missingHeader(frame.Transaction)
 }
 
-func (c *Conn) handleSubscribe(f *stomp.Frame) error {
-	id, ok := f.Contains(frame.Id)
+func (c *Conn) handleSubscribe(f *frame.Frame) error {
+	id, ok := f.Header.Contains(frame.Id)
 	if !ok {
 		return missingHeader(frame.Id)
 	}
 
-	dest, ok := f.Contains(frame.Destination)
+	dest, ok := f.Header.Contains(frame.Destination)
 	if !ok {
 		return missingHeader(frame.Destination)
 	}
 
-	ack, ok := f.Contains(frame.Ack)
+	ack, ok := f.Header.Contains(frame.Ack)
 	if !ok {
 		ack = frame.AckAuto
 	}
@@ -629,8 +630,8 @@ func (c *Conn) handleSubscribe(f *stomp.Frame) error {
 	return nil
 }
 
-func (c *Conn) handleUnsubscribe(f *stomp.Frame) error {
-	id, ok := f.Contains(frame.Id)
+func (c *Conn) handleUnsubscribe(f *frame.Frame) error {
+	id, ok := f.Header.Contains(frame.Id)
 	if !ok {
 		return missingHeader(frame.Id)
 	}
@@ -648,13 +649,13 @@ func (c *Conn) handleUnsubscribe(f *stomp.Frame) error {
 	return nil
 }
 
-func (c *Conn) handleAck(f *stomp.Frame) error {
+func (c *Conn) handleAck(f *frame.Frame) error {
 	var err error
 	var msgId string
 
-	if ack, ok := f.Contains(frame.Ack); ok {
+	if ack, ok := f.Header.Contains(frame.Ack); ok {
 		msgId = ack
-	} else if msgId, ok = f.Contains(frame.MessageId); !ok {
+	} else if msgId, ok = f.Header.Contains(frame.MessageId); !ok {
 		return missingHeader(frame.MessageId)
 	}
 
@@ -670,7 +671,7 @@ func (c *Conn) handleAck(f *stomp.Frame) error {
 		return err
 	}
 
-	if tx, ok := f.Contains(frame.Transaction); ok {
+	if tx, ok := f.Header.Contains(frame.Transaction); ok {
 		// the transaction header is removed from the frame
 		err = c.txStore.Add(tx, f)
 		if err != nil {
@@ -691,13 +692,13 @@ func (c *Conn) handleAck(f *stomp.Frame) error {
 	return nil
 }
 
-func (c *Conn) handleNack(f *stomp.Frame) error {
+func (c *Conn) handleNack(f *frame.Frame) error {
 	var err error
 	var msgId string
 
-	if ack, ok := f.Contains(frame.Ack); ok {
+	if ack, ok := f.Header.Contains(frame.Ack); ok {
 		msgId = ack
-	} else if msgId, ok = f.Contains(frame.MessageId); !ok {
+	} else if msgId, ok = f.Header.Contains(frame.MessageId); !ok {
 		return missingHeader(frame.MessageId)
 	}
 
@@ -713,7 +714,7 @@ func (c *Conn) handleNack(f *stomp.Frame) error {
 		return err
 	}
 
-	if tx, ok := f.Contains(frame.Transaction); ok {
+	if tx, ok := f.Header.Contains(frame.Transaction); ok {
 		// the transaction header is removed from the frame
 		err = c.txStore.Add(tx, f)
 		if err != nil {
@@ -739,14 +740,14 @@ func (c *Conn) handleNack(f *stomp.Frame) error {
 // Handle a SEND frame received from the client. Note that
 // this method is called after a SEND message is received,
 // but also after a transaction commit.
-func (c *Conn) handleSend(f *stomp.Frame) error {
+func (c *Conn) handleSend(f *frame.Frame) error {
 	// Send a receipt and remove the header
 	err := c.sendReceiptImmediately(f)
 	if err != nil {
 		return err
 	}
 
-	if tx, ok := f.Contains(frame.Transaction); ok {
+	if tx, ok := f.Header.Contains(frame.Transaction); ok {
 		// the transaction header is removed from the frame
 		err = c.txStore.Add(tx, f)
 		if err != nil {

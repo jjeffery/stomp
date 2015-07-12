@@ -2,9 +2,11 @@ package stomp_test
 
 import (
 	"fmt"
-	"gopkg.in/stomp.v1"
 	"net"
 	"time"
+
+	"gopkg.in/stomp.v2"
+	"gopkg.in/stomp.v2/frame"
 )
 
 func ExampleConn_Send(c *stomp.Conn) error {
@@ -13,14 +15,15 @@ func ExampleConn_Send(c *stomp.Conn) error {
 		"/queue/test-1",            // destination
 		"text/plain",               // content-type
 		[]byte("Message number 1"), // body
-		stomp.NewHeader("expires", "2020-12-31 23:59:59"))
+		stomp.SendOpt.Receipt,
+		stomp.SendOpt.Header(frame.NewHeader("expires", "2049-12-31 23:59:59")))
 	if err != nil {
 		return err
 	}
 
 	// send with no receipt and no optional headers
 	err = c.Send("/queue/test-2", "application/xml",
-		[]byte("<message>hello</message>"), nil)
+		[]byte("<message>hello</message>"))
 	if err != nil {
 		return err
 	}
@@ -38,7 +41,7 @@ func ExampleNewHeader() {
 			host:stompserver
 			accept-version:1.1,1.2
 	*/
-	h := stomp.NewHeader(
+	h := frame.NewHeader(
 		"login", "scott",
 		"passcode", "tiger",
 		"host", "stompserver",
@@ -59,7 +62,7 @@ func ExampleNewFrame() {
 
 			^@
 	*/
-	f := stomp.NewFrame("CONNECT",
+	f := frame.New("CONNECT",
 		"login", "scott",
 		"passcode", "tiger",
 		"host", "stompserver",
@@ -67,7 +70,7 @@ func ExampleNewFrame() {
 	doSomethingWith(f)
 }
 
-func doSomethingWith(f interface{}) {
+func doSomethingWith(f ...interface{}) {
 
 }
 
@@ -75,8 +78,8 @@ func doAnotherThingWith(f interface{}, g interface{}) {
 
 }
 
-func ExampleSubscription() error {
-	conn, err := stomp.Dial("tcp", "localhost:61613", stomp.Options{})
+func ExampleConn_Subscribe_1() error {
+	conn, err := stomp.Dial("tcp", "localhost:61613")
 	if err != nil {
 		return err
 	}
@@ -110,8 +113,28 @@ func ExampleSubscription() error {
 	return conn.Disconnect()
 }
 
+// Example of creating subscriptions with various options.
+func ExampleConn_Subscribe_2(c *stomp.Conn) error {
+	// Subscribe to queue with automatic acknowledgement
+	sub1, err := c.Subscribe("/queue/test-1", stomp.AckAuto)
+	if err != nil {
+		return err
+	}
+
+	// Subscribe to queue with client acknowledgement and a custom header value
+	customHeader := frame.NewHeader("x-custom-header", "some-value")
+	sub2, err := c.Subscribe("/queue/test-2", stomp.AckClient, stomp.SubscribeOpt.Header(customHeader))
+	if err != nil {
+		return err
+	}
+
+	doSomethingWith(sub1, sub2)
+
+	return nil
+}
+
 func ExampleTransaction() error {
-	conn, err := stomp.Dial("tcp", "localhost:61613", stomp.Options{})
+	conn, err := stomp.Dial("tcp", "localhost:61613")
 	if err != nil {
 		return err
 	}
@@ -163,7 +186,7 @@ func ExampleConnect() error {
 		return err
 	}
 
-	stompConn, err := stomp.Connect(netConn, stomp.Options{})
+	stompConn, err := stomp.Connect(netConn)
 	if err != nil {
 		return err
 	}
@@ -176,7 +199,7 @@ func ExampleConnect() error {
 
 // Connect to a STOMP server using default options.
 func ExampleDial_1() error {
-	conn, err := stomp.Dial("tcp", "192.168.1.1:61613", stomp.Options{})
+	conn, err := stomp.Dial("tcp", "192.168.1.1:61613")
 	if err != nil {
 		return err
 	}
@@ -184,8 +207,7 @@ func ExampleDial_1() error {
 	err = conn.Send(
 		"/queue/test-1",           // destination
 		"text/plain",              // content-type
-		[]byte("Test message #1"), // body
-		nil) // no headers
+		[]byte("Test message #1")) // body
 	if err != nil {
 		return err
 	}
@@ -198,13 +220,12 @@ func ExampleDial_1() error {
 // the virtual host is named "dragon". In this example the STOMP
 // server also accepts a non-standard header called 'nonce'.
 func ExampleDial_2() error {
-	conn, err := stomp.Dial("tcp", "192.168.1.1:61613", stomp.Options{
-		Login:         "scott",
-		Passcode:      "leopard",
-		AcceptVersion: "1.1,1.2",
-		Host:          "dragon",
-		NonStandard:   stomp.NewHeader("nonce", "B256B26D320A"),
-	})
+	conn, err := stomp.Dial("tcp", "192.168.1.1:61613",
+		stomp.ConnOpt.Login("scott", "leopard"),
+		stomp.ConnOpt.AcceptVersion(stomp.V11),
+		stomp.ConnOpt.AcceptVersion(stomp.V12),
+		stomp.ConnOpt.Host("dragon"),
+		stomp.ConnOpt.Header(frame.NewHeader("nonce", "B256B26D320A")))
 	if err != nil {
 		return err
 	}
@@ -212,8 +233,7 @@ func ExampleDial_2() error {
 	err = conn.Send(
 		"/queue/test-1",           // destination
 		"text/plain",              // content-type
-		[]byte("Test message #1"), // body
-		nil) // no optional headers
+		[]byte("Test message #1")) // body
 	if err != nil {
 		return err
 	}

@@ -1,14 +1,15 @@
 package server
 
 import (
-	"gopkg.in/stomp.v1/frame"
-	"gopkg.in/stomp.v1/server/client"
-	"gopkg.in/stomp.v1/server/queue"
-	"gopkg.in/stomp.v1/server/topic"
 	"log"
 	"net"
 	"strings"
 	"time"
+
+	"gopkg.in/stomp.v2/frame"
+	"gopkg.in/stomp.v2/server/client"
+	"gopkg.in/stomp.v2/server/queue"
+	"gopkg.in/stomp.v2/server/topic"
 )
 
 type requestProcessor struct {
@@ -62,7 +63,7 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 			}
 
 		case client.EnqueueOp:
-			destination, ok := r.Frame.Contains(frame.Destination)
+			destination, ok := r.Frame.Header.Contains(frame.Destination)
 			if !ok {
 				// should not happen, already checked in lower layer
 				panic("missing destination")
@@ -77,7 +78,7 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 			}
 
 		case client.RequeueOp:
-			destination, ok := r.Frame.Contains(frame.Destination)
+			destination, ok := r.Frame.Header.Contains(frame.Destination)
 			if !ok {
 				// should not happen, already checked in lower layer
 				panic("missing destination")

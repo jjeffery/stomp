@@ -1,9 +1,9 @@
-package stomp
+package frame
 
 import (
 	"bufio"
 	"bytes"
-	"gopkg.in/stomp.v1/frame"
+	"errors"
 	"io"
 )
 
@@ -15,10 +15,15 @@ const (
 	nullByte   = byte(0)
 )
 
+var (
+	ErrInvalidCommand     = errors.New("invalid command")
+	ErrInvalidFrameFormat = errors.New("invalid frame format")
+)
+
 // The Reader type reads STOMP frames from an underlying io.Reader.
 // The reader is buffered, and the size of the buffer is the maximum
-// size permitted for the STOMP frame command and header section. If
-// a STOMP frame is rejected if its command and header section exceed
+// size permitted for the STOMP frame command and header section.
+// A STOMP frame is rejected if its command and header section exceed
 // the buffer size.
 type Reader struct {
 	reader *bufio.Reader
@@ -26,7 +31,7 @@ type Reader struct {
 
 // NewReader creates a Reader with the default underlying buffer size.
 func NewReader(reader io.Reader) *Reader {
-	return NewReaderSize(reader, bufferSize) // TODO(jpj): fix magic number
+	return NewReaderSize(reader, bufferSize)
 }
 
 // NewReaderSize creates a Reader with an underlying bufferSize
@@ -50,20 +55,20 @@ func (r *Reader) Read() (*Frame, error) {
 		return nil, nil
 	}
 
-	f := NewFrame(string(commandSlice))
+	f := New(string(commandSlice))
 	//println("RX:", f.Command)
 	switch f.Command {
 	// TODO(jpj): Is it appropriate to perform validation on the
 	// command at this point. Probably better to validate higher up,
 	// this way this type can be useful for any other non-STOMP protocols
 	// which happen to use the same frame format.
-	case frame.CONNECT, frame.STOMP, frame.SEND, frame.SUBSCRIBE,
-		frame.UNSUBSCRIBE, frame.ACK, frame.NACK, frame.BEGIN,
-		frame.COMMIT, frame.ABORT, frame.DISCONNECT, frame.CONNECTED,
-		frame.MESSAGE, frame.RECEIPT, frame.ERROR:
+	case CONNECT, STOMP, SEND, SUBSCRIBE,
+		UNSUBSCRIBE, ACK, NACK, BEGIN,
+		COMMIT, ABORT, DISCONNECT, CONNECTED,
+		MESSAGE, RECEIPT, ERROR:
 		// valid command
 	default:
-		return nil, invalidCommand
+		return nil, ErrInvalidCommand
 	}
 
 	// read headers
@@ -81,7 +86,7 @@ func (r *Reader) Read() (*Frame, error) {
 		index := bytes.IndexByte(headerSlice, colon)
 		if index <= 0 {
 			// colon is missing or header name is zero length
-			return nil, invalidFrameFormat
+			return nil, ErrInvalidFrameFormat
 		}
 
 		name := string(headerSlice[0:index])
@@ -95,7 +100,7 @@ func (r *Reader) Read() (*Frame, error) {
 	}
 
 	// get content length from the headers
-	if contentLength, ok, err := f.ContentLength(); err != nil {
+	if contentLength, ok, err := f.Header.ContentLength(); err != nil {
 		// happens if the content is malformed
 		return nil, err
 	} else if ok {
@@ -115,7 +120,7 @@ func (r *Reader) Read() (*Frame, error) {
 			return nil, err
 		}
 		if terminator != 0 {
-			return nil, invalidFrameFormat
+			return nil, ErrInvalidFrameFormat
 		}
 	} else {
 		f.Body, err = r.reader.ReadBytes(nullByte)

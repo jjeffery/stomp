@@ -8,52 +8,18 @@ import (
 	"strconv"
 	"time"
 
-	"gopkg.in/stomp.v1/frame"
+	"gopkg.in/stomp.v2/frame"
 )
 
 // Default time span to add to read/write heart-beat timeouts
 // to avoid premature disconnections due to network latency.
-const DefaultReadHeartBeatError = 5 * time.Second
-
-// Options for connecting to the STOMP server. Used with the
-// stomp.Dial and stomp.Connect functions, both of which have examples.
-type Options struct {
-	// Login and passcode for authentication with the STOMP server.
-	// If no authentication is required, leave blank.
-	Login, Passcode string
-
-	// Value for the "host" header entry when connecting to the
-	// STOMP server. Leave blank for default value.
-	Host string
-
-	// Comma-separated list of acceptable STOMP versions.
-	// Leave blank for default protocol negotiation, which is
-	// the recommended setting.
-	AcceptVersion string
-
-	// Value to pass in the "heart-beat" header entry when connecting
-	// to the STOMP server. Format is two non-negative integer values
-	// separated by a comma. Leave blank for default heart-beat negotiation,
-	// which is the recommended setting.
-	HeartBeat string
-
-	// As per the STOMP specification, we should expect some discrepancy
-	// in incoming heartbeats. Add this time duration to the read timeout.
-	// If this value is zero, it will be set to DefaultReadHeartBeatError.
-	// If you really want to have zero error (eg for testing), set to a
-	// negative value.
-	ReadHeartBeatError time.Duration
-
-	// Other header entries for STOMP servers that accept non-standard
-	// header entries in the CONNECT frame.
-	NonStandard *Header
-}
+const DefaultHeartBeatError = 5 * time.Second
 
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
 type Conn struct {
 	conn         io.ReadWriteCloser
-	readCh       chan *Frame
+	readCh       chan *frame.Frame
 	writeCh      chan writeRequest
 	version      Version
 	session      string
@@ -61,81 +27,80 @@ type Conn struct {
 	readTimeout  time.Duration
 	writeTimeout time.Duration
 	closed       bool
+	options      *connOptions
 }
 
 type writeRequest struct {
-	Frame *Frame      // frame to send
-	C     chan *Frame // response channel
+	Frame *frame.Frame      // frame to send
+	C     chan *frame.Frame // response channel
 }
 
 // Dial creates a network connection to a STOMP server and performs
 // the STOMP connect protocol sequence. The network endpoint of the
 // STOMP server is specified by network and addr. STOMP protocol
 // options can be specified in opts.
-func Dial(network, addr string, opts Options) (*Conn, error) {
+func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	if opts.Host == "" {
-		host, _, err := net.SplitHostPort(c.RemoteAddr().String())
-		if err != nil {
-			c.Close()
-			return nil, err
-		}
-		opts.Host = host
+	host, _, err := net.SplitHostPort(c.RemoteAddr().String())
+	if err != nil {
+		c.Close()
+		return nil, err
 	}
 
-	return Connect(c, opts)
+	// Add option to set host and make it the first option in list,
+	// so that if host has been explicitly specified it will override.
+	opts = append([](func(*Conn) error){ConnOpt.Host(host)}, opts...)
+
+	return Connect(c, opts...)
 }
 
 // Connect creates a STOMP connection and performs the STOMP connect
 // protocol sequence. The connection to the STOMP server has already
 // been created by the program. The opts parameter provides the
 // opportunity to specify STOMP protocol options.
-func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
-	reader := NewReader(conn)
-	writer := NewWriter(conn)
+func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) {
+	reader := frame.NewReader(conn)
+	writer := frame.NewWriter(conn)
 
-	// set default values
-	if opts.AcceptVersion == "" {
-		opts.AcceptVersion = "1.0,1.1,1.2"
+	c := &Conn{
+		conn:    conn,
+		readCh:  make(chan *frame.Frame, 8),
+		writeCh: make(chan writeRequest, 8),
 	}
-	if opts.HeartBeat == "" {
-		opts.HeartBeat = "60000,60000"
+
+	options, err := newConnOptions(c, opts)
+	if err != nil {
+		return nil, err
 	}
-	if opts.Host == "" {
-		// Attempt to get host from net.Conn object if possible
+
+	if options.Host == "" {
+		// host not specified yet, attempt to get from net.Conn if possible
 		if connection, ok := conn.(net.Conn); ok {
 			host, _, err := net.SplitHostPort(connection.RemoteAddr().String())
 			if err == nil {
-				opts.Host = host
+				options.Host = host
 			}
 		}
-
-		// If host is still blank, use default
-		if opts.Host == "" {
-			opts.Host = "default"
+		// if host is still blank, use default
+		if options.Host == "" {
+			options.Host = "default"
 		}
 	}
 
-	connectFrame := NewFrame(frame.CONNECT,
-		frame.Host, opts.Host,
-		frame.AcceptVersion, opts.AcceptVersion,
-		frame.HeartBeat, opts.HeartBeat)
-	if opts.Login != "" || opts.Passcode != "" {
-		connectFrame.Set(frame.Login, opts.Login)
-		connectFrame.Set(frame.Passcode, opts.Passcode)
-	}
-	if opts.NonStandard != nil {
-		for i := 0; i < opts.NonStandard.Len(); i++ {
-			key, value := opts.NonStandard.GetAt(i)
-			connectFrame.Add(key, value)
-		}
+	connectFrame, err := options.NewFrame()
+	if err != nil {
+		return nil, err
 	}
 
-	writer.Write(connectFrame)
+	err = writer.Write(connectFrame)
+	if err != nil {
+		return nil, err
+	}
+
 	response, err := reader.Read()
 	if err != nil {
 		return nil, err
@@ -145,26 +110,24 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 		return nil, newError(response)
 	}
 
-	c := &Conn{
-		conn:    conn,
-		readCh:  make(chan *Frame, 8),
-		writeCh: make(chan writeRequest, 8),
-		server:  response.Get(frame.Server),
-		session: response.Get(frame.Session),
-	}
+	c.server = response.Header.Get(frame.Server)
+	c.session = response.Header.Get(frame.Session)
 
-	if version := response.Get(frame.Version); version != "" {
-		switch Version(version) {
-		case V10, V11, V12:
-			c.version = Version(version)
-		default:
-			return nil, Error{Message: "unsupported version", Frame: response}
+	if versionString := response.Header.Get(frame.Version); versionString != "" {
+		version := Version(versionString)
+		if err = version.CheckSupported(); err != nil {
+			return nil, Error{
+				Message: err.Error(),
+				Frame:   response,
+			}
 		}
+		c.version = version
 	} else {
+		// no version in the response, so assume version 1.0
 		c.version = V10
 	}
 
-	if heartBeat, ok := response.Contains(frame.HeartBeat); ok {
+	if heartBeat, ok := response.Header.Contains(frame.HeartBeat); ok {
 		readTimeout, writeTimeout, err := frame.ParseHeartBeat(heartBeat)
 		if err != nil {
 			return nil, Error{
@@ -172,19 +135,28 @@ func Connect(conn io.ReadWriteCloser, opts Options) (*Conn, error) {
 				Frame:   response,
 			}
 		}
-		rtError := opts.ReadHeartBeatError
-		if rtError < 0 {
-			rtError = 0
-		} else if rtError == 0 {
-			rtError = DefaultReadHeartBeatError
-		}
 
-		c.readTimeout = readTimeout + rtError
+		c.readTimeout = readTimeout
 		c.writeTimeout = writeTimeout
+
+		if c.readTimeout > 0 {
+			// Add time to the read timeout to account for time
+			// delay in other station transmitting timeout
+			c.readTimeout += options.HeartBeatError
+		}
+		if c.writeTimeout > options.HeartBeatError {
+			// Reduce time from the write timeout to account
+			// for time delay in transmitting to the other station
+			c.writeTimeout -= options.HeartBeatError
+		}
 	}
 
 	// TODO(jpj): make any non-standard headers in the CONNECTED
-	// frame available.
+	// frame available. This could be implemented as:
+	// (a) a callback function supplied as an option; or
+	// (b) a property of the Conn structure (eg CustomHeaders)
+	// Neither options are particularly elegant, so wait until
+	// there is a real need for this.
 
 	go readLoop(c, reader)
 	go processLoop(c, writer)
@@ -218,7 +190,7 @@ func (c *Conn) Server() string {
 // readLoop is a goroutine that reads frames from the
 // reader and places them onto a channel for processing
 // by the processLoop goroutine
-func readLoop(c *Conn, reader *Reader) {
+func readLoop(c *Conn, reader *frame.Reader) {
 	for {
 		f, err := reader.Read()
 		if err != nil {
@@ -231,8 +203,8 @@ func readLoop(c *Conn, reader *Reader) {
 
 // processLoop is a goroutine that handles io with
 // the server.
-func processLoop(c *Conn, writer *Writer) {
-	channels := make(map[string]chan *Frame)
+func processLoop(c *Conn, writer *frame.Writer) {
+	channels := make(map[string]chan *frame.Frame)
 
 	var readTimeoutChannel <-chan time.Time
 	var readTimer *time.Timer
@@ -287,13 +259,12 @@ func processLoop(c *Conn, writer *Writer) {
 
 			switch f.Command {
 			case frame.RECEIPT:
-				if id, ok := f.Contains(frame.ReceiptId); ok {
+				if id, ok := f.Header.Contains(frame.ReceiptId); ok {
 					if ch, ok := channels[id]; ok {
 						ch <- f
 						delete(channels, id)
 						close(ch)
 					}
-
 				} else {
 					err := &Error{Message: "missing receipt-id", Frame: f}
 					sendError(channels, err)
@@ -313,7 +284,7 @@ func processLoop(c *Conn, writer *Writer) {
 				return
 
 			case frame.MESSAGE:
-				if id, ok := f.Contains(frame.Subscription); ok {
+				if id, ok := f.Header.Contains(frame.Subscription); ok {
 					if ch, ok := channels[id]; ok {
 						ch <- f
 					} else {
@@ -334,7 +305,7 @@ func processLoop(c *Conn, writer *Writer) {
 				return
 			}
 			if req.C != nil {
-				if receipt, ok := req.Frame.Contains(frame.Receipt); ok {
+				if receipt, ok := req.Frame.Header.Contains(frame.Receipt); ok {
 					// remember the channel for this receipt
 					channels[receipt] = req.C
 				}
@@ -342,14 +313,14 @@ func processLoop(c *Conn, writer *Writer) {
 
 			switch req.Frame.Command {
 			case frame.SUBSCRIBE:
-				id, _ := req.Frame.Contains(frame.Id)
+				id, _ := req.Frame.Header.Contains(frame.Id)
 				channels[id] = req.C
 			case frame.UNSUBSCRIBE:
-				id, _ := req.Frame.Contains(frame.Id)
+				id, _ := req.Frame.Header.Contains(frame.Id)
 				// is this trying to be too clever -- add a receipt
 				// header so that when the server responds with a
 				// RECEIPT frame, the corresponding channel will be closed
-				req.Frame.Set(frame.Receipt, id)
+				req.Frame.Header.Set(frame.Receipt, id)
 			}
 
 			// frame to send
@@ -363,8 +334,8 @@ func processLoop(c *Conn, writer *Writer) {
 }
 
 // Send an error to all receipt channels.
-func sendError(m map[string]chan *Frame, err error) {
-	frame := NewFrame(frame.ERROR, frame.Message, err.Error())
+func sendError(m map[string]chan *frame.Frame, err error) {
+	frame := frame.New(frame.ERROR, frame.Message, err.Error())
 	for _, ch := range m {
 		ch <- frame
 	}
@@ -381,9 +352,9 @@ func (c *Conn) Disconnect() error {
 		return nil
 	}
 
-	ch := make(chan *Frame)
+	ch := make(chan *frame.Frame)
 	c.writeCh <- writeRequest{
-		Frame: NewFrame(frame.DISCONNECT, frame.Receipt, allocateId()),
+		Frame: frame.New(frame.DISCONNECT, frame.Receipt, allocateId()),
 		C:     ch,
 	}
 
@@ -397,88 +368,91 @@ func (c *Conn) Disconnect() error {
 }
 
 // Send sends a message to the STOMP server, which in turn sends the message to the specified destination.
-// This method returns without confirming that the STOMP server has received the message. If the STOMP server
-// does fail to receive the message for any reason, the connection will close.
+// If the STOMP server fails to receive the message for any reason, the connection will close.
 //
 // The content type should be specified, according to the STOMP specification, but if contentType is an empty
-// string, the message will be delivered without a content type header entry. The body array contains the
+// string, the message will be delivered without a content-type header entry. The body array contains the
 // message body, and its content should be consistent with the specified content type.
 //
-// The message can contain optional, user-defined header entries in userDefined. If there are no optional header
-// entries, then set userDefined to nil.
-func (c *Conn) Send(destination, contentType string, body []byte, userDefined *Header) error {
+// Any number of options can be specified in opts. See the examples for usage. Options include whether
+// to receive a RECEIPT, should the content-length be suppressed, and sending custom header entries.
+func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*frame.Frame) error) error {
 	if c.closed {
 		return newErrorMessage("Underlying connection closed.")
 	}
 
-	f := createSendFrame(destination, contentType, body, userDefined)
-	f.Del(frame.Transaction)
-	c.sendFrame(f)
+	f, err := createSendFrame(destination, contentType, body, opts)
+	if err != nil {
+		return err
+	}
+
+	if _, ok := f.Header.Contains(frame.Receipt); ok {
+		// receipt required
+		request := writeRequest{
+			Frame: f,
+			C:     make(chan *frame.Frame),
+		}
+
+		c.writeCh <- request
+		response := <-request.C
+		if response.Command != frame.RECEIPT {
+			return newError(response)
+		}
+	} else {
+		// no receipt required
+		request := writeRequest{Frame: f}
+		c.writeCh <- request
+	}
+
 	return nil
 }
 
-// Send sends a message to the STOMP server, which in turn sends the message to the specified destination.
-// This method does not return until the STOMP server has confirmed receipt of the message.
-//
-// The content type should be specified, according to the STOMP specification, but if contentType is an empty
-// string, the message will be delivered without a content type header entry. The body array contains the
-// message body, and its content should be consistent with the specified content type.
-//
-// The message can contain optional, user-defined header entries in userDefined. If there are no optional header
-// entries, then set userDefined to nil.
-func (c *Conn) SendWithReceipt(destination, contentType string, body []byte, userDefined *Header) error {
-	if c.closed {
-		return newErrorMessage("Underlying connection closed.")
-	}
+func createSendFrame(destination, contentType string, body []byte, opts []func(*frame.Frame) error) (*frame.Frame, error) {
+	// Set the content-length before the options, because this provides
+	// an opportunity to remove content-length.
+	f := frame.New(frame.SEND, frame.ContentLength, strconv.Itoa(len(body)))
+	f.Body = body
 
-	f := createSendFrame(destination, contentType, body, userDefined)
-	f.Del(frame.Transaction)
-	return c.sendFrameWithReceipt(f)
-}
-
-func createSendFrame(destination, contentType string, body []byte, userDefined *Header) *Frame {
-	f := &Frame{
-		Command: frame.SEND,
-		Body:    body,
-	}
-	if userDefined == nil {
-		f.Header = NewHeader()
-	} else {
-		f.Header = userDefined.Clone()
-		f.Header.Del(frame.Receipt)
+	for _, opt := range opts {
+		if opt == nil {
+			return nil, ErrNilOption
+		}
+		if err := opt(f); err != nil {
+			return nil, err
+		}
 	}
 
 	f.Header.Set(frame.Destination, destination)
 
-	if contentType == "" {
-		// no content type specified
-		f.Header.Del(frame.ContentType)
-	} else {
+	if contentType != "" {
 		f.Header.Set(frame.ContentType, contentType)
 	}
 
-	f.Header.Set(frame.ContentLength, strconv.Itoa(len(body)))
-	return f
+	return f, nil
 }
 
-func (c *Conn) sendFrame(f *Frame) {
-	request := writeRequest{Frame: f}
-	c.writeCh <- request
-}
+func (c *Conn) sendFrame(f *frame.Frame) error {
+	if _, ok := f.Header.Contains(frame.Receipt); ok {
+		// receipt required
+		request := writeRequest{
+			Frame: f,
+			C:     make(chan *frame.Frame),
+		}
 
-func (c *Conn) sendFrameWithReceipt(f *Frame) error {
-	receipt := allocateId()
-	f.Set(frame.Receipt, receipt)
-
-	request := writeRequest{Frame: f}
-
-	request.C = make(chan *Frame)
-	c.writeCh <- request
-	response := <-request.C
-	if response.Command != frame.RECEIPT {
-		return newError(response)
+		c.writeCh <- request
+		response, ok := <-request.C
+		if ok {
+			if response.Command != frame.RECEIPT {
+				return newError(response)
+			}
+		} else {
+			return ErrClosed
+		}
+	} else {
+		// no receipt required
+		request := writeRequest{Frame: f}
+		c.writeCh <- request
 	}
-	// TODO(jpj) Check receipt id
 
 	return nil
 }
@@ -487,28 +461,32 @@ func (c *Conn) sendFrameWithReceipt(f *Frame) error {
 // The subscription has a destination, and messages sent to that destination
 // will be received by this subscription. A subscription has a channel
 // on which the calling program can receive messages.
-func (c *Conn) Subscribe(destination string, ack AckMode) (*Subscription, error) {
-	return c.SubscribeWithHeaders(destination, ack, NewHeader())
-}
+func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Frame) error) (*Subscription, error) {
+	ch := make(chan *frame.Frame)
+	id := allocateId()
 
-func (c *Conn) SubscribeWithHeaders(destination string, ack AckMode, userDefined *Header) (*Subscription, error) {
-	ch := make(chan *Frame)
-	headers := userDefined.Clone()
+	subscribeFrame := frame.New(frame.SUBSCRIBE,
+		frame.Id, id,
+		frame.Destination, destination,
+		frame.Ack, ack.String())
 
-	if _, ok := headers.Contains(frame.Id); !ok {
-		headers.Add(frame.Id, allocateId())
+	for _, opt := range opts {
+		if opt == nil {
+			return nil, ErrNilOption
+		}
+		err := opt(subscribeFrame)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	headers.Add(frame.Destination, destination)
-	headers.Add(frame.Ack, ack.String())
-
-	f := NewFrame(frame.SUBSCRIBE)
-	f.Header = headers
-
-	request := writeRequest{Frame: f, C: ch}
+	request := writeRequest{
+		Frame: subscribeFrame,
+		C:     ch,
+	}
 
 	sub := &Subscription{
-		id:          headers.Get(frame.Id),
+		id:          id,
 		destination: destination,
 		conn:        c,
 		ackMode:     ack,
@@ -535,6 +513,9 @@ func (c *Conn) Ack(m *Message) error {
 	return nil
 }
 
+// Nack indicates to the server that a message was not received
+// by the client. Returns an error if the STOMP version does not
+// support the NACK message.
 func (c *Conn) Nack(m *Message) error {
 	f, err := c.createAckNackFrame(m, false)
 	if err != nil {
@@ -552,19 +533,19 @@ func (c *Conn) Nack(m *Message) error {
 // will be processed atomically by the STOMP server based on the transaction.
 func (c *Conn) Begin() *Transaction {
 	id := allocateId()
-	f := NewFrame(frame.BEGIN, frame.Transaction, id)
+	f := frame.New(frame.BEGIN, frame.Transaction, id)
 	c.sendFrame(f)
 	return &Transaction{id: id, conn: c}
 }
 
 // Create an ACK or NACK frame. Complicated by version incompatibilities.
-func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*Frame, error) {
+func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*frame.Frame, error) {
 	if !ack && !c.version.SupportsNack() {
-		return nil, nackNotSupported
+		return nil, ErrNackNotSupported
 	}
 
 	if msg.Header == nil || msg.Subscription == nil || msg.Conn == nil {
-		return nil, notReceivedMessage
+		return nil, ErrNotReceivedMessage
 	}
 
 	if msg.Subscription.AckMode() == AckAuto {
@@ -574,15 +555,15 @@ func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*Frame, error) {
 		} else {
 			// sending a NACK for an ack:auto subscription makes no
 			// sense
-			return nil, cannotNackAutoSub
+			return nil, ErrCannotNackAutoSub
 		}
 	}
 
-	var f *Frame
+	var f *frame.Frame
 	if ack {
-		f = NewFrame(frame.ACK)
+		f = frame.New(frame.ACK)
 	} else {
-		f = NewFrame(frame.NACK)
+		f = frame.New(frame.NACK)
 	}
 
 	switch c.version {

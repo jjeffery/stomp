@@ -2,8 +2,9 @@ package stomp
 
 import (
 	"fmt"
-	"gopkg.in/stomp.v1/frame"
 	"log"
+
+	"gopkg.in/stomp.v2/frame"
 )
 
 // The Subscription type represents a client subscription to
@@ -49,9 +50,9 @@ func (s *Subscription) Active() bool {
 // Unsubscribes and closes the channel C.
 func (s *Subscription) Unsubscribe() error {
 	if s.completed {
-		return completedSubscription
+		return ErrCompletedSubscription
 	}
-	f := NewFrame(frame.UNSUBSCRIBE, frame.Id, s.id)
+	f := frame.New(frame.UNSUBSCRIBE, frame.Id, s.id)
 	s.conn.sendFrame(f)
 	s.completed = true
 	close(s.C)
@@ -63,11 +64,11 @@ func (s *Subscription) Unsubscribe() error {
 // directly.
 func (s *Subscription) Read() (*Message, error) {
 	if s.completed {
-		return nil, completedSubscription
+		return nil, ErrCompletedSubscription
 	}
 	msg, ok := <-s.C
 	if !ok {
-		return nil, completedSubscription
+		return nil, ErrCompletedSubscription
 	}
 	if msg.Err != nil {
 		return nil, msg.Err
@@ -75,7 +76,7 @@ func (s *Subscription) Read() (*Message, error) {
 	return msg, nil
 }
 
-func (s *Subscription) readLoop(ch chan *Frame) {
+func (s *Subscription) readLoop(ch chan *frame.Frame) {
 	for {
 		f, ok := <-ch
 		if !ok {
@@ -83,8 +84,8 @@ func (s *Subscription) readLoop(ch chan *Frame) {
 		}
 
 		if f.Command == frame.MESSAGE {
-			destination := f.Get(frame.Destination)
-			contentType := f.Get(frame.ContentType)
+			destination := f.Header.Get(frame.Destination)
+			contentType := f.Header.Get(frame.ContentType)
 			msg := &Message{
 				Destination:  destination,
 				ContentType:  contentType,
@@ -95,16 +96,16 @@ func (s *Subscription) readLoop(ch chan *Frame) {
 			}
 			s.C <- msg
 		} else if f.Command == frame.ERROR {
-			message, _ := f.Contains(frame.Message)
+			message, _ := f.Header.Contains(frame.Message)
 			text := fmt.Sprintf("Subscription %s: %s: ERROR message:%s",
 				s.id,
 				s.destination,
 				message)
 			log.Println(text)
-			contentType := f.Get(frame.ContentType)
+			contentType := f.Header.Get(frame.ContentType)
 			msg := &Message{
 				Err: &Error{
-					Message: f.Get(frame.Message),
+					Message: f.Header.Get(frame.Message),
 					Frame:   f,
 				},
 				ContentType:  contentType,

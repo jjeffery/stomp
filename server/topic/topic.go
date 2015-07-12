@@ -5,7 +5,8 @@ package topic
 
 import (
 	"container/list"
-	"gopkg.in/stomp.v1"
+
+	"gopkg.in/stomp.v2/frame"
 )
 
 // A Topic is used for broadcasting to subscribed clients.
@@ -43,7 +44,7 @@ func (t *Topic) Unsubscribe(sub Subscription) {
 
 // Enqueue send a message to the topic. All subscriptions receive a copy
 // of the message.
-func (t *Topic) Enqueue(f *stomp.Frame) {
+func (t *Topic) Enqueue(f *frame.Frame) {
 	switch t.subs.Len() {
 	case 0:
 	// no subscription, so do nothing

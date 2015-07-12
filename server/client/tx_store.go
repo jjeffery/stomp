@@ -2,8 +2,8 @@ package client
 
 import (
 	"container/list"
-	"gopkg.in/stomp.v1"
-	"gopkg.in/stomp.v1/frame"
+
+	"gopkg.in/stomp.v2/frame"
 )
 
 type txStore struct {
@@ -41,10 +41,10 @@ func (txs *txStore) Abort(tx string) error {
 // to be sent to the request channel for processing. Calls the commit
 // function (commitFunc) in order for each request that is part of the
 // transaction.
-func (txs *txStore) Commit(tx string, commitFunc func(f *stomp.Frame) error) error {
+func (txs *txStore) Commit(tx string, commitFunc func(f *frame.Frame) error) error {
 	if list, ok := txs.transactions[tx]; ok {
 		for element := list.Front(); element != nil; element = list.Front() {
-			err := commitFunc(list.Remove(element).(*stomp.Frame))
+			err := commitFunc(list.Remove(element).(*frame.Frame))
 			if err != nil {
 				return err
 			}
@@ -55,9 +55,9 @@ func (txs *txStore) Commit(tx string, commitFunc func(f *stomp.Frame) error) err
 	return txUnknown
 }
 
-func (txs *txStore) Add(tx string, f *stomp.Frame) error {
+func (txs *txStore) Add(tx string, f *frame.Frame) error {
 	if list, ok := txs.transactions[tx]; ok {
-		f.Del(frame.Transaction)
+		f.Header.Del(frame.Transaction)
 		list.PushBack(f)
 		return nil
 	}

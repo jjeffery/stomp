@@ -1,9 +1,7 @@
 package stomp
 
 import (
-	"errors"
-	"gopkg.in/stomp.v1/frame"
-	"strconv"
+	"gopkg.in/stomp.v2/frame"
 )
 
 // A Message represents a message received from the STOMP server.
@@ -18,9 +16,7 @@ type Message struct {
 	// will be populated according to the contents of the ERROR frame.
 	Err error
 
-	// Destination the message is sent to. The STOMP server should
-	// in turn send this message to a STOMP client that has subscribed
-	// to the destination.
+	// Destination the message has been sent to.
 	Destination string
 
 	// MIME content type.
@@ -34,9 +30,7 @@ type Message struct {
 
 	// Optional header entries. When received from the server,
 	// these are the header entries received with the message.
-	// When sending to the server, these are optional header entries
-	// that accompany the message to its destination.
-	*Header
+	Header *frame.Header
 
 	// The message body, which is an arbitrary sequence of bytes.
 	// The ContentType indicates the format of this body.
@@ -52,25 +46,4 @@ func (msg *Message) ShouldAck() bool {
 	}
 
 	return msg.Subscription.AckMode() != AckAuto
-}
-
-func (msg *Message) createSendFrame() (*Frame, error) {
-	if msg.Destination == "" {
-		return nil, errors.New("no destination specififed")
-	}
-	f := NewFrame(frame.SEND, frame.Destination, msg.Destination)
-	if msg.ContentType != "" {
-		f.Set(frame.ContentType, msg.ContentType)
-	}
-	f.Set(frame.ContentLength, strconv.Itoa(len(msg.Body)))
-	f.Body = msg.Body
-
-	if msg.Header != nil {
-		for i := 0; i < msg.Header.Len(); i++ {
-			key, value := msg.Header.GetAt(i)
-			f.Add(key, value)
-		}
-	}
-
-	return f, nil
 }

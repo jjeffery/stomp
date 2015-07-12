@@ -4,8 +4,8 @@ Package queue provides implementations of server-side queues.
 package queue
 
 import (
-	"gopkg.in/stomp.v1"
-	"gopkg.in/stomp.v1/server/client"
+	"gopkg.in/stomp.v2/frame"
+	"gopkg.in/stomp.v2/server/client"
 )
 
 // Queue for storing message frames.
@@ -54,7 +54,7 @@ func (q *Queue) Unsubscribe(sub *client.Subscription) {
 // to receive the message, it is sent to the subscription without
 // making it to the queue. Otherwise, the message is queued until
 // a message is available.
-func (q *Queue) Enqueue(f *stomp.Frame) error {
+func (q *Queue) Enqueue(f *frame.Frame) error {
 	// find a subscription ready to receive the frame
 	sub := q.subs.Get()
 	if sub == nil {
@@ -72,7 +72,7 @@ func (q *Queue) Enqueue(f *stomp.Frame) error {
 // to receive the message, it is sent to the subscription without
 // making it to the queue. Otherwise, the message is queued until
 // a message is available.
-func (q *Queue) Requeue(f *stomp.Frame) error {
+func (q *Queue) Requeue(f *frame.Frame) error {
 	// find a subscription ready to receive the frame
 	sub := q.subs.Get()
 	if sub == nil {

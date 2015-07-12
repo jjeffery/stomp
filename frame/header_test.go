@@ -1,10 +1,10 @@
-package stomp
+package frame
 
 import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *StompSuite) TestHeaderGetSetAddDel(c *C) {
+func (s *FrameSuite) TestHeaderGetSetAddDel(c *C) {
 	h := &Header{}
 	c.Assert(h.Get("xxx"), Equals, "")
 	h.Add("xxx", "yyy")
@@ -17,7 +17,7 @@ func (s *StompSuite) TestHeaderGetSetAddDel(c *C) {
 	c.Assert(h.Get("xxx"), Equals, "")
 }
 
-func (s *StompSuite) TestHeaderClone(c *C) {
+func (s *FrameSuite) TestHeaderClone(c *C) {
 	h := Header{}
 	h.Set("xxx", "yyy")
 	h.Set("yyy", "zzz")
@@ -29,7 +29,7 @@ func (s *StompSuite) TestHeaderClone(c *C) {
 	c.Assert(hc.Get("yyy"), Equals, "zzz")
 }
 
-func (s *StompSuite) TestHeaderContains(c *C) {
+func (s *FrameSuite) TestHeaderContains(c *C) {
 	h := NewHeader("xxx", "yyy", "zzz", "aaa", "xxx", "ccc")
 	v, ok := h.Contains("xxx")
 	c.Assert(v, Equals, "yyy")
@@ -40,7 +40,7 @@ func (s *StompSuite) TestHeaderContains(c *C) {
 	c.Assert(ok, Equals, false)
 }
 
-func (s *StompSuite) TestContentLength(c *C) {
+func (s *FrameSuite) TestContentLength(c *C) {
 	h := NewHeader("xxx", "yy", "content-length", "202", "zz", "123")
 	cl, ok, err := h.ContentLength()
 	c.Assert(cl, Equals, 202)
@@ -50,7 +50,7 @@ func (s *StompSuite) TestContentLength(c *C) {
 	h.Set("content-length", "twenty")
 	cl, ok, err = h.ContentLength()
 	c.Assert(cl, Equals, 0)
-	c.Assert(ok, Equals, false)
+	c.Assert(ok, Equals, true)
 	c.Assert(err, NotNil)
 
 	h.Del("content-length")
@@ -60,7 +60,7 @@ func (s *StompSuite) TestContentLength(c *C) {
 	c.Assert(err, IsNil)
 }
 
-func (s *StompSuite) TestLit(c *C) {
+func (s *FrameSuite) TestLit(c *C) {
 	_ = Frame{
 		Command: "CONNECT",
 		Header:  NewHeader("login", "xxx", "passcode", "yyy"),

@@ -14,6 +14,17 @@ func (v Version) String() string {
 	return string(v)
 }
 
+// CheckSupported is used to determine whether a particular STOMP
+// version is supported by this library. Returns nil if the version is
+// supported, or ErrUnsupportedVersion if not supported.
+func (v Version) CheckSupported() error {
+	switch v {
+	case V10, V11, V12:
+		return nil
+	}
+	return ErrUnsupportedVersion
+}
+
 // SupportsNack indicates whether this version of the STOMP protocol
 // supports use of the NACK command.
 func (v Version) SupportsNack() bool {
@@ -23,5 +34,7 @@ func (v Version) SupportsNack() bool {
 	case V11, V12:
 		return true
 	}
-	panic("invalid version: " + v)
+
+	// unknown version
+	return false
 }

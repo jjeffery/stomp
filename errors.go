@@ -1,25 +1,28 @@
 package stomp
 
 import (
-	"gopkg.in/stomp.v1/frame"
+	"gopkg.in/stomp.v2/frame"
 )
 
+// Error values
 var (
-	invalidCommand        = newErrorMessage("invalid command")
-	invalidFrameFormat    = newErrorMessage("invalid frame format")
-	invalidVersion        = newErrorMessage("invalid version")
-	completedTransaction  = newErrorMessage("transaction is completed")
-	nackNotSupported      = newErrorMessage("NACK not supported in STOMP 1.0")
-	notReceivedMessage    = newErrorMessage("cannot ack/nack a message, not from server")
-	cannotNackAutoSub     = newErrorMessage("cannot send NACK for a subscription with ack:auto")
-	completedSubscription = newErrorMessage("subscription is unsubscribed")
+	ErrInvalidCommand        = newErrorMessage("invalid command")
+	ErrInvalidFrameFormat    = newErrorMessage("invalid frame format")
+	ErrUnsupportedVersion    = newErrorMessage("unsupported version")
+	ErrCompletedTransaction  = newErrorMessage("transaction is completed")
+	ErrNackNotSupported      = newErrorMessage("NACK not supported in STOMP 1.0")
+	ErrNotReceivedMessage    = newErrorMessage("cannot ack/nack a message, not from server")
+	ErrCannotNackAutoSub     = newErrorMessage("cannot send NACK for a subscription with ack:auto")
+	ErrCompletedSubscription = newErrorMessage("subscription is unsubscribed")
+	ErrClosed                = newErrorMessage("connection closed unexpectedly")
+	ErrNilOption             = newErrorMessage("nil option")
 )
 
 // StompError implements the Error interface, and provides
 // additional information about a STOMP error.
 type Error struct {
 	Message string
-	Frame   *Frame
+	Frame   *frame.Frame
 }
 
 func (e Error) Error() string {
@@ -34,11 +37,11 @@ func newErrorMessage(msg string) Error {
 	return Error{Message: msg}
 }
 
-func newError(f *Frame) Error {
+func newError(f *frame.Frame) Error {
 	e := Error{Frame: f}
 
 	if f.Command == frame.ERROR {
-		if message := f.Get(frame.Message); message != "" {
+		if message := f.Header.Get(frame.Message); message != "" {
 			e.Message = message
 		} else {
 			e.Message = "ERROR frame, missing message header"

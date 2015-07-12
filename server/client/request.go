@@ -1,8 +1,9 @@
 package client
 
 import (
-	"gopkg.in/stomp.v1"
 	"strconv"
+
+	"gopkg.in/stomp.v2/frame"
 )
 
 // Opcode used in client requests.
@@ -26,6 +27,6 @@ const (
 type Request struct {
 	Op    RequestOp     // opcode for request
 	Sub   *Subscription // SubscribeOp, UnsubscribeOp
-	Frame *stomp.Frame  // EnqueueOp, RequeueOp
+	Frame *frame.Frame  // EnqueueOp, RequeueOp
 	Conn  *Conn         // ConnectedOp, DisconnectedOp
 }
