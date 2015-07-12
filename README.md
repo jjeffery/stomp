@@ -3,6 +3,8 @@ stomp
 
 Go language implementation of a STOMP client library.
 
+[![Build Status](https://travis-ci.org/go-stomp/stomp.svg?branch=master)](https://travis-ci.org/go-stomp/stomp)
+
 Features:
 
 * Supports STOMP Specifications Versions 1.0, 1.1, 1.2 (https://stomp.github.io/)
@@ -10,12 +12,27 @@ Features:
 * Heart beating for testing the underlying network connection
 * Tested against RabbitMQ v3.0.1
 
-For more information see http://gopkg.in/stomp.v2
+For API documentation, see http://godoc.org/github.com/go-stomp/stomp
 
-Also contains a package for implementing a simple STOMP server.
-Supports in-memory queues and topics, but can be easily extended to
-support other queue storage mechanisms.
+Usage Instructions
+==================
 
-For more information on the STOMP server package see
-http://gopkg.in/stomp.v2/server 
+```
+go get github.com/go-stomp/stomp
+```
+
+Previous Versions
+=================
+
+An earlier version of this package made use of Gustavo Niemeyer's gopkg.in facility
+for versioning Go libraries. This earlier version of the library is still available
+
+```
+go get gopkg.in/stomp.v1
+```
+
+API documentation for this earlier version can be found at http://gopkg.in/stomp.v1
+
+
+
 
