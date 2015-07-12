@@ -1,7 +1,7 @@
 package queue
 
 import (
-	"github.com/jjeffery/stomp/frame"
+	"gopkg.in/stomp.v2/frame"
 )
 
 // Interface for queue storage. The intent is that

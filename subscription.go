@@ -2,8 +2,9 @@ package stomp
 
 import (
 	"fmt"
-	"github.com/jjeffery/stomp/frame"
 	"log"
+
+	"gopkg.in/stomp.v2/frame"
 )
 
 // The Subscription type represents a client subscription to

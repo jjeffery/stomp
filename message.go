@@ -1,7 +1,7 @@
 package stomp
 
 import (
-	"github.com/jjeffery/stomp/frame"
+	"gopkg.in/stomp.v2/frame"
 )
 
 // A Message represents a message received from the STOMP server.

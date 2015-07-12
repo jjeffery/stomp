@@ -2,12 +2,13 @@ package stomp
 
 import (
 	"errors"
-	"github.com/jjeffery/stomp/frame"
 	"io"
 	"log"
 	"net"
 	"strconv"
 	"time"
+
+	"gopkg.in/stomp.v2/frame"
 )
 
 // Default time span to add to read/write heart-beat timeouts

@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/jjeffery/stomp"
 	"os"
+
+	"gopkg.in/stomp.v2"
 )
 
 const defaultPort = ":61613"

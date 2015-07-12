@@ -2,7 +2,8 @@ package queue
 
 import (
 	"container/list"
-	"github.com/jjeffery/stomp/frame"
+
+	"gopkg.in/stomp.v2/frame"
 )
 
 // In-memory implementation of the QueueStorage interface.

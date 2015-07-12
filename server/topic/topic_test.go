@@ -1,7 +1,7 @@
 package topic
 
 import (
-	"github.com/jjeffery/stomp/frame"
+	"gopkg.in/stomp.v2/frame"
 	. "launchpad.net/gocheck"
 )
 

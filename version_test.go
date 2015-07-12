@@ -1,8 +1,9 @@
 package stomp_test
 
 import (
-	"github.com/jjeffery/stomp"
 	"testing"
+
+	"gopkg.in/stomp.v2"
 )
 
 func TestSupportsNack(t *testing.T) {

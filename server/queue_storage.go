@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/jjeffery/stomp/frame"
+	"gopkg.in/stomp.v2/frame"
 )
 
 // QueueStorage is an interface that abstracts the queue storage mechanism.

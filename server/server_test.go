@@ -2,11 +2,12 @@ package server
 
 import (
 	"fmt"
-	"github.com/jjeffery/stomp"
-	. "launchpad.net/gocheck"
 	"net"
 	"runtime"
 	"testing"
+
+	"gopkg.in/stomp.v2"
+	. "launchpad.net/gocheck"
 )
 
 func TestServer(t *testing.T) {

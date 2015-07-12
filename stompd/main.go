@@ -14,10 +14,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/jjeffery/stomp/server"
 	"log"
 	"net"
 	"os"
+
+	"gopkg.in/stomp.v2/server"
 )
 
 // TODO: experimenting with ways to gracefully shutdown the server,

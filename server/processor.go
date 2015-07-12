@@ -1,14 +1,15 @@
 package server
 
 import (
-	"github.com/jjeffery/stomp/frame"
-	"github.com/jjeffery/stomp/server/client"
-	"github.com/jjeffery/stomp/server/queue"
-	"github.com/jjeffery/stomp/server/topic"
 	"log"
 	"net"
 	"strings"
 	"time"
+
+	"gopkg.in/stomp.v2/frame"
+	"gopkg.in/stomp.v2/server/client"
+	"gopkg.in/stomp.v2/server/queue"
+	"gopkg.in/stomp.v2/server/topic"
 )
 
 type requestProcessor struct {

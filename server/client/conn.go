@@ -2,13 +2,14 @@ package client
 
 import (
 	"fmt"
-	"github.com/jjeffery/stomp"
-	"github.com/jjeffery/stomp/frame"
 	"io"
 	"log"
 	"net"
 	"strconv"
 	"time"
+
+	"gopkg.in/stomp.v2"
+	"gopkg.in/stomp.v2/frame"
 )
 
 // Maximum number of pending frames allowed to a client.

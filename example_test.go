@@ -2,10 +2,11 @@ package stomp_test
 
 import (
 	"fmt"
-	"github.com/jjeffery/stomp"
-	"github.com/jjeffery/stomp/frame"
 	"net"
 	"time"
+
+	"gopkg.in/stomp.v2"
+	"gopkg.in/stomp.v2/frame"
 )
 
 func ExampleConn_Send(c *stomp.Conn) error {

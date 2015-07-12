@@ -1,12 +1,13 @@
 package client
 
 import (
-	"github.com/jjeffery/stomp"
-	"github.com/jjeffery/stomp/frame"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"gopkg.in/stomp.v2"
+	"gopkg.in/stomp.v2/frame"
 )
 
 const (

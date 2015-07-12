@@ -1,10 +1,9 @@
 package client
 
 import (
-	"github.com/jjeffery/stomp"
-	"github.com/jjeffery/stomp/frame"
+	"gopkg.in/stomp.v2"
+	"gopkg.in/stomp.v2/frame"
 	. "launchpad.net/gocheck"
-	_ "strconv"
 )
 
 type FrameSuite struct{}

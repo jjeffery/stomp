@@ -1,8 +1,9 @@
 package client
 
 import (
-	"github.com/jjeffery/stomp/frame"
 	"strconv"
+
+	"gopkg.in/stomp.v2/frame"
 )
 
 // Opcode used in client requests.

@@ -2,9 +2,10 @@ package stomp
 
 import (
 	"fmt"
-	"github.com/jjeffery/stomp/frame"
 	"strings"
 	"time"
+
+	"gopkg.in/stomp.v2/frame"
 )
 
 // ConnOptions is an opaque structure used to collection options

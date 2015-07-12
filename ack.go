@@ -1,7 +1,7 @@
 package stomp
 
 import (
-	"github.com/jjeffery/stomp/frame"
+	"gopkg.in/stomp.v2/frame"
 )
 
 // The AckMode type is an enumeration of the acknowledgement modes for a
