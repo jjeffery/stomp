@@ -10,13 +10,13 @@ var SendOpt struct {
 	// from the server before the send operation successfully completes.
 	Receipt func(*frame.Frame) error
 
-	// NoContentType specifies that the SEND frame should not include
+	// NoContentLength specifies that the SEND frame should not include
 	// a content-length header entry. By default the content-length header
 	// entry is always included, but some message brokers assign special
 	// meaning to STOMP frames that do not contain a content-length
 	// header entry. (In particular ActiveMQ interprets STOMP frames
 	// with no content-length as being a text message)
-	NoContentType func(*frame.Frame) error
+	NoContentLength func(*frame.Frame) error
 
 	// Header provides the opportunity to include custom header entries
 	// in the SEND frame that the client sends to the server. This option
@@ -32,6 +32,14 @@ func init() {
 		}
 		id := allocateId()
 		f.Header.Set(frame.Receipt, id)
+		return nil
+	}
+
+	SendOpt.NoContentLength = func(f *frame.Frame) error {
+		if f.Command != frame.SEND {
+			return ErrInvalidCommand
+		}
+		f.Header.Del(frame.ContentLength)
 		return nil
 	}
 
