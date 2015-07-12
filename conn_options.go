@@ -36,13 +36,13 @@ func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) 
 	conn.options = co
 	defer func() { conn.options = nil }()
 
+	// compatibility with previous version: ignore nil options
 	for _, opt := range opts {
-		if opt == nil {
-			return nil, ErrNilOption
-		}
-		err := opt(conn)
-		if err != nil {
-			return nil, err
+		if opt != nil {
+			err := opt(conn)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

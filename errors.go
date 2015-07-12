@@ -14,7 +14,8 @@ var (
 	ErrNotReceivedMessage    = newErrorMessage("cannot ack/nack a message, not from server")
 	ErrCannotNackAutoSub     = newErrorMessage("cannot send NACK for a subscription with ack:auto")
 	ErrCompletedSubscription = newErrorMessage("subscription is unsubscribed")
-	ErrClosed                = newErrorMessage("connection closed unexpectedly")
+	ErrClosedUnexpectedly    = newErrorMessage("connection closed unexpectedly")
+	ErrAlreadyClosed         = newErrorMessage("connection already closed")
 	ErrNilOption             = newErrorMessage("nil option")
 )
 

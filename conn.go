@@ -378,7 +378,7 @@ func (c *Conn) Disconnect() error {
 // to receive a RECEIPT, should the content-length be suppressed, and sending custom header entries.
 func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*frame.Frame) error) error {
 	if c.closed {
-		return newErrorMessage("Underlying connection closed.")
+		return ErrAlreadyClosed
 	}
 
 	f, err := createSendFrame(destination, contentType, body, opts)
@@ -446,7 +446,7 @@ func (c *Conn) sendFrame(f *frame.Frame) error {
 				return newError(response)
 			}
 		} else {
-			return ErrClosed
+			return ErrClosedUnexpectedly
 		}
 	} else {
 		// no receipt required
