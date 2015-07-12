@@ -89,12 +89,16 @@ func (r *Reader) Read() (*Frame, error) {
 			return nil, ErrInvalidFrameFormat
 		}
 
-		name := string(headerSlice[0:index])
-		value := string(headerSlice[index+1:])
+		name, err := unencodeValue(headerSlice[0:index])
+		if err != nil {
+			return nil, err
+		}
+		value, err := unencodeValue(headerSlice[index+1:])
+		if err != nil {
+			return nil, err
+		}
 
 		//println("   ", name, ":", value)
-
-		// TODO: need to decode if STOMP 1.1 or later
 
 		f.Header.Add(name, value)
 	}

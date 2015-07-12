@@ -22,15 +22,14 @@ func (s *WriterSuite) TestWrites(c *C) {
 			"\n\x00\x01\x02\x03\x04\x00",
 
 		"SEND\ndestination:x\n\nABCD\x00",
+
+		"SEND\ndestination:x\ndodgy\\nheader\\c:abc\\n\\c\n\n123456\x00",
 	}
 
 	for _, frameText := range frameTexts {
 		writeToBufferAndCheck(c, frameText)
 	}
 }
-
-// TODO(jpj): the order of the header entries is dependent on the
-// hash function -- so this test is a bit brittle.
 
 func writeToBufferAndCheck(c *C, frameText string) {
 	reader := NewReader(strings.NewReader(frameText))

@@ -28,12 +28,14 @@ func (s *ReaderSuite) TestConnect(c *C) {
 
 func (s *ReaderSuite) TestMultipleReads(c *C) {
 	text := "SEND\ndestination:xxx\n\nPayload\x00\n" +
-		"SEND\ndestination:yyy\ncontent-length:12\n\n" +
+		"SEND\ndestination:yyy\ncontent-length:12\n" +
+		"dodgy\\c\\n\\cheader:dodgy\\c\\n\\r\\nvalue\\  \\\n\n" +
 		"123456789AB\x00\x00"
 
 	ioreaders := []io.Reader{
 		strings.NewReader(text),
 		iotest.DataErrReader(strings.NewReader(text)),
+		iotest.HalfReader(strings.NewReader(text)),
 		iotest.OneByteReader(strings.NewReader(text)),
 	}
 
@@ -60,13 +62,16 @@ func (s *ReaderSuite) TestMultipleReads(c *C) {
 		c.Assert(err, IsNil)
 		c.Assert(frame, NotNil)
 		c.Assert(frame.Command, Equals, "SEND")
-		c.Assert(frame.Header.Len(), Equals, 2)
+		c.Assert(frame.Header.Len(), Equals, 3)
 		v = frame.Header.Get("destination")
 		c.Assert(v, Equals, "yyy")
 		n, ok, err := frame.Header.ContentLength()
 		c.Assert(n, Equals, 12)
 		c.Assert(ok, Equals, true)
 		c.Assert(err, IsNil)
+		k, v := frame.Header.GetAt(2)
+		c.Assert(k, Equals, "dodgy:\n:header")
+		c.Assert(v, Equals, "dodgy:\n\r\nvalue\\  \\")
 		c.Assert(string(frame.Body), Equals, "123456789AB\x00")
 
 		// ensure we are at the end of input

@@ -53,7 +53,7 @@ func (w *Writer) Write(f *Frame) error {
 			for i := 0; i < f.Header.Len(); i++ {
 				key, value := f.Header.GetAt(i)
 				//println("   ", key, ":", value)
-				_, err = w.writer.Write([]byte(key))
+				_, err = w.writer.Write(encodeValue(key))
 				if err != nil {
 					return err
 				}
@@ -61,7 +61,7 @@ func (w *Writer) Write(f *Frame) error {
 				if err != nil {
 					return err
 				}
-				_, err = w.writer.Write([]byte(value))
+				_, err = w.writer.Write(encodeValue(value))
 				if err != nil {
 					return err
 				}
