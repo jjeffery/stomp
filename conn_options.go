@@ -124,9 +124,10 @@ var ConnOpt struct {
 	// shorter time duration during unit testing.
 	HeartBeatError func(errorTimeout time.Duration) func(*Conn) error
 
-	// Header is a connect option that allows the client to specify custom header
-	// elements in the CONNECT/STOMP frame.
-	Header func(header *frame.Header) func(*Conn) error
+	// Header is a connect option that allows the client to specify a custom
+	// header entry in the STOMP frame. This connect option can be specified
+	// multiple times for multiple custom headers.
+	Header func(key, value string) func(*Conn) error
 }
 
 func init() {
@@ -177,9 +178,13 @@ func init() {
 		}
 	}
 
-	ConnOpt.Header = func(header *frame.Header) func(*Conn) error {
+	ConnOpt.Header = func(key, value string) func(*Conn) error {
 		return func(c *Conn) error {
-			c.options.Header = header
+			if c.options.Header == nil {
+				c.options.Header = frame.NewHeader(key, value)
+			} else {
+				c.options.Header.Add(key, value)
+			}
 			return nil
 		}
 	}

@@ -176,7 +176,7 @@ func (s *StompSuite) Test_successful_connect_with_nonstandard_header(c *C) {
 	client, err := Connect(fc1,
 		ConnOpt.Login("guest", "guest"),
 		ConnOpt.Host("/"),
-		ConnOpt.Header(frame.NewHeader("x-max-length", "50")))
+		ConnOpt.Header("x-max-length", "50"))
 	c.Assert(err, IsNil)
 	c.Assert(client, NotNil)
 	c.Assert(client.Version(), Equals, V10)
@@ -220,17 +220,18 @@ func connectHelper(c *C, version Version) (*Conn, *fakeReaderWriter) {
 func (s *StompSuite) Test_subscribe(c *C) {
 	ackModes := []AckMode{AckAuto, AckClient, AckClientIndividual}
 	versions := []Version{V10, V11, V12}
-	header := frame.NewHeader("id", "client-1", "custom", "true")
 
 	for _, ackMode := range ackModes {
 		for _, version := range versions {
-			subscribeHelper(c, ackMode, version, nil)
-			subscribeHelper(c, ackMode, version, header)
+			subscribeHelper(c, ackMode, version)
+			subscribeHelper(c, ackMode, version,
+				SubscribeOpt.Header("id", "client-1"),
+				SubscribeOpt.Header("custom", "true"))
 		}
 	}
 }
 
-func subscribeHelper(c *C, ackMode AckMode, version Version, header *frame.Header) {
+func subscribeHelper(c *C, ackMode AckMode, version Version, opts ...func(*frame.Frame) error) {
 	conn, rw := connectHelper(c, version)
 	stop := make(chan struct{})
 
@@ -246,16 +247,6 @@ func subscribeHelper(c *C, ackMode AckMode, version Version, header *frame.Heade
 
 		id, ok := f3.Header.Contains("id")
 		c.Assert(ok, Equals, true)
-
-		if header != nil {
-			for i := 0; i < header.Len(); i++ {
-				k, v := header.GetAt(i)
-				if k != frame.Id {
-					headerV, _ := f3.Header.Contains(k)
-					c.Assert(headerV, Equals, v)
-				}
-			}
-		}
 
 		destination := f3.Header.Get("destination")
 		c.Assert(destination, Equals, "/queue/test-1")
@@ -302,7 +293,7 @@ func subscribeHelper(c *C, ackMode AckMode, version Version, header *frame.Heade
 
 	var sub *Subscription
 	var err error
-	sub, err = conn.Subscribe("/queue/test-1", ackMode, SubscribeOpt.Header(header))
+	sub, err = conn.Subscribe("/queue/test-1", ackMode, opts...)
 
 	c.Assert(sub, NotNil)
 	c.Assert(err, IsNil)

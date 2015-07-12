@@ -16,7 +16,7 @@ func ExampleConn_Send(c *stomp.Conn) error {
 		"text/plain",               // content-type
 		[]byte("Message number 1"), // body
 		stomp.SendOpt.Receipt,
-		stomp.SendOpt.Header(frame.NewHeader("expires", "2049-12-31 23:59:59")))
+		stomp.SendOpt.Header("expires", "2049-12-31 23:59:59"))
 	if err != nil {
 		return err
 	}
@@ -122,8 +122,8 @@ func ExampleConn_Subscribe_2(c *stomp.Conn) error {
 	}
 
 	// Subscribe to queue with client acknowledgement and a custom header value
-	customHeader := frame.NewHeader("x-custom-header", "some-value")
-	sub2, err := c.Subscribe("/queue/test-2", stomp.AckClient, stomp.SubscribeOpt.Header(customHeader))
+	sub2, err := c.Subscribe("/queue/test-2", stomp.AckClient,
+		stomp.SubscribeOpt.Header("x-custom-header", "some-value"))
 	if err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func ExampleDial_2() error {
 		stomp.ConnOpt.AcceptVersion(stomp.V11),
 		stomp.ConnOpt.AcceptVersion(stomp.V12),
 		stomp.ConnOpt.Host("dragon"),
-		stomp.ConnOpt.Header(frame.NewHeader("nonce", "B256B26D320A")))
+		stomp.ConnOpt.Header("nonce", "B256B26D320A"))
 	if err != nil {
 		return err
 	}

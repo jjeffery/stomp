@@ -19,8 +19,10 @@ var SendOpt struct {
 	NoContentType func(*frame.Frame) error
 
 	// Header provides the opportunity to include custom header entries
-	// in the SEND frame that the client sends to the server.
-	Header func(header *frame.Header) func(*frame.Frame) error
+	// in the SEND frame that the client sends to the server. This option
+	// can be specified multiple times if multiple custom header entries
+	// are required.
+	Header func(key, value string) func(*frame.Frame) error
 }
 
 func init() {
@@ -33,12 +35,12 @@ func init() {
 		return nil
 	}
 
-	SendOpt.Header = func(header *frame.Header) func(*frame.Frame) error {
+	SendOpt.Header = func(key, value string) func(*frame.Frame) error {
 		return func(f *frame.Frame) error {
 			if f.Command != frame.SEND {
 				return ErrInvalidCommand
 			}
-			f.Header.AddHeader(header)
+			f.Header.Add(key, value)
 			return nil
 		}
 	}
