@@ -3,6 +3,3 @@ language: go
 go:
   - 1.4
 
-install:
-  - go get gopkg.in/check.v1
-  
