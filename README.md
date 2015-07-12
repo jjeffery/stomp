@@ -30,6 +30,9 @@ go get gopkg.in/stomp.v1
 
 API documentation for this earlier version can be found at http://gopkg.in/stomp.v1
 
+Breaking changes between this previous version and the current version are 
+documented in [breaking_changes.md](breaking_changes.md)
+
 
 
 
