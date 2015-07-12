@@ -41,5 +41,22 @@ This change was considered worthwhile for the following reasons:
 * Ideally, users of the `stomp` package do not need to directly reference the items in the `frame`
 package, and the types moved are not needed in normal usage of the `stomp` package.
 
+## 3. Use of functional options
+
+Version 2 of the stomp library makes use of functional options to provide a clean, flexible way
+of specifying options in the following API calls:
+
+* Dial()
+* Connect()
+* Conn.Send()
+* Transaction.Send()
+* Conn.Subscribe()
+
+The idea for this comes from Dave Cheney's very excellent blog post,
+[Functional Options for Friendly APIs](http://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis).
+
+While these new APIs are a definite improvement, they do introduce breaking changes with Version 1.
+
+
 
 
