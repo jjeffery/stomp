@@ -1,13 +1,11 @@
 stomp
 =====
 
-This repo has now moved to https://github.com/go-stomp/stomp.  See https://gopkg.in/stomp.v1
-
 Go language implementation of a STOMP client library.
 
 Features:
 
-* Supports STOMP Specifications Versions 1.0, 1.1, 1.2
+* Supports STOMP Specifications Versions 1.0, 1.1, 1.2 (https://stomp.github.io/)
 * Protocol negotiation to select the latest mutually supported protocol
 * Heart beating for testing the underlying network connection
 * Tested against RabbitMQ v3.0.1
