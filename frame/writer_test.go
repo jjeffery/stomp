@@ -2,8 +2,9 @@ package frame
 
 import (
 	"bytes"
-	. "gopkg.in/check.v1"
 	"strings"
+
+	. "gopkg.in/check.v1"
 )
 
 type WriterSuite struct{}

@@ -4,7 +4,7 @@ Package frame provides functionality for manipulating STOMP frames.
 package frame
 
 // A Frame represents a STOMP frame. A frame consists of a command
-// followed by a collection of header elements, and then an optional
+// followed by a collection of header entries, and then an optional
 // body.
 type Frame struct {
 	Command string
@@ -26,5 +26,13 @@ func New(command string, headers ...string) *Frame {
 // Clone creates a deep copy of the frame and its header. The cloned
 // frame shares the body with the original frame.
 func (f *Frame) Clone() *Frame {
-	return &Frame{Command: f.Command, Header: f.Header.Clone(), Body: f.Body}
+	fc := &Frame{Command: f.Command}
+	if f.Header != nil {
+		fc.Header = f.Header.Clone()
+	}
+	if f.Body != nil {
+		fc.Body = make([]byte, len(f.Body))
+		copy(fc.Body, f.Body)
+	}
+	return fc
 }
