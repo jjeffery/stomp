@@ -463,10 +463,8 @@ func (c *Conn) sendFrame(f *frame.Frame) error {
 // on which the calling program can receive messages.
 func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Frame) error) (*Subscription, error) {
 	ch := make(chan *frame.Frame)
-	id := allocateId()
 
 	subscribeFrame := frame.New(frame.SUBSCRIBE,
-		frame.Id, id,
 		frame.Destination, destination,
 		frame.Ack, ack.String())
 
@@ -478,6 +476,14 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Fr
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	// If the option functions have not specified the "id" header entry,
+	// create one.
+	id, ok := subscribeFrame.Header.Contains(frame.Id)
+	if !ok {
+		id = allocateId()
+		subscribeFrame.Header.Add(frame.Id, id)
 	}
 
 	request := writeRequest{
