@@ -78,6 +78,10 @@ func (s *Subscription) Read() (*Message, error) {
 
 func (s *Subscription) readLoop(ch chan *frame.Frame) {
 	for {
+		if s.completed {
+			return
+		}
+
 		f, ok := <-ch
 		if !ok {
 			return
