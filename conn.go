@@ -367,6 +367,22 @@ func (c *Conn) Disconnect() error {
 	return c.conn.Close()
 }
 
+// MustDisconnect will disconnect 'ungracefully' from the STOMP server.
+// This method should be used only as last resort when there are fatal
+// network errors that prevent to do a proper disconnect from the server.
+func (c *Conn) MustDisconnect() error {
+	if c.closed {
+		return nil
+	}
+
+	// just close readCh and writeCh
+	// close(c.readCh)
+	close(c.writeCh)
+
+	c.closed = true
+	return c.conn.Close()
+}
+
 // Send sends a message to the STOMP server, which in turn sends the message to the specified destination.
 // If the STOMP server fails to receive the message for any reason, the connection will close.
 //
