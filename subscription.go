@@ -98,7 +98,9 @@ func (s *Subscription) readLoop(ch chan *frame.Frame) {
 				Header:       f.Header,
 				Body:         f.Body,
 			}
-			s.C <- msg
+			if !s.completed {
+				s.C <- msg
+			}
 		} else if f.Command == frame.ERROR {
 			message, _ := f.Header.Contains(frame.Message)
 			text := fmt.Sprintf("Subscription %s: %s: ERROR message:%s",
@@ -118,7 +120,9 @@ func (s *Subscription) readLoop(ch chan *frame.Frame) {
 				Header:       f.Header,
 				Body:         f.Body,
 			}
-			s.C <- msg
+			if !s.completed {
+				s.C <- msg
+			}
 			s.completed = true
 			close(s.C)
 			return
