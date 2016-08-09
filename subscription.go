@@ -48,11 +48,22 @@ func (s *Subscription) Active() bool {
 }
 
 // Unsubscribes and closes the channel C.
-func (s *Subscription) Unsubscribe() error {
+func (s *Subscription) Unsubscribe(opts ...func(*frame.Frame) error) error {
 	if s.completed {
 		return ErrCompletedSubscription
 	}
 	f := frame.New(frame.UNSUBSCRIBE, frame.Id, s.id)
+
+	for _, opt := range opts {
+		if opt == nil {
+			return ErrNilOption
+		}
+		err := opt(f)
+		if err != nil {
+			return err
+		}
+	}
+
 	s.conn.sendFrame(f)
 	s.completed = true
 	close(s.C)
