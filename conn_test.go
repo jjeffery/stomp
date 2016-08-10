@@ -313,7 +313,7 @@ func subscribeHelper(c *C, ackMode AckMode, version Version, opts ...func(*frame
 		}
 	}
 
-	err = sub.Unsubscribe()
+	err = sub.Unsubscribe(SubscribeOpt.Header("custom", "true"))
 	c.Assert(err, IsNil)
 
 	conn.Disconnect()

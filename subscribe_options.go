@@ -31,7 +31,8 @@ func init() {
 
 	SubscribeOpt.Header = func(key, value string) func(*frame.Frame) error {
 		return func(f *frame.Frame) error {
-			if f.Command != frame.SUBSCRIBE {
+			if f.Command != frame.SUBSCRIBE &&
+			   f.Command != frame.UNSUBSCRIBE {
 				return ErrInvalidCommand
 			}
 			f.Header.Add(key, value)
