@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-stomp/stomp/frame"
@@ -508,11 +509,12 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Fr
 	}
 
 	sub := &Subscription{
-		id:          id,
-		destination: destination,
-		conn:        c,
-		ackMode:     ack,
-		C:           make(chan *Message, 16),
+		id:             id,
+		destination:    destination,
+		conn:           c,
+		ackMode:        ack,
+		C:              make(chan *Message, 16),
+		completedMutex: &sync.Mutex{},
 	}
 	go sub.readLoop(ch)
 

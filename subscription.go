@@ -3,6 +3,7 @@ package stomp
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/go-stomp/stomp/frame"
 )
@@ -12,12 +13,13 @@ import (
 //
 // Once a client has subscribed, it can receive messages from the C channel.
 type Subscription struct {
-	C           chan *Message
-	id          string
-	destination string
-	conn        *Conn
-	ackMode     AckMode
-	completed   bool
+	C              chan *Message
+	id             string
+	destination    string
+	conn           *Conn
+	ackMode        AckMode
+	completed      bool
+	completedMutex *sync.Mutex
 }
 
 // BUG(jpj): If the client does not read messages from the Subscription.C
@@ -65,8 +67,12 @@ func (s *Subscription) Unsubscribe(opts ...func(*frame.Frame) error) error {
 	}
 
 	s.conn.sendFrame(f)
-	s.completed = true
-	close(s.C)
+	s.completedMutex.Lock()
+	if !s.completed {
+		s.completed = true
+		close(s.C)
+	}
+	s.completedMutex.Unlock()
 	return nil
 }
 
@@ -109,9 +115,11 @@ func (s *Subscription) readLoop(ch chan *frame.Frame) {
 				Header:       f.Header,
 				Body:         f.Body,
 			}
+			s.completedMutex.Lock()
 			if !s.completed {
 				s.C <- msg
 			}
+			s.completedMutex.Unlock()
 		} else if f.Command == frame.ERROR {
 			message, _ := f.Header.Contains(frame.Message)
 			text := fmt.Sprintf("Subscription %s: %s: ERROR message:%s",
@@ -131,11 +139,13 @@ func (s *Subscription) readLoop(ch chan *frame.Frame) {
 				Header:       f.Header,
 				Body:         f.Body,
 			}
+			s.completedMutex.Lock()
 			if !s.completed {
+				s.completed = true
 				s.C <- msg
+				close(s.C)
 			}
-			s.completed = true
-			close(s.C)
+			s.completedMutex.Unlock()
 			return
 		}
 	}
