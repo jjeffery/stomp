@@ -214,11 +214,11 @@ func processLoop(c *Conn, writer *frame.Writer) {
 
 	for {
 		if c.readTimeout > 0 && readTimer == nil {
-			readTimer := time.NewTimer(c.readTimeout)
+			readTimer = time.NewTimer(c.readTimeout)
 			readTimeoutChannel = readTimer.C
 		}
 		if c.writeTimeout > 0 && writeTimer == nil {
-			writeTimer := time.NewTimer(c.writeTimeout)
+			writeTimer = time.NewTimer(c.writeTimeout)
 			writeTimeoutChannel = writeTimer.C
 		}
 
