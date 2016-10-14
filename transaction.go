@@ -79,8 +79,7 @@ func (tx *Transaction) Send(destination, contentType string, body []byte, opts .
 	}
 
 	f.Header.Set(frame.Transaction, tx.id)
-	tx.conn.sendFrame(f)
-	return nil
+	return tx.conn.sendFrame(f)
 }
 
 // Ack sends an acknowledgement for the message to the server. The STOMP

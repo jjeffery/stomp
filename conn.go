@@ -457,7 +457,19 @@ func (c *Conn) sendFrame(f *frame.Frame) error {
 		}
 
 		c.writeCh <- request
-		response, ok := <-request.C
+
+		var response *frame.Frame
+
+		if c.writeTimeout > 0 {
+			select {
+			case response, ok = <-request.C:
+			case <-time.After(c.writeTimeout):
+				ok = false
+			}
+		} else {
+			response, ok = <-request.C
+		}
+
 		if ok {
 			if response.Command != frame.RECEIPT {
 				return newError(response)
