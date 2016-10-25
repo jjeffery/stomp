@@ -212,6 +212,8 @@ func processLoop(c *Conn, writer *frame.Writer) {
 	var writeTimeoutChannel <-chan time.Time
 	var writeTimer *time.Timer
 
+	defer c.MustDisconnect()
+
 	for {
 		if c.readTimeout > 0 && readTimer == nil {
 			readTimer = time.NewTimer(c.readTimeout)
@@ -376,8 +378,7 @@ func (c *Conn) MustDisconnect() error {
 		return nil
 	}
 
-	// just close readCh and writeCh
-	// close(c.readCh)
+	// just close writeCh
 	close(c.writeCh)
 
 	c.closed = true
