@@ -450,6 +450,11 @@ func createSendFrame(destination, contentType string, body []byte, opts []func(*
 }
 
 func (c *Conn) sendFrame(f *frame.Frame) error {
+	if c.closed {
+		defer c.conn.Close()
+		return ErrClosedUnexpectedly
+	}
+
 	if _, ok := f.Header.Contains(frame.Receipt); ok {
 		// receipt required
 		request := writeRequest{
