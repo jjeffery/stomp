@@ -189,6 +189,29 @@ func (s *StompSuite) Test_successful_connect_with_nonstandard_header(c *C) {
 	<-stop
 }
 
+func (s *StompSuite) Test_connect_not_panic_on_empty_response(c *C) {
+	resetId()
+	fc1, fc2 := testutil.NewFakeConn(c)
+	stop := make(chan struct{})
+
+	go func() {
+		defer func() {
+			fc2.Close()
+			close(stop)
+		}()
+		reader := frame.NewReader(fc2)
+		reader.Read()
+		fc2.Write([]byte("\n"))
+	}()
+
+	client, err := Connect(fc1, ConnOpt.Host("the_server"))
+	c.Assert(err, NotNil)
+	c.Assert(client, IsNil)
+
+	fc1.Close()
+	<-stop
+}
+
 // Sets up a connection for testing
 func connectHelper(c *C, version Version) (*Conn, *fakeReaderWriter) {
 	fc1, fc2 := testutil.NewFakeConn(c)

@@ -106,6 +106,9 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 	if err != nil {
 		return nil, err
 	}
+	if response == nil {
+		return nil, errors.New("unexpected empty frame")
+	}
 
 	if response.Command != frame.CONNECTED {
 		return nil, newError(response)
