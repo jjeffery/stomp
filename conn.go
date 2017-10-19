@@ -70,7 +70,7 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 	c := &Conn{
 		conn:    conn,
 		readCh:  make(chan *frame.Frame, 8),
-		writeCh: make(chan writeRequest, 8),
+		writeCh: make(chan writeRequest, 1000),
 	}
 
 	options, err := newConnOptions(c, opts)
