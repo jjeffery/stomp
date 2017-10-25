@@ -68,15 +68,27 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 	writer := frame.NewWriter(conn)
 
 	c := &Conn{
-		conn:    conn,
-		readCh:  make(chan *frame.Frame, 8),
-		writeCh: make(chan writeRequest, 1000),
+		conn: conn,
 	}
 
 	options, err := newConnOptions(c, opts)
 	if err != nil {
 		return nil, err
 	}
+
+	readChannelCapacity := 20
+	writeChannelCapacity := 20
+
+	if options.ReadChannelCapacity > 0 {
+		readChannelCapacity = options.ReadChannelCapacity
+	}
+
+	if options.WriteChannelCapacity > 0 {
+		writeChannelCapacity = options.WriteChannelCapacity
+	}
+
+	c.readCh = make(chan *frame.Frame, readChannelCapacity)
+	c.writeCh = make(chan writeRequest, writeChannelCapacity)
 
 	if options.Host == "" {
 		// host not specified yet, attempt to get from net.Conn if possible
