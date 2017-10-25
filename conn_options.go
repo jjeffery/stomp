@@ -11,14 +11,15 @@ import (
 // ConnOptions is an opaque structure used to collection options
 // for connecting to the other server.
 type connOptions struct {
-	FrameCommand    string
-	Host            string
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	HeartBeatError  time.Duration
-	Login, Passcode string
-	AcceptVersions  []string
-	Header          *frame.Header
+	FrameCommand                              string
+	Host                                      string
+	ReadTimeout                               time.Duration
+	WriteTimeout                              time.Duration
+	HeartBeatError                            time.Duration
+	Login, Passcode                           string
+	AcceptVersions                            []string
+	Header                                    *frame.Header
+	ReadChannelCapacity, WriteChannelCapacity int
 }
 
 func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) {
@@ -128,6 +129,16 @@ var ConnOpt struct {
 	// header entry in the STOMP frame. This connect option can be specified
 	// multiple times for multiple custom headers.
 	Header func(key, value string) func(*Conn) error
+
+	// ReadChannelCapacity is the number of messages that can be on the read channel at the
+	// same time. A high number may affect memory usage while a too low number may lock the
+	// system up. Default is set to 20.
+	ReadChannelCapacity func(capacity int) func(*Conn) error
+
+	// WriteChannelCapacity is the number of messages that can be on the write channel at the
+	// same time. A high number may affect memory usage while a too low number may lock the
+	// system up. Default is set to 20.
+	WriteChannelCapacity func(capacity int) func(*Conn) error
 }
 
 func init() {
@@ -185,6 +196,20 @@ func init() {
 			} else {
 				c.options.Header.Add(key, value)
 			}
+			return nil
+		}
+	}
+
+	ConnOpt.ReadChannelCapacity = func(capacity int) func(*Conn) error {
+		return func(c *Conn) error {
+			c.options.ReadChannelCapacity = capacity
+			return nil
+		}
+	}
+
+	ConnOpt.WriteChannelCapacity = func(capacity int) func(*Conn) error {
+		return func(c *Conn) error {
+			c.options.WriteChannelCapacity = capacity
 			return nil
 		}
 	}
