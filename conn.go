@@ -541,13 +541,15 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Fr
 		C:     ch,
 	}
 
+	closeMutex := &sync.Mutex{}
 	sub := &Subscription{
-		id:             id,
-		destination:    destination,
-		conn:           c,
-		ackMode:        ack,
-		C:              make(chan *Message, 16),
-		completedMutex: &sync.Mutex{},
+		id:          id,
+		destination: destination,
+		conn:        c,
+		ackMode:     ack,
+		C:           make(chan *Message, 16),
+		closeMutex:  closeMutex,
+		closeCond:   sync.NewCond(closeMutex),
 	}
 	go sub.readLoop(ch)
 
