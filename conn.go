@@ -445,6 +445,10 @@ func createSendFrame(destination, contentType string, body []byte, opts []func(*
 	// an opportunity to remove content-length.
 	f := frame.New(frame.SEND, frame.ContentLength, strconv.Itoa(len(body)))
 	f.Body = body
+	f.Header.Set(frame.Destination, destination)
+	if contentType != "" {
+		f.Header.Set(frame.ContentType, contentType)
+	}
 
 	for _, opt := range opts {
 		if opt == nil {
@@ -453,12 +457,6 @@ func createSendFrame(destination, contentType string, body []byte, opts []func(*
 		if err := opt(f); err != nil {
 			return nil, err
 		}
-	}
-
-	f.Header.Set(frame.Destination, destination)
-
-	if contentType != "" {
-		f.Header.Set(frame.ContentType, contentType)
 	}
 
 	return f, nil
