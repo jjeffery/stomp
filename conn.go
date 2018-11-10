@@ -578,7 +578,7 @@ func (c *Conn) Ack(m *Message) error {
 	}
 
 	if f != nil {
-		c.sendFrame(f)
+		return c.sendFrame(f)
 	}
 	return nil
 }
@@ -593,7 +593,7 @@ func (c *Conn) Nack(m *Message) error {
 	}
 
 	if f != nil {
-		c.sendFrame(f)
+		return c.sendFrame(f)
 	}
 	return nil
 }
@@ -602,10 +602,17 @@ func (c *Conn) Nack(m *Message) error {
 // and acknowledging. Any messages sent or acknowledged during a transaction
 // will be processed atomically by the STOMP server based on the transaction.
 func (c *Conn) Begin() *Transaction {
+	t, _ := c.BeginWithError()
+	return t
+}
+
+// BeginWithError is used to start a transaction, but also returns the error
+// (if any) from sending the frame to start the transaction.
+func (c *Conn) BeginWithError() (*Transaction, error) {
 	id := allocateId()
 	f := frame.New(frame.BEGIN, frame.Transaction, id)
-	c.sendFrame(f)
-	return &Transaction{id: id, conn: c}
+	err := c.sendFrame(f)
+	return &Transaction{id: id, conn: c}, err
 }
 
 // Create an ACK or NACK frame. Complicated by version incompatibilities.
