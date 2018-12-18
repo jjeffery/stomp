@@ -473,8 +473,10 @@ func createSendFrame(destination, contentType string, body []byte, opts []func(*
 }
 
 func (c *Conn) sendFrame(f *frame.Frame) error {
+	c.closeMutex.Lock()
+	defer c.closeMutex.Unlock()
 	if c.closed {
-		defer c.conn.Close()
+		c.conn.Close()
 		return ErrClosedUnexpectedly
 	}
 
