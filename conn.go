@@ -522,6 +522,13 @@ func (c *Conn) sendFrame(f *frame.Frame) error {
 // will be received by this subscription. A subscription has a channel
 // on which the calling program can receive messages.
 func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Frame) error) (*Subscription, error) {
+	c.closeMutex.Lock()
+	defer c.closeMutex.Unlock()
+	if c.closed {
+		c.conn.Close()
+		return nil, ErrClosedUnexpectedly
+	}
+
 	ch := make(chan *frame.Frame)
 
 	subscribeFrame := frame.New(frame.SUBSCRIBE,
