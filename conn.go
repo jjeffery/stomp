@@ -462,7 +462,7 @@ func createSendFrame(destination, contentType string, body []byte, opts []func(*
 
 	for _, opt := range opts {
 		if opt == nil {
-			return nil, ErrNilOption
+			continue
 		}
 		if err := opt(f); err != nil {
 			return nil, err
@@ -537,7 +537,7 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Fr
 
 	for _, opt := range opts {
 		if opt == nil {
-			return nil, ErrNilOption
+			continue
 		}
 		err := opt(subscribeFrame)
 		if err != nil {
