@@ -473,9 +473,12 @@ func createSendFrame(destination, contentType string, body []byte, opts []func(*
 }
 
 func (c *Conn) sendFrame(f *frame.Frame) error {
+	// Lock our mutex, but don't close it via defer
+	// If the frame requests a receipt then we want to release the lock before
+	// we block on the response, otherwise we can end up deadlocking
 	c.closeMutex.Lock()
-	defer c.closeMutex.Unlock()
 	if c.closed {
+		c.closeMutex.Unlock()
 		c.conn.Close()
 		return ErrClosedUnexpectedly
 	}
@@ -488,6 +491,10 @@ func (c *Conn) sendFrame(f *frame.Frame) error {
 		}
 
 		c.writeCh <- request
+
+		// Now that we've written to the writeCh channel we can release the
+		// close mutex while we wait for our response
+		c.closeMutex.Unlock()
 
 		var response *frame.Frame
 
@@ -512,6 +519,9 @@ func (c *Conn) sendFrame(f *frame.Frame) error {
 		// no receipt required
 		request := writeRequest{Frame: f}
 		c.writeCh <- request
+
+		// Unlock the mutex now that we're written to the write channel
+		c.closeMutex.Unlock()
 	}
 
 	return nil

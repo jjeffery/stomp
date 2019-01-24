@@ -32,13 +32,34 @@ func (tx *Transaction) Conn() *Conn {
 
 // Abort will abort the transaction. Any calls to Send, SendWithReceipt,
 // Ack and Nack on this transaction will be discarded.
+// This function does not wait for the server to process the ABORT frame.
+// See AbortWithReceipt if you want to ensure the ABORT is processed.
 func (tx *Transaction) Abort() error {
+	return tx.abort(false)
+}
+
+// Abort will abort the transaction. Any calls to Send, SendWithReceipt,
+// Ack and Nack on this transaction will be discarded.
+func (tx *Transaction) AbortWithReceipt() error {
+	return tx.abort(true)
+}
+
+func (tx *Transaction) abort(receipt bool) error {
 	if tx.completed {
 		return ErrCompletedTransaction
 	}
 
 	f := frame.New(frame.ABORT, frame.Transaction, tx.id)
-	tx.conn.sendFrame(f)
+
+	if receipt {
+		id := allocateId()
+		f.Header.Set(frame.Receipt, id)
+	}
+
+	err := tx.conn.sendFrame(f)
+	if err != nil {
+		return err
+	}
 	tx.completed = true
 
 	return nil
@@ -46,13 +67,34 @@ func (tx *Transaction) Abort() error {
 
 // Commit will commit the transaction. All messages and acknowledgements
 // sent to the STOMP server on this transaction will be processed atomically.
+// This function does not wait for the server to process the COMMIT frame.
+// See CommitWithReceipt if you want to ensure the COMMIT is processed.
 func (tx *Transaction) Commit() error {
+	return tx.commit(false)
+}
+
+// Commit will commit the transaction. All messages and acknowledgements
+// sent to the STOMP server on this transaction will be processed atomically.
+func (tx *Transaction) CommitWithReceipt() error {
+	return tx.commit(true)
+}
+
+func (tx *Transaction) commit(receipt bool) error {
 	if tx.completed {
 		return ErrCompletedTransaction
 	}
 
 	f := frame.New(frame.COMMIT, frame.Transaction, tx.id)
-	tx.conn.sendFrame(f)
+
+	if receipt {
+		id := allocateId()
+		f.Header.Set(frame.Receipt, id)
+	}
+
+	err := tx.conn.sendFrame(f)
+	if err != nil {
+		return err
+	}
 	tx.completed = true
 
 	return nil
@@ -98,7 +140,10 @@ func (tx *Transaction) Ack(msg *Message) error {
 
 	if f != nil {
 		f.Header.Set(frame.Transaction, tx.id)
-		tx.conn.sendFrame(f)
+		err := tx.conn.sendFrame(f)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -123,7 +168,10 @@ func (tx *Transaction) Nack(msg *Message) error {
 
 	if f != nil {
 		f.Header.Set(frame.Transaction, tx.id)
-		tx.conn.sendFrame(f)
+		err := tx.conn.sendFrame(f)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
