@@ -19,17 +19,18 @@ const DefaultHeartBeatError = 5 * time.Second
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
 type Conn struct {
-	conn         io.ReadWriteCloser
-	readCh       chan *frame.Frame
-	writeCh      chan writeRequest
-	version      Version
-	session      string
-	server       string
-	readTimeout  time.Duration
-	writeTimeout time.Duration
-	closed       bool
-	closeMutex   *sync.Mutex
-	options      *connOptions
+	conn                    io.ReadWriteCloser
+	readCh                  chan *frame.Frame
+	writeCh                 chan writeRequest
+	version                 Version
+	session                 string
+	server                  string
+	readTimeout             time.Duration
+	writeTimeout            time.Duration
+	hbGracePeriodMultiplier float64
+	closed                  bool
+	closeMutex              *sync.Mutex
+	options                 *connOptions
 }
 
 type writeRequest struct {
@@ -88,6 +89,8 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 	if options.WriteChannelCapacity > 0 {
 		writeChannelCapacity = options.WriteChannelCapacity
 	}
+
+	c.hbGracePeriodMultiplier = options.HeartBeatGracePeriodMultiplier
 
 	c.readCh = make(chan *frame.Frame, readChannelCapacity)
 	c.writeCh = make(chan writeRequest, writeChannelCapacity)
@@ -233,7 +236,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 
 	for {
 		if c.readTimeout > 0 && readTimer == nil {
-			readTimer = time.NewTimer(c.readTimeout)
+			readTimer = time.NewTimer(time.Duration(float64(c.readTimeout) * c.hbGracePeriodMultiplier))
 			readTimeoutChannel = readTimer.C
 		}
 		if c.writeTimeout > 0 && writeTimer == nil {

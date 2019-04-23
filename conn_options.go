@@ -16,6 +16,7 @@ type connOptions struct {
 	ReadTimeout                               time.Duration
 	WriteTimeout                              time.Duration
 	HeartBeatError                            time.Duration
+	HeartBeatGracePeriodMultiplier            float64
 	Login, Passcode                           string
 	AcceptVersions                            []string
 	Header                                    *frame.Header
@@ -24,10 +25,11 @@ type connOptions struct {
 
 func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) {
 	co := &connOptions{
-		FrameCommand:   frame.CONNECT,
-		ReadTimeout:    time.Minute,
-		WriteTimeout:   time.Minute,
-		HeartBeatError: DefaultHeartBeatError,
+		FrameCommand:                   frame.CONNECT,
+		ReadTimeout:                    time.Minute,
+		WriteTimeout:                   time.Minute,
+		HeartBeatGracePeriodMultiplier: 1.0,
+		HeartBeatError:                 DefaultHeartBeatError,
 	}
 
 	// This is a slight of hand, attach the options to the Conn long
@@ -125,6 +127,11 @@ var ConnOpt struct {
 	// shorter time duration during unit testing.
 	HeartBeatError func(errorTimeout time.Duration) func(*Conn) error
 
+	// HeartBeatGracePeriodMultiplier is used to calculate the effective read heart-beat timeout
+	// the broker will enforce for each client’s connection. The multiplier is applied to
+	// the read-timeout interval the client specifies in its CONNECT frame
+	HeartBeatGracePeriodMultiplier func(multiplier float64) func(*Conn) error
+
 	// Header is a connect option that allows the client to specify a custom
 	// header entry in the STOMP frame. This connect option can be specified
 	// multiple times for multiple custom headers.
@@ -185,6 +192,13 @@ func init() {
 	ConnOpt.HeartBeatError = func(errorTimeout time.Duration) func(*Conn) error {
 		return func(c *Conn) error {
 			c.options.HeartBeatError = errorTimeout
+			return nil
+		}
+	}
+
+	ConnOpt.HeartBeatGracePeriodMultiplier = func(multiplier float64) func(*Conn) error {
+		return func(c *Conn) error {
+			c.options.HeartBeatGracePeriodMultiplier = multiplier
 			return nil
 		}
 	}
