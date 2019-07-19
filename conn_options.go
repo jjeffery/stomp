@@ -16,6 +16,7 @@ type connOptions struct {
 	ReadTimeout                               time.Duration
 	WriteTimeout                              time.Duration
 	HeartBeatError                            time.Duration
+	MsgSendTimeout                            time.Duration
 	HeartBeatGracePeriodMultiplier            float64
 	Login, Passcode                           string
 	AcceptVersions                            []string
@@ -30,6 +31,7 @@ func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) 
 		WriteTimeout:                   time.Minute,
 		HeartBeatGracePeriodMultiplier: 1.0,
 		HeartBeatError:                 DefaultHeartBeatError,
+		MsgSendTimeout:                 DefaultMsgSendTimeout,
 	}
 
 	// This is a slight of hand, attach the options to the Conn long
@@ -127,6 +129,14 @@ var ConnOpt struct {
 	// shorter time duration during unit testing.
 	HeartBeatError func(errorTimeout time.Duration) func(*Conn) error
 
+	// MsgSendTimeout is a connect option that allows the client to specify
+	// the timeout for the Conn.Send function.
+	// The msgSendTimeout parameter specifies maximum blocking time for calling
+	// the Conn.Send function.
+	// If not specified, this option defaults to 10 seconds.
+	// Less than or equal to zero means infinite
+	MsgSendTimeout func(msgSendTimeout time.Duration) func(*Conn) error
+
 	// HeartBeatGracePeriodMultiplier is used to calculate the effective read heart-beat timeout
 	// the broker will enforce for each client’s connection. The multiplier is applied to
 	// the read-timeout interval the client specifies in its CONNECT frame
@@ -192,6 +202,13 @@ func init() {
 	ConnOpt.HeartBeatError = func(errorTimeout time.Duration) func(*Conn) error {
 		return func(c *Conn) error {
 			c.options.HeartBeatError = errorTimeout
+			return nil
+		}
+	}
+
+	ConnOpt.MsgSendTimeout = func(msgSendTimeout time.Duration) func(*Conn) error {
+		return func(c *Conn) error {
+			c.options.MsgSendTimeout = msgSendTimeout
 			return nil
 		}
 	}

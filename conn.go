@@ -17,7 +17,7 @@ import (
 const DefaultHeartBeatError = 5 * time.Second
 
 // Default timeout of calling Conn.Send function
-const DefaultSendTimeout = 10 * time.Second
+const DefaultMsgSendTimeout = 10 * time.Second
 
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
@@ -30,6 +30,7 @@ type Conn struct {
 	server                  string
 	readTimeout             time.Duration
 	writeTimeout            time.Duration
+	msgSendTimeout          time.Duration
 	hbGracePeriodMultiplier float64
 	closed                  bool
 	closeMutex              *sync.Mutex
@@ -174,6 +175,8 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 			c.writeTimeout -= options.HeartBeatError
 		}
 	}
+
+	c.msgSendTimeout = options.MsgSendTimeout
 
 	// TODO(jpj): make any non-standard headers in the CONNECTED
 	// frame available. This could be implemented as:
@@ -424,11 +427,6 @@ func (c *Conn) MustDisconnect() error {
 // Any number of options can be specified in opts. See the examples for usage. Options include whether
 // to receive a RECEIPT, should the content-length be suppressed, and sending custom header entries.
 func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*frame.Frame) error) error {
-	return c.SendWithTimeout(destination, contentType, body, DefaultSendTimeout, opts...)
-}
-
-//like Send, but with timeout
-func (c *Conn) SendWithTimeout(destination, contentType string, body []byte, timeout time.Duration, opts ...func(*frame.Frame) error) error {
 	c.closeMutex.Lock()
 	defer c.closeMutex.Unlock()
 	if c.closed {
@@ -447,8 +445,7 @@ func (c *Conn) SendWithTimeout(destination, contentType string, body []byte, tim
 			C:     make(chan *frame.Frame),
 		}
 
-		//c.writeCh <- request
-		err := sendDataToWriteChWithTimeout(c.writeCh, request, timeout)
+		err := sendDataToWriteChWithTimeout(c.writeCh, request, c.msgSendTimeout)
 		if err != nil {
 			return err
 		}
@@ -459,8 +456,8 @@ func (c *Conn) SendWithTimeout(destination, contentType string, body []byte, tim
 	} else {
 		// no receipt required
 		request := writeRequest{Frame: f}
-		//c.writeCh <- request
-		err := sendDataToWriteChWithTimeout(c.writeCh, request, timeout)
+
+		err := sendDataToWriteChWithTimeout(c.writeCh, request, c.msgSendTimeout)
 		if err != nil {
 			return err
 		}
@@ -478,7 +475,7 @@ func sendDataToWriteChWithTimeout(ch chan writeRequest, request writeRequest, ti
 	timer := time.NewTimer(timeout)
 	select {
 	case <-timer.C:
-		return ErrSendTimeout
+		return ErrMsgSendTimeout
 	case ch <- request:
 		timer.Stop()
 		return nil
