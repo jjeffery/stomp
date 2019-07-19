@@ -16,6 +16,7 @@ var (
 	ErrCompletedSubscription = newErrorMessage("subscription is unsubscribed")
 	ErrClosedUnexpectedly    = newErrorMessage("connection closed unexpectedly")
 	ErrAlreadyClosed         = newErrorMessage("connection already closed")
+	ErrMsgSendTimeout        = newErrorMessage("msg send timeout")
 	ErrNilOption             = newErrorMessage("nil option")
 )
 

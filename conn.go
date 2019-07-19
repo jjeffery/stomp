@@ -16,6 +16,9 @@ import (
 // to avoid premature disconnections due to network latency.
 const DefaultHeartBeatError = 5 * time.Second
 
+// Default timeout of calling Conn.Send function
+const DefaultMsgSendTimeout = 10 * time.Second
+
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
 type Conn struct {
@@ -27,6 +30,7 @@ type Conn struct {
 	server                  string
 	readTimeout             time.Duration
 	writeTimeout            time.Duration
+	msgSendTimeout          time.Duration
 	hbGracePeriodMultiplier float64
 	closed                  bool
 	closeMutex              *sync.Mutex
@@ -171,6 +175,8 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 			c.writeTimeout -= options.HeartBeatError
 		}
 	}
+
+	c.msgSendTimeout = options.MsgSendTimeout
 
 	// TODO(jpj): make any non-standard headers in the CONNECTED
 	// frame available. This could be implemented as:
@@ -439,7 +445,10 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 			C:     make(chan *frame.Frame),
 		}
 
-		c.writeCh <- request
+		err := sendDataToWriteChWithTimeout(c.writeCh, request, c.msgSendTimeout)
+		if err != nil {
+			return err
+		}
 		response := <-request.C
 		if response.Command != frame.RECEIPT {
 			return newError(response)
@@ -447,10 +456,30 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 	} else {
 		// no receipt required
 		request := writeRequest{Frame: f}
-		c.writeCh <- request
+
+		err := sendDataToWriteChWithTimeout(c.writeCh, request, c.msgSendTimeout)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+func sendDataToWriteChWithTimeout(ch chan writeRequest, request writeRequest, timeout time.Duration) error {
+	if timeout <= 0 {
+		ch <- request
+		return nil
+	}
+
+	timer := time.NewTimer(timeout)
+	select {
+	case <-timer.C:
+		return ErrMsgSendTimeout
+	case ch <- request:
+		timer.Stop()
+		return nil
+	}
 }
 
 func createSendFrame(destination, contentType string, body []byte, opts []func(*frame.Frame) error) (*frame.Frame, error) {
