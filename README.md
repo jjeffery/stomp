@@ -35,7 +35,7 @@ documented in [breaking_changes.md](breaking_changes.md).
 
 
 
-## License
+## License
 Copyright 2012 - Present The go-stomp authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
