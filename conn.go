@@ -70,9 +70,6 @@ func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 // been created by the program. The opts parameter provides the
 // opportunity to specify STOMP protocol options.
 func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) {
-	reader := frame.NewReader(conn)
-	writer := frame.NewWriter(conn)
-
 	c := &Conn{
 		conn:       conn,
 		closeMutex: &sync.Mutex{},
@@ -81,6 +78,21 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 	options, err := newConnOptions(c, opts)
 	if err != nil {
 		return nil, err
+	}
+
+	var reader *frame.Reader
+	var writer *frame.Writer
+
+	if options.ReadBufferSize > 0 {
+		reader = frame.NewReaderSize(conn, options.ReadBufferSize)
+	} else {
+		reader = frame.NewReader(conn)
+	}
+
+	if options.WriteBufferSize > 0 {
+		writer = frame.NewWriterSize(conn, options.ReadBufferSize)
+	} else {
+		writer = frame.NewWriter(conn)
 	}
 
 	readChannelCapacity := 20
