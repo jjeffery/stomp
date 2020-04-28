@@ -83,6 +83,14 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 		return nil, err
 	}
 
+	if options.ReadBufferSize > 0 {
+		reader = frame.NewReaderSize(conn, options.ReadBufferSize)
+	}
+
+	if options.WriteBufferSize > 0 {
+		writer = frame.NewWriterSize(conn, options.ReadBufferSize)
+	}
+
 	readChannelCapacity := 20
 	writeChannelCapacity := 20
 

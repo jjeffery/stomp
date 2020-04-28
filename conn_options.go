@@ -22,6 +22,7 @@ type connOptions struct {
 	AcceptVersions                            []string
 	Header                                    *frame.Header
 	ReadChannelCapacity, WriteChannelCapacity int
+	ReadBufferSize, WriteBufferSize           int
 }
 
 func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) {
@@ -156,6 +157,16 @@ var ConnOpt struct {
 	// same time. A high number may affect memory usage while a too low number may lock the
 	// system up. Default is set to 20.
 	WriteChannelCapacity func(capacity int) func(*Conn) error
+
+	// ReadBufferSize specifies number of bytes that can be used to read the message
+	// A high number may affect memory usage while a too low number may lock the
+	// system up. Default is set to 4096.
+	ReadBufferSize func(size int) func(*Conn) error
+
+	// WriteBufferSize specifies number of bytes that can be used to write the message
+	// A high number may affect memory usage while a too low number may lock the
+	// system up. Default is set to 4096.
+	WriteBufferSize func(size int) func(*Conn) error
 }
 
 func init() {
@@ -241,6 +252,20 @@ func init() {
 	ConnOpt.WriteChannelCapacity = func(capacity int) func(*Conn) error {
 		return func(c *Conn) error {
 			c.options.WriteChannelCapacity = capacity
+			return nil
+		}
+	}
+
+	ConnOpt.ReadBufferSize = func(size int) func(*Conn) error {
+		return func(c *Conn) error {
+			c.options.ReadBufferSize = size
+			return nil
+		}
+	}
+
+	ConnOpt.WriteBufferSize = func(size int) func(*Conn) error {
+		return func(c *Conn) error {
+			c.options.WriteBufferSize = size
 			return nil
 		}
 	}
