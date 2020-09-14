@@ -47,3 +47,12 @@ func (msg *Message) ShouldAck() bool {
 
 	return msg.Subscription.AckMode() != AckAuto
 }
+
+func (msg *Message) Read(p []byte) (int, error) {
+	if len(r.b) == 0 {
+		return 0, io.EOF
+	}
+	n := copy(p, r.Body)
+	msg.Body = r.Body[n:]
+	return n, nil
+}
