@@ -1,6 +1,7 @@
 package stomp
 
 import (
+	"io"
 	"github.com/go-stomp/stomp/frame"
 )
 
@@ -46,4 +47,13 @@ func (msg *Message) ShouldAck() bool {
 	}
 
 	return msg.Subscription.AckMode() != AckAuto
+}
+
+func (msg *Message) Read(p []byte) (int, error) {
+	if len(msg.Body) == 0 {
+		return 0, io.EOF
+	}
+	n := copy(p, msg.Body)
+	msg.Body = msg.Body[n:]
+	return n, nil
 }
