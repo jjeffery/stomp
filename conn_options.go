@@ -23,6 +23,7 @@ type connOptions struct {
 	Header                                    *frame.Header
 	ReadChannelCapacity, WriteChannelCapacity int
 	ReadBufferSize, WriteBufferSize           int
+	ResponseHeadersCallback                   func(*frame.Header)
 }
 
 func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) {
@@ -167,6 +168,9 @@ var ConnOpt struct {
 	// A high number may affect memory usage while a too low number may lock the
 	// system up. Default is set to 4096.
 	WriteBufferSize func(size int) func(*Conn) error
+
+	// ResponseHeaders lets you provide a callback function to get the headers from the CONNECT response
+	ResponseHeaders func(func(*frame.Header)) func(*Conn) error
 }
 
 func init() {
@@ -266,6 +270,13 @@ func init() {
 	ConnOpt.WriteBufferSize = func(size int) func(*Conn) error {
 		return func(c *Conn) error {
 			c.options.WriteBufferSize = size
+			return nil
+		}
+	}
+
+	ConnOpt.ResponseHeaders = func(callback func(*frame.Header)) func(*Conn) error {
+		return func(c *Conn) error {
+			c.options.ResponseHeadersCallback = callback
 			return nil
 		}
 	}
