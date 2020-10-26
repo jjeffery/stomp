@@ -186,12 +186,9 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 
 	c.msgSendTimeout = options.MsgSendTimeout
 
-	// TODO(jpj): make any non-standard headers in the CONNECTED
-	// frame available. This could be implemented as:
-	// (a) a callback function supplied as an option; or
-	// (b) a property of the Conn structure (eg CustomHeaders)
-	// Neither options are particularly elegant, so wait until
-	// there is a real need for this.
+	if options.ResponseHeadersCallback != nil {
+		options.ResponseHeadersCallback(response.Header)
+	}
 
 	go readLoop(c, reader)
 	go processLoop(c, writer)
