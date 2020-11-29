@@ -19,6 +19,9 @@ const DefaultHeartBeatError = 5 * time.Second
 // Default timeout of calling Conn.Send function
 const DefaultMsgSendTimeout = 10 * time.Second
 
+// Default timeout of calling Conn.Send function
+const DefaultRcvReceiptTimeout = 10 * time.Second
+
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
 type Conn struct {
@@ -31,6 +34,7 @@ type Conn struct {
 	readTimeout             time.Duration
 	writeTimeout            time.Duration
 	msgSendTimeout          time.Duration
+	rcvReceiptTimeout       time.Duration
 	hbGracePeriodMultiplier float64
 	closed                  bool
 	closeMutex              *sync.Mutex
@@ -185,6 +189,7 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 	}
 
 	c.msgSendTimeout = options.MsgSendTimeout
+	c.rcvReceiptTimeout = options.RcvReceiptTimeout
 
 	if options.ResponseHeadersCallback != nil {
 		options.ResponseHeadersCallback(response.Header)
@@ -450,13 +455,14 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 			C:     make(chan *frame.Frame),
 		}
 
-		err := sendDataToWriteChWithTimeout(c.writeCh, request, c.msgSendTimeout)
-		if err != nil {
-			return err
+		sendErr := sendDataToWriteChWithTimeout(c.writeCh, request, c.msgSendTimeout)
+		if sendErr != nil {
+			return sendErr
 		}
-		response := <-request.C
-		if response.Command != frame.RECEIPT {
-			return newError(response)
+
+		receiptErr := readReceiptWithTimeout(request, c.rcvReceiptTimeout)
+		if receiptErr != nil {
+			return receiptErr
 		}
 	} else {
 		// no receipt required
@@ -469,6 +475,29 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 	}
 
 	return nil
+}
+
+func readReceiptWithTimeout(request writeRequest, timeout time.Duration) error {
+	handle := func(response *frame.Frame) error {
+		if response.Command != frame.RECEIPT {
+			return newError(response)
+		}
+		return nil
+	}
+
+	if timeout <= 0 {
+		response := <-request.C
+		return handle(response)
+	}
+
+	timer := time.NewTimer(timeout)
+	select {
+	case <-timer.C:
+		return ErrMsgReceiptTimeout
+	case response := <-request.C:
+		timer.Stop()
+		return handle(response)
+	}
 }
 
 func sendDataToWriteChWithTimeout(ch chan writeRequest, request writeRequest, timeout time.Duration) error {
