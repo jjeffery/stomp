@@ -16,10 +16,10 @@ import (
 // to avoid premature disconnections due to network latency.
 const DefaultHeartBeatError = 5 * time.Second
 
-// Default timeout of calling Conn.Send function
+// Default send timeout in Conn.Send function
 const DefaultMsgSendTimeout = 10 * time.Second
 
-// Default timeout of calling Conn.Send function
+// Default receipt timeout in Conn.Send function
 const DefaultRcvReceiptTimeout = 10 * time.Second
 
 // A Conn is a connection to a STOMP server. Create a Conn using either
