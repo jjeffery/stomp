@@ -455,14 +455,14 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 			C:     make(chan *frame.Frame),
 		}
 
-		sendErr := sendDataToWriteChWithTimeout(c.writeCh, request, c.msgSendTimeout)
-		if sendErr != nil {
-			return sendErr
+		err := sendDataToWriteChWithTimeout(c.writeCh, request, c.msgSendTimeout)
+		if err != nil {
+			return err
 		}
 
-		receiptErr := readReceiptWithTimeout(request, c.rcvReceiptTimeout)
-		if receiptErr != nil {
-			return receiptErr
+		err = readReceiptWithTimeout(request, c.rcvReceiptTimeout)
+		if err != nil {
+			return err
 		}
 	} else {
 		// no receipt required
