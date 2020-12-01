@@ -478,25 +478,19 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 }
 
 func readReceiptWithTimeout(request writeRequest, timeout time.Duration) error {
-	handle := func(response *frame.Frame) error {
+	var timeoutChan <-chan time.Time
+	if timeout > 0 {
+		timeoutChan = time.After(timeout)
+	}
+
+	select {
+	case <-timeoutChan:
+		return ErrMsgReceiptTimeout
+	case response := <-request.C:
 		if response.Command != frame.RECEIPT {
 			return newError(response)
 		}
 		return nil
-	}
-
-	if timeout <= 0 {
-		response := <-request.C
-		return handle(response)
-	}
-
-	timer := time.NewTimer(timeout)
-	select {
-	case <-timer.C:
-		return ErrMsgReceiptTimeout
-	case response := <-request.C:
-		timer.Stop()
-		return handle(response)
 	}
 }
 
