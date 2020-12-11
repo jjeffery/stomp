@@ -20,7 +20,7 @@ const DefaultHeartBeatError = 5 * time.Second
 const DefaultMsgSendTimeout = 10 * time.Second
 
 // Default receipt timeout in Conn.Send function
-const DefaultRcvReceiptTimeout = 10 * time.Second
+const DefaultRcvReceiptTimeout = 30 * time.Second
 
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
