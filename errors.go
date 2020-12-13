@@ -17,6 +17,7 @@ var (
 	ErrClosedUnexpectedly    = newErrorMessage("connection closed unexpectedly")
 	ErrAlreadyClosed         = newErrorMessage("connection already closed")
 	ErrMsgSendTimeout        = newErrorMessage("msg send timeout")
+	ErrMsgReceiptTimeout     = newErrorMessage("msg receipt timeout")
 	ErrNilOption             = newErrorMessage("nil option")
 )
 

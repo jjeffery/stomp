@@ -17,6 +17,7 @@ type connOptions struct {
 	WriteTimeout                              time.Duration
 	HeartBeatError                            time.Duration
 	MsgSendTimeout                            time.Duration
+	RcvReceiptTimeout                         time.Duration
 	HeartBeatGracePeriodMultiplier            float64
 	Login, Passcode                           string
 	AcceptVersions                            []string
@@ -34,6 +35,7 @@ func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) 
 		HeartBeatGracePeriodMultiplier: 1.0,
 		HeartBeatError:                 DefaultHeartBeatError,
 		MsgSendTimeout:                 DefaultMsgSendTimeout,
+		RcvReceiptTimeout:              DefaultRcvReceiptTimeout,
 	}
 
 	// This is a slight of hand, attach the options to the Conn long
@@ -139,6 +141,11 @@ var ConnOpt struct {
 	// Less than or equal to zero means infinite
 	MsgSendTimeout func(msgSendTimeout time.Duration) func(*Conn) error
 
+	// RcvReceiptTimeout is a connect option that allows the client to specify
+	// how long to wait for a receipt in the Conn.Send function. This helps
+	// avoid deadlocks. If this is not specified, the default is 10 seconds.
+	RcvReceiptTimeout func(rcvReceiptTimeout time.Duration) func(*Conn) error
+
 	// HeartBeatGracePeriodMultiplier is used to calculate the effective read heart-beat timeout
 	// the broker will enforce for each client’s connection. The multiplier is applied to
 	// the read-timeout interval the client specifies in its CONNECT frame
@@ -224,6 +231,13 @@ func init() {
 	ConnOpt.MsgSendTimeout = func(msgSendTimeout time.Duration) func(*Conn) error {
 		return func(c *Conn) error {
 			c.options.MsgSendTimeout = msgSendTimeout
+			return nil
+		}
+	}
+
+	ConnOpt.RcvReceiptTimeout = func(rcvReceiptTimeout time.Duration) func(*Conn) error {
+		return func(c *Conn) error {
+			c.options.RcvReceiptTimeout = rcvReceiptTimeout
 			return nil
 		}
 	}

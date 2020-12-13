@@ -16,8 +16,11 @@ import (
 // to avoid premature disconnections due to network latency.
 const DefaultHeartBeatError = 5 * time.Second
 
-// Default timeout of calling Conn.Send function
+// Default send timeout in Conn.Send function
 const DefaultMsgSendTimeout = 10 * time.Second
+
+// Default receipt timeout in Conn.Send function
+const DefaultRcvReceiptTimeout = 30 * time.Second
 
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
@@ -31,6 +34,7 @@ type Conn struct {
 	readTimeout             time.Duration
 	writeTimeout            time.Duration
 	msgSendTimeout          time.Duration
+	rcvReceiptTimeout       time.Duration
 	hbGracePeriodMultiplier float64
 	closed                  bool
 	closeMutex              *sync.Mutex
@@ -185,6 +189,7 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 	}
 
 	c.msgSendTimeout = options.MsgSendTimeout
+	c.rcvReceiptTimeout = options.RcvReceiptTimeout
 
 	if options.ResponseHeadersCallback != nil {
 		options.ResponseHeadersCallback(response.Header)
@@ -454,9 +459,10 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 		if err != nil {
 			return err
 		}
-		response := <-request.C
-		if response.Command != frame.RECEIPT {
-			return newError(response)
+
+		err = readReceiptWithTimeout(request, c.rcvReceiptTimeout)
+		if err != nil {
+			return err
 		}
 	} else {
 		// no receipt required
@@ -469,6 +475,23 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 	}
 
 	return nil
+}
+
+func readReceiptWithTimeout(request writeRequest, timeout time.Duration) error {
+	var timeoutChan <-chan time.Time
+	if timeout > 0 {
+		timeoutChan = time.After(timeout)
+	}
+
+	select {
+	case <-timeoutChan:
+		return ErrMsgReceiptTimeout
+	case response := <-request.C:
+		if response.Command != frame.RECEIPT {
+			return newError(response)
+		}
+		return nil
+	}
 }
 
 func sendDataToWriteChWithTimeout(ch chan writeRequest, request writeRequest, timeout time.Duration) error {

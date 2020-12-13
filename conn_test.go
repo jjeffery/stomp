@@ -648,3 +648,76 @@ func createHeartBeatConnection(
 		conn:   fc2,
 	}
 }
+
+// Testing Timeouts when receiving receipts
+func sendFrameHelper(f *frame.Frame, c chan *frame.Frame) {
+	c <- f
+}
+
+//// GIVEN_TheTimeoutIsExceededBeforeTheReceiptIsReceived_WHEN_CallingReadReceiptWithTimeout_THEN_ReturnAnError
+func (s *StompSuite) Test_TimeoutTriggers(c *C) {
+	const timeout = 1 * time.Millisecond
+	f := frame.Frame{}
+	request := writeRequest{
+		Frame: &f,
+		C:     make(chan *frame.Frame),
+	}
+
+	err := readReceiptWithTimeout(request, timeout)
+
+	c.Assert(err, NotNil)
+}
+
+//// GIVEN_TheChannelReceivesTheReceiptBeforeTheTimeoutExpires_WHEN_CallingReadReceiptWithTimeout_THEN_DoNotReturnAnError
+func (s *StompSuite) Test_ChannelReceviesReceipt(c *C) {
+	const timeout = 1 * time.Second
+	f := frame.Frame{}
+	request := writeRequest{
+		Frame: &f,
+		C:     make(chan *frame.Frame),
+	}
+	receipt := frame.Frame{
+		Command: frame.RECEIPT,
+	}
+
+	go sendFrameHelper(&receipt, request.C)
+	err := readReceiptWithTimeout(request, timeout)
+
+	c.Assert(err, IsNil)
+}
+
+//// GIVEN_TheChannelReceivesMessage_AND_TheMessageIsNotAReceipt_WHEN_CallingReadReceiptWithTimeout_THEN_ReturnAnError
+func (s *StompSuite) Test_ChannelReceviesNonReceipt(c *C) {
+	const timeout = 1 * time.Second
+	f := frame.Frame{}
+	request := writeRequest{
+		Frame: &f,
+		C:     make(chan *frame.Frame),
+	}
+	receipt := frame.Frame{
+		Command: "NOT A RECEIPT",
+	}
+
+	go sendFrameHelper(&receipt, request.C)
+	err := readReceiptWithTimeout(request, timeout)
+
+	c.Assert(err, NotNil)
+}
+
+//// GIVEN_TheTimeoutIsSetToZero_AND_TheMessageIsReceived_WHEN_CallingReadReceiptWithTimeout_THEN_DoNotReturnAnError
+func (s *StompSuite) Test_ZeroTimeout(c *C) {
+	const timeout = 0 * time.Second
+	f := frame.Frame{}
+	request := writeRequest{
+		Frame: &f,
+		C:     make(chan *frame.Frame),
+	}
+	receipt := frame.Frame{
+		Command: frame.RECEIPT,
+	}
+
+	go sendFrameHelper(&receipt, request.C)
+	err := readReceiptWithTimeout(request, timeout)
+
+	c.Assert(err, IsNil)
+}
