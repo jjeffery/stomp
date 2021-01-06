@@ -122,7 +122,7 @@ func (c *Conn) readLoop() {
 			// infinite timeout
 			c.rw.SetReadDeadline(time.Time{})
 		} else {
-			c.rw.SetReadDeadline(time.Now().Add(readTimeout))
+			c.rw.SetReadDeadline(time.Now().Add(readTimeout * 2))
 		}
 		f, err := reader.Read()
 		if err != nil {
