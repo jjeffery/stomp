@@ -188,11 +188,11 @@ func (c *Conn) processLoop() {
 
 	c.writer = frame.NewWriter(c.rw)
 	c.stateFunc = connecting
-	for {
-		var timerChannel <-chan time.Time
-		var timer *time.Timer
 
-		if c.writeTimeout > 0 {
+	var timerChannel <-chan time.Time
+	var timer *time.Timer
+	for {
+		if c.writeTimeout > 0 && timer == nil {
 			timer = time.NewTimer(c.writeTimeout)
 			timerChannel = timer.C
 		}
@@ -310,6 +310,11 @@ func (c *Conn) processLoop() {
 			}
 
 		case _ = <-timerChannel:
+			// stop the heart-beat timer
+			if timer != nil {
+				timer.Stop()
+				timer = nil
+			}
 			// write a heart-beat
 			err := c.writer.Write(nil)
 			if err != nil {
