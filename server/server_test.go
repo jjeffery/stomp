@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-stomp/stomp"
+	"github.com/go-stomp/stomp/v3"
 	. "gopkg.in/check.v1"
 )
 
