@@ -3,6 +3,7 @@ package frame
 import (
 	"bytes"
 	"strings"
+	"unsafe"
 )
 
 var (
