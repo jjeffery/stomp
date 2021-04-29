@@ -1,7 +1,6 @@
 package frame
 
 import (
-	"bytes"
 	"strings"
 )
 
