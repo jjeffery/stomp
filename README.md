@@ -2,7 +2,7 @@
 
 Go language implementation of a STOMP client library.
 
-[![Build Status](https://travis-ci.org/go-stomp/stomp.svg?branch=master)](https://travis-ci.org/go-stomp/stomp)
+![Build Status](https://github.com/go-stomp/stomp/actions/workflows/test.yml/badge.svg?branch=master)
 [![Go Reference](https://pkg.go.dev/badge/github.com/go-stomp/stomp/v3.svg)](https://pkg.go.dev/github.com/go-stomp/stomp/v3)
 
 Features:
