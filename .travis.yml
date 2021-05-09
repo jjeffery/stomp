@@ -1,7 +1,0 @@
-language: go
-
-go_import_path: github.com/go-stomp/stomp/v3
-
-go:
-  - 1.13
-  - tip
