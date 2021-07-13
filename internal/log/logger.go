@@ -2,13 +2,23 @@ package log
 
 import (
 	"os"
-
-	"github.com/go-stomp/stomp/v3"
 )
 
-var logger stomp.Logger
+type Logger interface {
+	Debugf(format string, value ...interface{})
+	Infof(format string, value ...interface{})
+	Warningf(format string, value ...interface{})
+	Errorf(format string, value ...interface{})
 
-func SetLogger(l stomp.Logger) {
+	Debug(message string)
+	Info(message string)
+	Warning(message string)
+	Error(message string)
+}
+
+var logger Logger
+
+func SetLogger(l Logger) {
 	if l != nil {
 		logger = l
 	}
