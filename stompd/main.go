@@ -14,10 +14,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"os"
 
+	"github.com/go-stomp/stomp/v3/internal/log"
 	"github.com/go-stomp/stomp/v3/server"
 )
 
@@ -33,7 +33,7 @@ func main() {
 	for {
 		select {
 		case sig := <-stopChannel:
-			log.Println("received signal:", sig)
+			log.Infof("received signal: %d", sig)
 			break
 		}
 	}
@@ -58,6 +58,6 @@ func main() {
 	}
 	defer func() { l.Close() }()
 
-	log.Println("listening on", l.Addr().Network(), l.Addr().String())
+	log.Infof("listening on %s %s", l.Addr().Network(), l.Addr().String())
 	server.Serve(l)
 }

@@ -3,13 +3,13 @@ package client
 import (
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"strconv"
 	"time"
 
 	"github.com/go-stomp/stomp/v3"
 	"github.com/go-stomp/stomp/v3/frame"
+	"github.com/go-stomp/stomp/v3/internal/log"
 )
 
 // Maximum number of pending frames allowed to a client.
@@ -127,9 +127,9 @@ func (c *Conn) readLoop() {
 		f, err := reader.Read()
 		if err != nil {
 			if err == io.EOF {
-				log.Println("connection closed:", c.rw.RemoteAddr())
+				log.Errorf("connection closed: %s", c.rw.RemoteAddr())
 			} else {
-				log.Println("read failed:", err, ":", c.rw.RemoteAddr())
+				log.Errorf("read failed: %v : %s", err, c.rw.RemoteAddr())
 			}
 
 			// Close the read channel so that the processing loop will
@@ -246,7 +246,7 @@ func (c *Conn) processLoop() {
 			if c.validator != nil {
 				err := c.validator.Validate(f)
 				if err != nil {
-					log.Println("validation failed for", f.Command, "frame", err)
+					log.Warningf("validation failed for %s frame: %v", f.Command, err)
 					c.sendErrorImmediately(err, f)
 					return
 				}
@@ -475,14 +475,14 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 	passcode, _ := f.Header.Contains(frame.Passcode)
 	if !c.config.Authenticate(login, passcode) {
 		// sleep to slow down a rogue client a little bit
-		log.Println("authentication failed")
+		log.Error("authentication failed")
 		time.Sleep(time.Second)
 		return authenticationFailed
 	}
 
 	c.version, err = determineVersion(f)
 	if err != nil {
-		log.Println("protocol version negotiation failed")
+		log.Error("protocol version negotiation failed")
 		return err
 	}
 	c.validator = stomp.NewValidator(c.version)
@@ -490,13 +490,13 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 	if c.version == stomp.V10 {
 		// don't want to handle V1.0 at the moment
 		// TODO: get working for V1.0
-		log.Println("unsupported version", c.version)
+		log.Errorf("unsupported version %s", c.version)
 		return unsupportedVersion
 	}
 
 	cx, cy, err := getHeartBeat(f)
 	if err != nil {
-		log.Println("invalid heart-beat")
+		log.Error("invalid heart-beat")
 		return err
 	}
 

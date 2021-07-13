@@ -3,13 +3,13 @@ package stomp
 import (
 	"errors"
 	"io"
-	"log"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/go-stomp/stomp/v3/frame"
+	"github.com/go-stomp/stomp/v3/internal/log"
 )
 
 // Default time span to add to read/write heart-beat timeouts
@@ -311,7 +311,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 				}
 
 			case frame.ERROR:
-				log.Println("received ERROR; Closing underlying connection")
+				log.Error("received ERROR; Closing underlying connection")
 				for _, ch := range channels {
 					ch <- f
 					close(ch)
@@ -329,7 +329,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 					if ch, ok := channels[id]; ok {
 						ch <- f
 					} else {
-						log.Println("ignored MESSAGE for subscription", id)
+						log.Infof("ignored MESSAGE for subscription: %s", id)
 					}
 				}
 			}

@@ -1,12 +1,12 @@
 package server
 
 import (
-	"log"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/go-stomp/stomp/v3/frame"
+	"github.com/go-stomp/stomp/v3/internal/log"
 	"github.com/go-stomp/stomp/v3/server/client"
 	"github.com/go-stomp/stomp/v3/server/queue"
 	"github.com/go-stomp/stomp/v3/server/topic"
@@ -114,7 +114,7 @@ func (proc *requestProcessor) Listen(l net.Listener) {
 				if max := 5 * time.Second; timeout > max {
 					timeout = max
 				}
-				log.Printf("stomp: Accept error: %v; retrying in %v", err, timeout)
+				log.Infof("stomp: Accept error: %v; retrying in %v", err, timeout)
 				time.Sleep(timeout)
 				continue
 			}
