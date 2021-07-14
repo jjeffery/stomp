@@ -33,7 +33,7 @@ func main() {
 	for {
 		select {
 		case sig := <-stopChannel:
-			log.Println("received signal", sig)
+			log.Println("received signal:", sig)
 			break
 		}
 	}
@@ -54,10 +54,10 @@ func main() {
 
 	l, err := net.Listen("tcp", *listenAddr)
 	if err != nil {
-		log.Fatalln("failed to listen", err.Error())
+		log.Fatalf("failed to listen: %s", err.Error())
 	}
 	defer func() { l.Close() }()
 
-	log.Println("listening on ", l.Addr().Network(), l.Addr().String())
+	log.Println("listening on", l.Addr().Network(), l.Addr().String())
 	server.Serve(l)
 }
