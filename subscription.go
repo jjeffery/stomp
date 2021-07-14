@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 
 	"github.com/go-stomp/stomp/v3/frame"
-	"github.com/go-stomp/stomp/v3/internal/log"
 )
 
 const (
@@ -155,7 +154,7 @@ func (s *Subscription) readLoop(ch chan *frame.Frame) {
 					s.id,
 					s.destination,
 					message)
-				log.Info(text)
+				s.conn.log.Info(text)
 				contentType := f.Header.Get(frame.ContentType)
 				msg := &Message{
 					Err: &Error{
@@ -178,7 +177,7 @@ func (s *Subscription) readLoop(ch chan *frame.Frame) {
 			}
 			return
 		} else {
-			log.Infof("Subscription %s: %s: unsupported frame type: %+v", s.id, s.destination, f)
+			s.conn.log.Infof("Subscription %s: %s: unsupported frame type: %+v", s.id, s.destination, f)
 		}
 	}
 }

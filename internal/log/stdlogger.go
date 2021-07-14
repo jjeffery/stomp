@@ -9,36 +9,36 @@ var (
 	errorPrefix = "ERROR: "
 )
 
-type stdLogger struct{}
+type StdLogger struct{}
 
-func (s stdLogger) Debugf(format string, value ...interface{}) {
+func (s StdLogger) Debugf(format string, value ...interface{}) {
 	stdlog.Printf(debugPrefix+format+"\n", value...)
 }
 
-func (s stdLogger) Debug(message string) {
+func (s StdLogger) Debug(message string) {
 	s.Debugf("%s", message)
 }
 
-func (s stdLogger) Infof(format string, value ...interface{}) {
+func (s StdLogger) Infof(format string, value ...interface{}) {
 	stdlog.Printf(infoPrefix+format+"\n", value...)
 }
 
-func (s stdLogger) Info(message string) {
+func (s StdLogger) Info(message string) {
 	s.Infof("%s", message)
 }
 
-func (s stdLogger) Warningf(format string, value ...interface{}) {
+func (s StdLogger) Warningf(format string, value ...interface{}) {
 	stdlog.Printf(warnPrefix+format+"\n", value...)
 }
 
-func (s stdLogger) Warning(message string) {
+func (s StdLogger) Warning(message string) {
 	s.Warningf("%s", message)
 }
 
-func (s stdLogger) Errorf(format string, value ...interface{}) {
+func (s StdLogger) Errorf(format string, value ...interface{}) {
 	stdlog.Printf(errorPrefix+format+"\n", value...)
 }
 
-func (s stdLogger) Error(message string) {
+func (s StdLogger) Error(message string) {
 	s.Errorf("%s", message)
 }

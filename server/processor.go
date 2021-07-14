@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-stomp/stomp/v3"
 	"github.com/go-stomp/stomp/v3/frame"
-	"github.com/go-stomp/stomp/v3/internal/log"
 	"github.com/go-stomp/stomp/v3/server/client"
 	"github.com/go-stomp/stomp/v3/server/queue"
 	"github.com/go-stomp/stomp/v3/server/topic"
@@ -114,7 +114,7 @@ func (proc *requestProcessor) Listen(l net.Listener) {
 				if max := 5 * time.Second; timeout > max {
 					timeout = max
 				}
-				log.Infof("stomp: Accept error: %v; retrying in %v", err, timeout)
+				proc.server.Log.Infof("stomp: Accept error: %v; retrying in %v", err, timeout)
 				time.Sleep(timeout)
 				continue
 			}
@@ -151,4 +151,8 @@ func (c *config) Authenticate(login, passcode string) bool {
 
 	// no authentication defined
 	return true
+}
+
+func (c *config) Logger() stomp.Logger {
+	return c.server.Log
 }
