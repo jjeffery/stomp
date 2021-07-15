@@ -1,6 +1,9 @@
 package log
 
-import stdlog "log"
+import (
+	"fmt"
+	stdlog "log"
+)
 
 var (
 	debugPrefix = "DEBUG: "
@@ -9,36 +12,40 @@ var (
 	errorPrefix = "ERROR: "
 )
 
+func logf(prefix string, format string, value ...interface{}) {
+	_ = stdlog.Output(3, fmt.Sprintf(prefix+format+"\n", value...))
+}
+
 type StdLogger struct{}
 
 func (s StdLogger) Debugf(format string, value ...interface{}) {
-	stdlog.Printf(debugPrefix+format+"\n", value...)
+	logf(debugPrefix, format, value...)
 }
 
 func (s StdLogger) Debug(message string) {
-	s.Debugf("%s", message)
+	logf(debugPrefix, "%s", message)
 }
 
 func (s StdLogger) Infof(format string, value ...interface{}) {
-	stdlog.Printf(infoPrefix+format+"\n", value...)
+	logf(infoPrefix, format, value...)
 }
 
 func (s StdLogger) Info(message string) {
-	s.Infof("%s", message)
+	logf(infoPrefix, "%s", message)
 }
 
 func (s StdLogger) Warningf(format string, value ...interface{}) {
-	stdlog.Printf(warnPrefix+format+"\n", value...)
+	logf(warnPrefix, format, value...)
 }
 
 func (s StdLogger) Warning(message string) {
-	s.Warningf("%s", message)
+	logf(warnPrefix, "%s", message)
 }
 
 func (s StdLogger) Errorf(format string, value ...interface{}) {
-	stdlog.Printf(errorPrefix+format+"\n", value...)
+	logf(errorPrefix, format, value...)
 }
 
 func (s StdLogger) Error(message string) {
-	s.Errorf("%s", message)
+	logf(errorPrefix, "%s", message)
 }
