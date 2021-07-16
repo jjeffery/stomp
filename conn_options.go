@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-stomp/stomp/v3/frame"
+	"github.com/go-stomp/stomp/v3/internal/log"
 )
 
 // ConnOptions is an opaque structure used to collection options
@@ -25,6 +26,7 @@ type connOptions struct {
 	ReadChannelCapacity, WriteChannelCapacity int
 	ReadBufferSize, WriteBufferSize           int
 	ResponseHeadersCallback                   func(*frame.Header)
+	Logger                                    Logger
 }
 
 func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) {
@@ -36,6 +38,7 @@ func newConnOptions(conn *Conn, opts []func(*Conn) error) (*connOptions, error) 
 		HeartBeatError:                 DefaultHeartBeatError,
 		MsgSendTimeout:                 DefaultMsgSendTimeout,
 		RcvReceiptTimeout:              DefaultRcvReceiptTimeout,
+		Logger:                         log.StdLogger{},
 	}
 
 	// This is a slight of hand, attach the options to the Conn long
@@ -178,6 +181,9 @@ var ConnOpt struct {
 
 	// ResponseHeaders lets you provide a callback function to get the headers from the CONNECT response
 	ResponseHeaders func(func(*frame.Header)) func(*Conn) error
+
+	// Logger lets you provide a callback function that sets the logger used by a connection
+	Logger func(logger Logger) func(*Conn) error
 }
 
 func init() {
@@ -291,6 +297,16 @@ func init() {
 	ConnOpt.ResponseHeaders = func(callback func(*frame.Header)) func(*Conn) error {
 		return func(c *Conn) error {
 			c.options.ResponseHeadersCallback = callback
+			return nil
+		}
+	}
+
+	ConnOpt.Logger = func(log Logger) func(*Conn) error {
+		return func(c *Conn) error {
+			if log != nil {
+				c.log = log
+			}
+
 			return nil
 		}
 	}

@@ -6,6 +6,9 @@ package server
 import (
 	"net"
 	"time"
+
+	"github.com/go-stomp/stomp/v3"
+	"github.com/go-stomp/stomp/v3/internal/log"
 )
 
 // The STOMP server has the concept of queues and topics. A message
@@ -41,6 +44,7 @@ type Server struct {
 	Authenticator Authenticator // Authenticates login/passcodes. If nil no authentication is performed
 	QueueStorage  QueueStorage  // Implementation of queue storage. If nil, in-memory queues are used.
 	HeartBeat     time.Duration // Preferred value for heart-beat read/write timeout, if zero, then DefaultHeartBeat.
+	Log           stomp.Logger
 }
 
 // ListenAndServe listens on the TCP network address addr and then calls Serve.
@@ -76,6 +80,10 @@ func (s *Server) ListenAndServe() error {
 // service thread for each connection. The service threads read
 // requests and then process each request.
 func (s *Server) Serve(l net.Listener) error {
+	if s.Log == nil {
+		s.Log = log.StdLogger{}
+	}
+
 	proc := newRequestProcessor(s)
 	return proc.Serve(l)
 }

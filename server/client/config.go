@@ -2,6 +2,8 @@ package client
 
 import (
 	"time"
+
+	"github.com/go-stomp/stomp/v3"
 )
 
 // Contains information the client package needs from the
@@ -17,4 +19,7 @@ type Config interface {
 	// 11 days, but less than 12 days), then it is truncated to the
 	// maximum permitted values.
 	HeartBeat() time.Duration
+
+	// Logger provides the logger for a client
+	Logger() stomp.Logger
 }

@@ -3,7 +3,6 @@ package stomp
 import (
 	"errors"
 	"io"
-	"log"
 	"net"
 	"strconv"
 	"sync"
@@ -39,6 +38,7 @@ type Conn struct {
 	closed                  bool
 	closeMutex              *sync.Mutex
 	options                 *connOptions
+	log                     Logger
 }
 
 type writeRequest struct {
@@ -64,7 +64,7 @@ func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 
 	// Add option to set host and make it the first option in list,
 	// so that if host has been explicitly specified it will override.
-	opts = append([](func(*Conn) error){ConnOpt.Host(host)}, opts...)
+	opts = append([]func(*Conn) error{ConnOpt.Host(host)}, opts...)
 
 	return Connect(c, opts...)
 }
@@ -86,6 +86,8 @@ func Connect(conn io.ReadWriteCloser, opts ...func(*Conn) error) (*Conn, error) 
 	if err != nil {
 		return nil, err
 	}
+
+	c.log = options.Logger
 
 	if options.ReadBufferSize > 0 {
 		reader = frame.NewReaderSize(conn, options.ReadBufferSize)
@@ -311,7 +313,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 				}
 
 			case frame.ERROR:
-				log.Println("received ERROR; Closing underlying connection")
+				c.log.Error("received ERROR; Closing underlying connection")
 				for _, ch := range channels {
 					ch <- f
 					close(ch)
@@ -329,7 +331,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 					if ch, ok := channels[id]; ok {
 						ch <- f
 					} else {
-						log.Println("ignored MESSAGE for subscription", id)
+						c.log.Infof("ignored MESSAGE for subscription: %s", id)
 					}
 				}
 			}
