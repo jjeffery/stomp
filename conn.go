@@ -496,24 +496,6 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 	return nil
 }
 
-// SendWithReplyDestination is the same as Send except it automatically adds in the 'reply-to' header
-// to the *frame.Frame pointer that is passed in. This will allow any consumer to know where to send
-// a reply to, the broker will generally translate that location to a dynamic address.
-func (c *Conn) SendWithReplyDestination(destination, replyDestination, contentType string, body []byte, opts ...func(*frame.Frame) error) error {
-	opts = addReplyHeader(replyDestination, opts...)
-	return c.Send(destination, contentType, body, opts...)
-}
-
-
-func addReplyHeader(destination string, opts ...func(*frame.Frame) error) []func(*frame.Frame) error {
-	var reply = func(f *frame.Frame) error {
-		f.Header.Add(ReplyToHeader, destination)
-		return nil
-	}
-	opts = append(opts, reply)
-	return opts
-}
-
 func readReceiptWithTimeout(request writeRequest, timeout time.Duration) error {
 	var timeoutChan <-chan time.Time
 	if timeout > 0 {
@@ -680,18 +662,6 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Fr
 	// TODO is this safe? There is no check if writeCh is actually open.
 	c.writeCh <- request
 	return sub, nil
-}
-
-// SubscribeTempQueue is the same as Subscribe, however its
-// design to use the 'reply-to/temp queues' header that is supported by a number of brokers.
-// This SUBSCRIBE frame WILL NOT be sent over the wire, however everything
-// else is will occur as before. Any reply-to responses sent over a temporary queue
-// will be sent to this subscription. There is no actual subscription made to the broker,
-// as those temporary destinations, cannot be subscribed to.
-// see https://www.rabbitmq.com/stomp.html#d.tqd
-func (c *Conn) SubscribeTempQueue(destination string, ack AckMode, opts ...func(*frame.Frame) error) (*Subscription, error) {
-	opts = addReplyHeader(destination, opts...)
-	return c.Subscribe(destination, ack, opts...)
 }
 
 // TODO check further for race conditions
