@@ -2,13 +2,12 @@ package stomp
 
 import (
 	"errors"
+	"github.com/go-stomp/stomp/v3/frame"
 	"io"
 	"net"
 	"strconv"
 	"sync"
 	"time"
-
-	"github.com/go-stomp/stomp/v3/frame"
 )
 
 // Default time span to add to read/write heart-beat timeouts
@@ -20,6 +19,9 @@ const DefaultMsgSendTimeout = 10 * time.Second
 
 // Default receipt timeout in Conn.Send function
 const DefaultRcvReceiptTimeout = 30 * time.Second
+
+// Reply-To header used for temporary queues/RPC with rabbit.
+const ReplyToHeader = "reply-to"
 
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
@@ -354,23 +356,38 @@ func processLoop(c *Conn, writer *frame.Writer) {
 				}
 			}
 
+			// default is to always send a frame.
+			var sendFrame = true
+
 			switch req.Frame.Command {
 			case frame.SUBSCRIBE:
 				id, _ := req.Frame.Header.Contains(frame.Id)
 				channels[id] = req.C
+
+				// if using a temp queue, map that destination as a known channel
+				// however, don't send the frame, it's most likely an invalid destination
+				// on the broker.
+				if replyTo, ok := req.Frame.Header.Contains(ReplyToHeader); ok {
+					channels[replyTo] = req.C
+					sendFrame = false
+				}
+
 			case frame.UNSUBSCRIBE:
 				id, _ := req.Frame.Header.Contains(frame.Id)
 				// is this trying to be too clever -- add a receipt
 				// header so that when the server responds with a
 				// RECEIPT frame, the corresponding channel will be closed
 				req.Frame.Header.Set(frame.Receipt, id)
+
 			}
 
-			// frame to send
-			err := writer.Write(req.Frame)
-			if err != nil {
-				sendError(channels, err)
-				return
+			// frame to send, if enabled
+			if sendFrame {
+				err := writer.Write(req.Frame)
+				if err != nil {
+					sendError(channels, err)
+					return
+				}
 			}
 		}
 	}
