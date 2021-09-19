@@ -2,13 +2,12 @@ package stomp
 
 import (
 	"errors"
+	"github.com/go-stomp/stomp/v3/frame"
 	"io"
 	"net"
 	"strconv"
 	"sync"
 	"time"
-
-	"github.com/go-stomp/stomp/v3/frame"
 )
 
 // Default time span to add to read/write heart-beat timeouts
@@ -20,6 +19,9 @@ const DefaultMsgSendTimeout = 10 * time.Second
 
 // Default receipt timeout in Conn.Send function
 const DefaultRcvReceiptTimeout = 30 * time.Second
+
+// Reply-To header used for temporary queues/RPC with rabbit.
+const ReplyToHeader = "reply-to"
 
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
@@ -354,23 +356,38 @@ func processLoop(c *Conn, writer *frame.Writer) {
 				}
 			}
 
+			// default is to always send a frame.
+			var sendFrame = true
+
 			switch req.Frame.Command {
 			case frame.SUBSCRIBE:
 				id, _ := req.Frame.Header.Contains(frame.Id)
 				channels[id] = req.C
+
+				// if using a temp queue, map that destination as a known channel
+				// however, don't send the frame, it's most likely an invalid destination
+				// on the broker.
+				if replyTo, ok := req.Frame.Header.Contains(ReplyToHeader); ok {
+					channels[replyTo] = req.C
+					sendFrame = false
+				}
+
 			case frame.UNSUBSCRIBE:
 				id, _ := req.Frame.Header.Contains(frame.Id)
 				// is this trying to be too clever -- add a receipt
 				// header so that when the server responds with a
 				// RECEIPT frame, the corresponding channel will be closed
 				req.Frame.Header.Set(frame.Receipt, id)
+
 			}
 
-			// frame to send
-			err := writer.Write(req.Frame)
-			if err != nil {
-				sendError(channels, err)
-				return
+			// frame to send, if enabled
+			if sendFrame {
+				err := writer.Write(req.Frame)
+				if err != nil {
+					sendError(channels, err)
+					return
+				}
 			}
 		}
 	}
@@ -477,6 +494,24 @@ func (c *Conn) Send(destination, contentType string, body []byte, opts ...func(*
 	}
 
 	return nil
+}
+
+// SendWithReplyDestination is the same as Send except it automatically adds in the 'reply-to' header
+// to the *frame.Frame pointer that is passed in. This will allow any consumer to know where to send
+// a reply to, the broker will generally translate that location to a dynamic address.
+func (c *Conn) SendWithReplyDestination(destination, replyDestination, contentType string, body []byte, opts ...func(*frame.Frame) error) error {
+	opts = addReplyHeader(replyDestination, opts...)
+	return c.Send(destination, contentType, body, opts...)
+}
+
+
+func addReplyHeader(destination string, opts ...func(*frame.Frame) error) []func(*frame.Frame) error {
+	var reply = func(f *frame.Frame) error {
+		f.Header.Add(ReplyToHeader, destination)
+		return nil
+	}
+	opts = append(opts, reply)
+	return opts
 }
 
 func readReceiptWithTimeout(request writeRequest, timeout time.Duration) error {
@@ -645,6 +680,18 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Fr
 	// TODO is this safe? There is no check if writeCh is actually open.
 	c.writeCh <- request
 	return sub, nil
+}
+
+// SubscribeTempQueue is the same as Subscribe, however its
+// design to use the 'reply-to/temp queues' header that is supported by a number of brokers.
+// This SUBSCRIBE frame WILL NOT be sent over the wire, however everything
+// else is will occur as before. Any reply-to responses sent over a temporary queue
+// will be sent to this subscription. There is no actual subscription made to the broker,
+// as those temporary destinations, cannot be subscribed to.
+// see https://www.rabbitmq.com/stomp.html#d.tqd
+func (c *Conn) SubscribeTempQueue(destination string, ack AckMode, opts ...func(*frame.Frame) error) (*Subscription, error) {
+	opts = addReplyHeader(destination, opts...)
+	return c.Subscribe(destination, ack, opts...)
 }
 
 // TODO check further for race conditions
