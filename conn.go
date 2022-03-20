@@ -750,10 +750,10 @@ func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*frame.Frame, error) 
 			return nil, missingHeader(frame.MessageId)
 		}
 	case V12:
-		if ack, ok := msg.Header.Contains(frame.Ack); ok {
+		if ack, ok := msg.Header.Contains(frame.Id); ok {
 			f.Header.Add(frame.Id, ack)
 		} else {
-			return nil, missingHeader(frame.Ack)
+			return nil, missingHeader(frame.Id)
 		}
 	}
 

@@ -415,9 +415,9 @@ func (c *Conn) allocateMessageId(f *frame.Frame, sub *Subscription) {
 		// if there is any requirement by the client to acknowledge, set
 		// the ack header as per STOMP 1.2
 		if sub == nil || sub.ack == frame.AckAuto {
-			f.Header.Del(frame.Ack)
+			f.Header.Del(frame.Id)
 		} else {
-			f.Header.Set(frame.Ack, messageId)
+			f.Header.Set(frame.Id, messageId)
 		}
 	}
 }
@@ -659,7 +659,7 @@ func (c *Conn) handleAck(f *frame.Frame) error {
 	var err error
 	var msgId string
 
-	if ack, ok := f.Header.Contains(frame.Ack); ok {
+	if ack, ok := f.Header.Contains(frame.Id); ok {
 		msgId = ack
 	} else if msgId, ok = f.Header.Contains(frame.MessageId); !ok {
 		return missingHeader(frame.MessageId)
@@ -702,7 +702,7 @@ func (c *Conn) handleNack(f *frame.Frame) error {
 	var err error
 	var msgId string
 
-	if ack, ok := f.Header.Contains(frame.Ack); ok {
+	if ack, ok := f.Header.Contains(frame.Id); ok {
 		msgId = ack
 	} else if msgId, ok = f.Header.Contains(frame.MessageId); !ok {
 		return missingHeader(frame.MessageId)
