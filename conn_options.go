@@ -304,7 +304,7 @@ func init() {
 	ConnOpt.Logger = func(log Logger) func(*Conn) error {
 		return func(c *Conn) error {
 			if log != nil {
-				c.log = log
+				c.options.Logger = log
 			}
 
 			return nil
