@@ -1,16 +1,18 @@
 package stomp
 
 import (
-	"gopkg.in/check.v1"
 	"testing"
+
+	"gopkg.in/check.v1"
 )
 
 // Runs all gocheck tests in this package.
 // See other *_test.go files for gocheck tests.
 func TestStomp(t *testing.T) {
+	check.Suite(&StompSuite{t})
 	check.TestingT(t)
 }
 
-type StompSuite struct{}
-
-var _ = check.Suite(&StompSuite{})
+type StompSuite struct {
+	t *testing.T
+}

@@ -7,6 +7,8 @@ import (
 
 	"github.com/go-stomp/stomp/v3/frame"
 	"github.com/go-stomp/stomp/v3/testutil"
+
+	"github.com/golang/mock/gomock"
 	. "gopkg.in/check.v1"
 )
 
@@ -26,6 +28,35 @@ func (rw *fakeReaderWriter) Write(f *frame.Frame) error {
 
 func (rw *fakeReaderWriter) Close() error {
 	return rw.conn.Close()
+}
+
+func (s *StompSuite) Test_conn_option_set_logger(c *C) {
+	fc1, fc2 := testutil.NewFakeConn(c)
+		go func() {
+
+		defer func() {
+			fc2.Close()
+			fc1.Close()
+		}()
+
+		reader := frame.NewReader(fc2)
+		writer := frame.NewWriter(fc2)
+		f1, err := reader.Read()
+		c.Assert(err, IsNil)
+		c.Assert(f1.Command, Equals, "CONNECT")
+		f2 := frame.New("CONNECTED")
+		err = writer.Write(f2)
+		c.Assert(err, IsNil)
+	}()
+
+	ctrl := gomock.NewController(s.t)
+	mockLogger := testutil.NewMockLogger(ctrl)
+
+	conn, err := Connect(fc1, ConnOpt.Logger(mockLogger))
+	c.Assert(err, IsNil)
+	c.Check(conn, NotNil)
+
+	c.Assert(conn.log, Equals, mockLogger)
 }
 
 func (s *StompSuite) Test_unsuccessful_connect(c *C) {
