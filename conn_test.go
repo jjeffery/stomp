@@ -354,7 +354,7 @@ func subscribeHelper(c *C, ackMode AckMode, version Version, opts ...func(*frame
 				frame.MessageId, messageId,
 				frame.Destination, destination)
 			if version == V12 {
-				f4.Header.Add(frame.Ack, messageId)
+				f4.Header.Add(frame.Id, messageId)
 			}
 			f4.Body = []byte(bodyText)
 			err = rw.Write(f4)
@@ -461,7 +461,7 @@ func subscribeTransactionHelper(c *C, ackMode AckMode, version Version, abort bo
 				frame.MessageId, messageId,
 				frame.Destination, destination)
 			if version == V12 {
-				f4.Header.Add(frame.Ack, messageId)
+				f4.Header.Add(frame.Id, messageId)
 			}
 			f4.Body = []byte(bodyText)
 			err = rw.Write(f4)
